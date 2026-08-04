@@ -33,16 +33,8 @@ export default function App() {
           setTemplates(normalized);
           setSelectedId(normalized[0].id ?? null);
         } else {
-          await fetch(`${API_BASE}/import`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(DEFAULT_TEMPLATES.map(({ name, body }) => ({ name, body }))),
-          });
-          const seededResponse = await fetch(`${API_BASE}/templates`);
-          const seededData = await seededResponse.json();
-          const seededTemplates = Array.isArray(seededData) ? seededData : [];
-          setTemplates(seededTemplates);
-          setSelectedId(seededTemplates[0]?.id ?? null);
+          setTemplates(DEFAULT_TEMPLATES.map((template, index) => ({ ...template, id: -(index + 1) })));
+          setSelectedId(-1);
         }
       } catch (err) {
         if (!mounted) return;
