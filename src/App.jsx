@@ -1,12 +1,4 @@
-import { useEffect, useState } from "react";
 
-const zones = [
-  { label: "UTC", zone: "UTC" },
-  { label: "New York (ET)", zone: "America/New_York" },
-  { label: "London", zone: "Europe/London" },
-  { label: "Dubai", zone: "Asia/Dubai" },
-  { label: "Tokyo", zone: "Asia/Tokyo" }
-];
 
 const customerTemplates = [
   { id: 1, name: "Withdrawal Delay", body: "Hi {customer_name}, your withdrawal {reference_no} is under review. ETA: {eta}." },
@@ -15,13 +7,6 @@ const customerTemplates = [
 ];
 
 export default function App() {
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-6">
       <header className="mb-6">
@@ -64,19 +49,7 @@ export default function App() {
           </div>
         </section>
 
-        <aside className="lg:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <h2 className="font-semibold mb-3">World Clock</h2>
-          <ul className="space-y-2">
-            {zones.map(({ label, zone }) => (
-              <li key={zone} className="p-2 rounded border border-slate-800 bg-slate-950">
-                <div className="text-sm text-slate-400">{label}</div>
-                <div className="font-mono text-lg">
-                  {now.toLocaleTimeString("en-US", { timeZone: zone, hour12: false })}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </aside>
+        
       </main>
     </div>
   );
