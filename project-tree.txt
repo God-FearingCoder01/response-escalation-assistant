@@ -1,0 +1,16 @@
+response-escalation-assistant/
+├─ .github/
+│  └─ workflows/
+│     └─ ci.yml
+├─ public/
+│  └─ vite.svg
+├─ src/
+│  ├─ App.jsx
+│  ├─ main.jsx
+│  └─ index.css
+├─ .gitignore
+├─ index.html
+├─ package.json
+├─ postcss.config.js
+├─ tailwind.config.js
+└─ vite.config.js
