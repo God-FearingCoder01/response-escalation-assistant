@@ -210,18 +210,18 @@ export default function App() {
             Response & Escalation Assistant
           </h1>
           <p className="text-slate-400 mt-1">
-            Backend-driven template and message builder for support and escalation workflows.
+            Create, edit, and send reusable support replies and Telegram-ready escalation notes.
           </p>
         </div>
         <div className="flex items-center gap-2 text-sm text-slate-400">
           <span className={`h-2 w-2 rounded-full ${apiStatus === "checking" ? "bg-amber-400" : apiStatus === "offline" ? "bg-red-500" : "bg-emerald-400"}`} />
-          <span>{loading ? "Loading templates" : apiStatus === "offline" ? "API offline" : "Connected to API"}</span>
+          <span>{loading ? "Checking backend" : apiStatus === "offline" ? "Backend offline" : "Backend connected"}</span>
         </div>
       </header>
 
       {error ? (
         <div className="mb-4 rounded-lg border border-amber-700 bg-amber-950/60 px-4 py-3 text-amber-100">
-          {error}
+          {error}. Make sure the FastAPI server is running and reachable at {API_BASE}.
         </div>
       ) : null}
 
@@ -235,7 +235,7 @@ export default function App() {
                 className="px-3 py-1 rounded bg-cyan-600 text-slate-900 text-sm disabled:opacity-50"
                 disabled={loading || saving}
               >
-                New
+                Add template
               </button>
             </div>
           </div>
@@ -243,7 +243,7 @@ export default function App() {
           <div className="space-y-2">
             {templates.length === 0 ? (
               <div className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm text-slate-400">
-                No templates available. Once the backend seeds or stores data, templates will appear here.
+                No templates yet. Add one to get started.
               </div>
             ) : templates.map((t) => (
               <div
@@ -285,7 +285,7 @@ export default function App() {
             <textarea
               value={editBody}
               onChange={(e) => setEditBody(e.target.value)}
-              placeholder="Template body with placeholders like {customer_name}"
+              placeholder="Write the template body and use placeholders like {customer_name}"
               className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 min-h-24"
             />
             <div className="flex gap-2 mt-2">
@@ -301,7 +301,7 @@ export default function App() {
                 className="px-3 py-2 rounded border border-slate-700 disabled:opacity-50"
                 disabled={loading || saving}
               >
-                Reset
+                Discard changes
               </button>
             </div>
             <div className="mt-3 flex gap-2">
@@ -335,7 +335,7 @@ export default function App() {
         </section>
 
         <section className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <h2 className="font-semibold mb-3">Message Builder (MVP)</h2>
+          <h2 className="font-semibold mb-3">Message Builder</h2>
           <div className="space-y-3">
             <div className="flex gap-2">
               <label className="text-sm text-slate-400">Template:</label>
@@ -347,7 +347,7 @@ export default function App() {
             </div>
 
             {placeholders.length === 0 ? (
-              <div className="text-sm text-slate-400">No placeholders detected in template.</div>
+              <div className="text-sm text-slate-400">This template has no placeholders.</div>
             ) : (
               <div className="grid grid-cols-1 gap-2">
                 {placeholders.map((ph) => (
@@ -363,7 +363,7 @@ export default function App() {
             )}
 
             <div>
-              <div className="text-sm text-slate-400 mb-1">Preview</div>
+              <div className="text-sm text-slate-400 mb-1">Message preview</div>
               <textarea readOnly value={message} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 min-h-28" />
             </div>
 
@@ -373,21 +373,21 @@ export default function App() {
                 disabled={!message || loading}
                 className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-semibold disabled:opacity-50"
               >
-                Copy
+                Copy plain text
               </button>
               <button
                 onClick={() => copyText(escapeForTelegramMarkdownV2(message))}
                 disabled={!message || loading}
                 className="px-4 py-2 rounded-lg border border-slate-700 disabled:opacity-50"
               >
-                Copy (Telegram MarkdownV2)
+                Copy Telegram format
               </button>
               <button
                 onClick={() => setValues({})}
                 className="px-4 py-2 rounded-lg border border-slate-700 disabled:opacity-50"
                 disabled={loading}
               >
-                Clear
+                Clear fields
               </button>
             </div>
           </div>
