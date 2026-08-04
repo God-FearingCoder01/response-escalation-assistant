@@ -1,11 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-const DEFAULT_TEMPLATES = [
-  { id: 1, name: "Withdrawal Delay", body: "Hi {customer_name}, your withdrawal {reference_no} is under review. ETA: {eta}." },
-  { id: 2, name: "KYC Pending", body: "Hi {customer_name}, your account verification is still pending. Please upload: {required_docs}." },
-  { id: 3, name: "Bonus Not Received", body: "Hi {customer_name}, we checked your bonus request for promo {promo_code}. Status: {status}." }
-];
-
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 export default function App() {
@@ -29,18 +23,13 @@ export default function App() {
         const data = await response.json();
         if (!mounted) return;
         const normalized = Array.isArray(data) ? data : [];
-        if (normalized.length > 0) {
-          setTemplates(normalized);
-          setSelectedId(normalized[0].id ?? null);
-        } else {
-          setTemplates(DEFAULT_TEMPLATES.map((template, index) => ({ ...template, id: -(index + 1) })));
-          setSelectedId(-1);
-        }
+        setTemplates(normalized);
+        setSelectedId(normalized[0]?.id ?? null);
       } catch (err) {
         if (!mounted) return;
         setError(err instanceof Error ? err.message : "Failed to load templates");
-        setTemplates(DEFAULT_TEMPLATES.map((template, index) => ({ ...template, id: -(index + 1) })));
-        setSelectedId(-1);
+        setTemplates([]);
+        setSelectedId(null);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -244,7 +233,11 @@ export default function App() {
           </div>
 
           <div className="space-y-2">
-            {templates.map((t) => (
+            {templates.length === 0 ? (
+              <div className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm text-slate-400">
+                No templates available. Once the backend seeds or stores data, templates will appear here.
+              </div>
+            ) : templates.map((t) => (
               <div
                 key={t.id}
                 className={`p-3 rounded-lg border border-slate-800 bg-slate-950 flex justify-between items-start ${t.id === selectedId ? "ring-2 ring-cyan-600" : ""}`}
