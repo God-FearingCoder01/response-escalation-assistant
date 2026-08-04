@@ -12,6 +12,7 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [apiStatus, setApiStatus] = useState("checking");
+  const [statusMessage, setStatusMessage] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -19,11 +20,14 @@ export default function App() {
       setLoading(true);
       setError("");
       setApiStatus("checking");
+      setStatusMessage("");
       try {
         const healthResponse = await fetch(`${API_BASE}/health`);
         if (!healthResponse.ok) throw new Error(`API health check failed (${healthResponse.status})`);
+        const healthData = await healthResponse.json();
         if (!mounted) return;
         setApiStatus("online");
+        setStatusMessage(healthData.message ?? "Backend is ready");
 
         const response = await fetch(`${API_BASE}/templates`);
         if (!response.ok) throw new Error(`Failed to load templates (${response.status})`);
@@ -36,6 +40,7 @@ export default function App() {
         if (!mounted) return;
         setError(err instanceof Error ? err.message : "Failed to load templates");
         setApiStatus("offline");
+        setStatusMessage("");
         setTemplates([]);
         setSelectedId(null);
       } finally {
@@ -99,6 +104,7 @@ export default function App() {
         });
         if (!response.ok) throw new Error(`Create failed (${response.status})`);
         const created = await response.json();
+        setStatusMessage(`Template created: ${created.name}`);
         await refreshTemplates(created.id);
       } else {
         const response = await fetch(`${API_BASE}/templates/${id}`, {
@@ -108,6 +114,7 @@ export default function App() {
         });
         if (!response.ok) throw new Error(`Update failed (${response.status})`);
         const updated = await response.json();
+        setStatusMessage(`Template updated: ${updated.name}`);
         setTemplates((s) => s.map((t) => (t.id === id ? updated : t)));
       }
     } catch (err) {
@@ -123,6 +130,8 @@ export default function App() {
     try {
       const response = await fetch(`${API_BASE}/templates/${id}`, { method: "DELETE" });
       if (!response.ok) throw new Error(`Delete failed (${response.status})`);
+      const result = await response.json();
+      setStatusMessage(result.message ?? "Template deleted");
       await refreshTemplates();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete template");
@@ -139,6 +148,7 @@ export default function App() {
       const response = await fetch(`${API_BASE}/export`);
       if (!response.ok) throw new Error(`Export failed (${response.status})`);
       const data = await response.json();
+      setStatusMessage(`Exported ${data.length} template(s)`);
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -161,8 +171,10 @@ export default function App() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(items),
         })
-          .then((r) => {
+          .then(async (r) => {
             if (!r.ok) throw new Error(`Import failed (${r.status})`);
+            const result = await r.json();
+            setStatusMessage(result.message ?? "Templates imported");
             return refreshTemplates();
           })
           .catch((err) => setError(err instanceof Error ? err.message : "Failed to import templates"));
@@ -215,9 +227,15 @@ export default function App() {
         </div>
         <div className="flex items-center gap-2 text-sm text-slate-400">
           <span className={`h-2 w-2 rounded-full ${apiStatus === "checking" ? "bg-amber-400" : apiStatus === "offline" ? "bg-red-500" : "bg-emerald-400"}`} />
-          <span>{loading ? "Checking backend" : apiStatus === "offline" ? "Backend offline" : "Backend connected"}</span>
+          <span>{loading ? "Checking backend" : apiStatus === "offline" ? "Backend offline" : statusMessage || "Backend connected"}</span>
         </div>
       </header>
+
+      {statusMessage && apiStatus !== "offline" ? (
+        <div className="mb-4 rounded-lg border border-emerald-700 bg-emerald-950/60 px-4 py-3 text-emerald-100">
+          {statusMessage}
+        </div>
+      ) : null}
 
       {error ? (
         <div className="mb-4 rounded-lg border border-amber-700 bg-amber-950/60 px-4 py-3 text-amber-100">
