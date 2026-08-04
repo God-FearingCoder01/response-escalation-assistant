@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const DEFAULT_TEMPLATES = [
   { id: 1, name: "Withdrawal Delay", body: "Hi {customer_name}, your withdrawal {reference_no} is under review. ETA: {eta}." },
@@ -6,31 +6,60 @@ const DEFAULT_TEMPLATES = [
   { id: 3, name: "Bonus Not Received", body: "Hi {customer_name}, we checked your bonus request for promo {promo_code}. Status: {status}." }
 ];
 
-const STORAGE_KEY = "rea_templates_v1";
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 export default function App() {
-  const [templates, setTemplates] = useState(DEFAULT_TEMPLATES);
-  const [selectedId, setSelectedId] = useState(templates[0]?.id ?? null);
+  const [templates, setTemplates] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
   const [editName, setEditName] = useState("");
   const [editBody, setEditBody] = useState("");
   const [values, setValues] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setTemplates(JSON.parse(raw));
-    } catch (e) {
-      /* ignore */
+    let mounted = true;
+    async function loadTemplates() {
+      setLoading(true);
+      setError("");
+      try {
+        const response = await fetch(`${API_BASE}/templates`);
+        if (!response.ok) throw new Error(`Failed to load templates (${response.status})`);
+        const data = await response.json();
+        if (!mounted) return;
+        const normalized = Array.isArray(data) ? data : [];
+        if (normalized.length > 0) {
+          setTemplates(normalized);
+          setSelectedId(normalized[0].id ?? null);
+        } else {
+          await fetch(`${API_BASE}/import`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(DEFAULT_TEMPLATES.map(({ name, body }) => ({ name, body }))),
+          });
+          const seededResponse = await fetch(`${API_BASE}/templates`);
+          const seededData = await seededResponse.json();
+          const seededTemplates = Array.isArray(seededData) ? seededData : [];
+          setTemplates(seededTemplates);
+          setSelectedId(seededTemplates[0]?.id ?? null);
+        }
+      } catch (err) {
+        if (!mounted) return;
+        setError(err instanceof Error ? err.message : "Failed to load templates");
+        setTemplates(DEFAULT_TEMPLATES.map((template, index) => ({ ...template, id: -(index + 1) })));
+        setSelectedId(-1);
+      } finally {
+        if (mounted) setLoading(false);
+      }
     }
+
+    loadTemplates();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
-    } catch (e) {
-      /* ignore */
-    }
-  }, [templates]);
 
   useEffect(() => {
     const t = templates.find((p) => p.id === selectedId) ?? templates[0];
@@ -54,22 +83,105 @@ export default function App() {
     return Array.from(set);
   }, [selectedId, templates]);
 
-  function upsertTemplate(id, name, body) {
-    if (id == null) {
-      const next = { id: Date.now(), name: name || "New Template", body: body || "" };
-      setTemplates((s) => [next, ...s]);
-      setSelectedId(next.id);
-    } else {
-      setTemplates((s) => s.map((t) => (t.id === id ? { ...t, name, body } : t)));
+  async function refreshTemplates(nextSelectedId = null) {
+    const response = await fetch(`${API_BASE}/templates`);
+    if (!response.ok) throw new Error(`Failed to refresh templates (${response.status})`);
+    const data = await response.json();
+    const normalized = Array.isArray(data) ? data : [];
+    setTemplates(normalized);
+    if (normalized.length === 0) {
+      setSelectedId(null);
+      return;
+    }
+    const activeId = nextSelectedId ?? selectedId;
+    const stillExists = normalized.some((t) => t.id === activeId);
+    setSelectedId(stillExists ? activeId : normalized[0].id);
+  }
+
+  async function upsertTemplate(id, name, body) {
+    setSaving(true);
+    setError("");
+    try {
+      if (id == null) {
+        const response = await fetch(`${API_BASE}/templates`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, body }),
+        });
+        if (!response.ok) throw new Error(`Create failed (${response.status})`);
+        const created = await response.json();
+        await refreshTemplates(created.id);
+      } else {
+        const response = await fetch(`${API_BASE}/templates/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, body }),
+        });
+        if (!response.ok) throw new Error(`Update failed (${response.status})`);
+        const updated = await response.json();
+        setTemplates((s) => s.map((t) => (t.id === id ? updated : t)));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save template");
+    } finally {
+      setSaving(false);
     }
   }
 
-  function deleteTemplate(id) {
-    setTemplates((s) => s.filter((t) => t.id !== id));
-    setSelectedId((prev) => {
-      if (prev === id) return templates[0]?.id ?? null;
-      return prev;
-    });
+  async function deleteTemplate(id) {
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch(`${API_BASE}/templates/${id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error(`Delete failed (${response.status})`);
+      await refreshTemplates();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete template");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // import/export support
+  const fileRef = useRef(null);
+
+  async function exportTemplates() {
+    try {
+      const response = await fetch(`${API_BASE}/export`);
+      if (!response.ok) throw new Error(`Export failed (${response.status})`);
+      const data = await response.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "templates.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to export templates");
+    }
+  }
+
+  async function importTemplatesFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const items = JSON.parse(reader.result);
+        fetch(`${API_BASE}/import`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(items),
+        })
+          .then((r) => {
+            if (!r.ok) throw new Error(`Import failed (${r.status})`);
+            return refreshTemplates();
+          })
+          .catch((err) => setError(err instanceof Error ? err.message : "Failed to import templates"));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to import file");
+      }
+    };
+    reader.readAsText(file);
   }
 
   function generateMessage() {
@@ -103,14 +215,26 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-6">
-      <header className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-cyan-400">
-          Response & Escalation Assistant
-        </h1>
-        <p className="text-slate-400 mt-1">
-          Starter workspace (React + Tailwind + CI)
-        </p>
+      <header className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-cyan-400">
+            Response & Escalation Assistant
+          </h1>
+          <p className="text-slate-400 mt-1">
+            Backend-driven template and message builder for support and escalation workflows.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-slate-400">
+          <span className={`h-2 w-2 rounded-full ${loading ? "bg-amber-400" : error ? "bg-red-500" : "bg-emerald-400"}`} />
+          <span>{loading ? "Loading templates" : error ? "Using fallback data" : "Connected to API"}</span>
+        </div>
       </header>
+
+      {error ? (
+        <div className="mb-4 rounded-lg border border-amber-700 bg-amber-950/60 px-4 py-3 text-amber-100">
+          {error}
+        </div>
+      ) : null}
 
       <main className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <section className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-xl p-4">
@@ -119,7 +243,8 @@ export default function App() {
             <div className="flex gap-2">
               <button
                 onClick={() => upsertTemplate(null, "New template", "Hi {customer_name}, ")}
-                className="px-3 py-1 rounded bg-cyan-600 text-slate-900 text-sm"
+                className="px-3 py-1 rounded bg-cyan-600 text-slate-900 text-sm disabled:opacity-50"
+                disabled={loading || saving}
               >
                 New
               </button>
@@ -139,13 +264,15 @@ export default function App() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => { setSelectedId(t.id); setEditName(t.name); setEditBody(t.body); }}
-                    className="px-2 py-1 rounded border border-slate-700 text-sm"
+                    className="px-2 py-1 rounded border border-slate-700 text-sm disabled:opacity-50"
+                    disabled={loading || saving}
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => deleteTemplate(t.id)}
-                    className="px-2 py-1 rounded border border-red-600 text-sm text-red-400"
+                    className="px-2 py-1 rounded border border-red-600 text-sm text-red-400 disabled:opacity-50"
+                    disabled={loading || saving}
                   >
                     Delete
                   </button>
@@ -171,16 +298,45 @@ export default function App() {
             <div className="flex gap-2 mt-2">
               <button
                 onClick={() => upsertTemplate(selectedId, editName, editBody)}
-                className="px-3 py-2 rounded bg-cyan-500 text-slate-900 font-semibold"
+                className="px-3 py-2 rounded bg-cyan-500 text-slate-900 font-semibold disabled:opacity-50"
+                disabled={loading || saving}
               >
-                Save
+                {saving ? "Saving..." : "Save"}
               </button>
               <button
                 onClick={() => { setEditName(templates[0]?.name ?? ""); setEditBody(templates[0]?.body ?? ""); setSelectedId(templates[0]?.id ?? null); }}
-                className="px-3 py-2 rounded border border-slate-700"
+                className="px-3 py-2 rounded border border-slate-700 disabled:opacity-50"
+                disabled={loading || saving}
               >
                 Reset
               </button>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={exportTemplates}
+                className="px-3 py-2 rounded border border-slate-700 disabled:opacity-50"
+                disabled={loading || saving}
+              >
+                Export JSON
+              </button>
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="px-3 py-2 rounded border border-slate-700 disabled:opacity-50"
+                disabled={loading || saving}
+              >
+                Import JSON
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="application/json"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) importTemplatesFile(file);
+                  e.target.value = "";
+                }}
+              />
             </div>
           </div>
         </section>
@@ -190,7 +346,7 @@ export default function App() {
           <div className="space-y-3">
             <div className="flex gap-2">
               <label className="text-sm text-slate-400">Template:</label>
-              <select value={selectedId ?? ""} onChange={(e) => setSelectedId(Number(e.target.value))} className="bg-slate-950 border border-slate-800 rounded-lg p-2 flex-1">
+              <select value={selectedId ?? ""} onChange={(e) => setSelectedId(Number(e.target.value))} className="bg-slate-950 border border-slate-800 rounded-lg p-2 flex-1" disabled={loading || templates.length === 0}>
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
@@ -221,21 +377,22 @@ export default function App() {
             <div className="flex gap-2">
               <button
                 onClick={() => copyText(message)}
-                disabled={!message}
+                disabled={!message || loading}
                 className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-semibold disabled:opacity-50"
               >
                 Copy
               </button>
               <button
                 onClick={() => copyText(escapeForTelegramMarkdownV2(message))}
-                disabled={!message}
+                disabled={!message || loading}
                 className="px-4 py-2 rounded-lg border border-slate-700 disabled:opacity-50"
               >
                 Copy (Telegram MarkdownV2)
               </button>
               <button
-                onClick={() => { setValues({}); navigator.clipboard?.writeText(""); }}
-                className="px-4 py-2 rounded-lg border border-slate-700"
+                onClick={() => setValues({})}
+                className="px-4 py-2 rounded-lg border border-slate-700 disabled:opacity-50"
+                disabled={loading}
               >
                 Clear
               </button>
