@@ -64,7 +64,7 @@ def on_startup():
 def health_check():
     with Session(engine) as session:
         seed_default_templates_if_empty(session)
-    return {"status": "ok"}
+    return {"status": "ok", "message": "Backend is ready"}
 
 
 @app.get("/templates", response_model=List[TemplateRead])
@@ -120,7 +120,7 @@ def delete_template(template_id: int):
             raise HTTPException(status_code=404, detail="Template not found")
         session.delete(existing)
         session.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Template deleted"}
 
 
 @app.get("/export", response_model=List[TemplateRead])
@@ -144,4 +144,4 @@ def import_templates(items: List[TemplateCreate]):
             )
             count += 1
         session.commit()
-    return {"imported": count}
+    return {"imported": count, "message": f"Imported {count} template(s)"}

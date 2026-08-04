@@ -1,11 +1,11 @@
-# Backend (FastAPI + SQLite)
+# Backend
 
-This is a minimal FastAPI backend using SQLite (via SQLModel) to store templates.
+This FastAPI service stores response templates in SQLite using SQLModel.
 
 Run locally
----------
+-----------
 
-Create a virtualenv, install deps and run uvicorn:
+Create a virtualenv, install dependencies, and start the API:
 
 ```bash
 python -m venv .venv
@@ -17,16 +17,17 @@ uvicorn backend.main:app --reload --port 8000
 API
 ---
 
-- GET `/health` — health check and ensure starter templates exist
-- GET `/templates` — list templates
-- POST `/templates` — create template (send JSON matching the Template model)
-- GET `/templates/{id}` — get single template
-- PUT `/templates/{id}` — update template
-- DELETE `/templates/{id}` — delete template
-- GET `/export` — export templates as JSON
-- POST `/import` — import templates JSON
+- GET `/health` - returns service status and seeds starter templates when needed
+- GET `/templates` - list all templates
+- POST `/templates` - create a template
+- GET `/templates/{id}` - fetch one template
+- PUT `/templates/{id}` - update a template
+- DELETE `/templates/{id}` - delete a template
+- GET `/export` - export templates as JSON
+- POST `/import` - import templates from JSON
 
 Notes
 -----
 
-This is intentionally simple and stores data in `backend_data.db` in the project root. For production, consider using a managed Postgres/MySQL database and running with a process manager or container.
+The database file is `backend_data.db` in the project root.
+For production, switch to a managed database and run the app behind a process manager or container.
