@@ -17,6 +17,7 @@ uvicorn backend.main:app --reload --port 8000
 API
 ---
 
+- GET `/health` — health check and ensure starter templates exist
 - GET `/templates` — list templates
 - POST `/templates` — create template (send JSON matching the Template model)
 - GET `/templates/{id}` — get single template

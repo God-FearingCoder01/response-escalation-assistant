@@ -11,13 +11,20 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [apiStatus, setApiStatus] = useState("checking");
 
   useEffect(() => {
     let mounted = true;
     async function loadTemplates() {
       setLoading(true);
       setError("");
+      setApiStatus("checking");
       try {
+        const healthResponse = await fetch(`${API_BASE}/health`);
+        if (!healthResponse.ok) throw new Error(`API health check failed (${healthResponse.status})`);
+        if (!mounted) return;
+        setApiStatus("online");
+
         const response = await fetch(`${API_BASE}/templates`);
         if (!response.ok) throw new Error(`Failed to load templates (${response.status})`);
         const data = await response.json();
@@ -28,6 +35,7 @@ export default function App() {
       } catch (err) {
         if (!mounted) return;
         setError(err instanceof Error ? err.message : "Failed to load templates");
+        setApiStatus("offline");
         setTemplates([]);
         setSelectedId(null);
       } finally {
@@ -206,8 +214,8 @@ export default function App() {
           </p>
         </div>
         <div className="flex items-center gap-2 text-sm text-slate-400">
-          <span className={`h-2 w-2 rounded-full ${loading ? "bg-amber-400" : error ? "bg-red-500" : "bg-emerald-400"}`} />
-          <span>{loading ? "Loading templates" : error ? "Using fallback data" : "Connected to API"}</span>
+          <span className={`h-2 w-2 rounded-full ${apiStatus === "checking" ? "bg-amber-400" : apiStatus === "offline" ? "bg-red-500" : "bg-emerald-400"}`} />
+          <span>{loading ? "Loading templates" : apiStatus === "offline" ? "API offline" : "Connected to API"}</span>
         </div>
       </header>
 

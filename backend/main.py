@@ -36,24 +36,35 @@ app.add_middleware(
 )
 
 
+def seed_default_templates_if_empty(session: Session) -> None:
+    has_templates = session.exec(select(Template.id).limit(1)).first() is not None
+    if has_templates:
+        return
+
+    for item in DEFAULT_TEMPLATES:
+        session.add(
+            Template(
+                name=item["name"],
+                body=item["body"],
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+        )
+    session.commit()
+
+
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
     with Session(engine) as session:
-        has_templates = session.exec(select(Template.id).limit(1)).first() is not None
-        if has_templates:
-            return
+        seed_default_templates_if_empty(session)
 
-        for item in DEFAULT_TEMPLATES:
-            session.add(
-                Template(
-                    name=item["name"],
-                    body=item["body"],
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow(),
-                )
-            )
-        session.commit()
+
+@app.get("/health")
+def health_check():
+    with Session(engine) as session:
+        seed_default_templates_if_empty(session)
+    return {"status": "ok"}
 
 
 @app.get("/templates", response_model=List[TemplateRead])
