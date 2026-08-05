@@ -1,0 +1,6 @@
+Agent to choose their profile 
+Agent profile to consist of {agent_name}, {agent_initials}
+
+Message to be for WhatsApp or Live Chart or Telegram
+WhatsApp to end with {agent_initials}
+Live Chat message to not have anything

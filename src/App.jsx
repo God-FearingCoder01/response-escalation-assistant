@@ -5,18 +5,23 @@ const THEME_KEY = "rea_theme_v1";
 const DEFAULT_TEMPLATES = [
   {
     id: 1,
-    name: "Withdrawal Delay",
-    body: "Hi {customer_name}, your withdrawal {reference_no} is under review. ETA: {eta}.",
+    name: "Self Exclusion",
+    body: "Account {customer_name} is requesting to be removed from self exclusion. #{agent_name} ",
   },
   {
     id: 2,
-    name: "KYC Pending",
-    body: "Hi {customer_name}, your account verification is still pending. Please upload: {required_docs}.",
+    name: "Account Verification",
+    body: "Account {account_number}  is facing error code 146, kindly assist. #{agent_name}",
   },
   {
     id: 3,
-    name: "Bonus Not Received",
-    body: "Hi {customer_name}, we checked your bonus request for promo {promo_code}. Status: {status}.",
+    name: "Permanent Deactivation",
+    body: "User {account_number} has requested for the permanent deactivation  of his account because {reason}. #{agent_name}",
+  },
+  {
+    id: 4,
+    name: "Processing Withdrawal",
+    body: "Processing withdrawal of ${amount} from account number {account_number}; on 04.08.2026 time {time}hrs #{agent_name}",
   },
 ];
 
@@ -371,13 +376,13 @@ export default function App() {
           />
           <div>
             <div className="mb-1 inline-flex rounded-full border px-3 py-1 text-xs uppercase tracking-[0.24em]" style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--badge-bg)", color: "var(--badge-text)" }}>
-              KUYANUKELELA ASIDLENI! TALKIT
+              KUYANUKELELA ASIDLENI. TAWKIT!!
             </div>
             <h1 className="text-2xl font-bold md:text-3xl" style={{ color: "var(--header-text)" }}>
               Response & Escalation Assistant
             </h1>
             <p className="mt-1 max-w-2xl" style={{ color: "var(--header-muted)" }}>
-              Create, edit, and send reusable support replies and Telegram-ready escalation notes.
+              Create, edit, and send reusable support replies and Telegram-ready escalation messages.
             </p>
           </div>
         </div>
