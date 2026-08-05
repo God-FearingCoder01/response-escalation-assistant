@@ -215,42 +215,50 @@ export default function App() {
   const message = generateMessage();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6">
-      <header className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-cyan-400">
-            Response & Escalation Assistant
-          </h1>
-          <p className="text-slate-400 mt-1">
-            Create, edit, and send reusable support replies and Telegram-ready escalation notes.
-          </p>
+    <div className="min-h-screen bg-[#081008] text-[#f4f7f4] p-6">
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(76,211,76,0.12),_transparent_40%),radial-gradient(circle_at_bottom_right,_rgba(15,155,0,0.12),_transparent_35%),linear-gradient(180deg,_#091009_0%,_#040804_100%)]" />
+      <header className="mb-6 flex flex-col gap-4 rounded-3xl border border-[#234023] bg-[#0b130b]/85 p-4 shadow-[0_0_0_1px_rgba(76,211,76,0.06),0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur md:flex-row md:items-end md:justify-between">
+        <div className="flex items-start gap-4">
+          <img
+            src="/casino-logo.DetIqsS6.svg"
+            alt="Casino logo"
+            className="h-12 w-12 rounded-xl border border-[#365336] bg-[#081008] p-1 shadow-[0_0_20px_rgba(76,211,76,0.15)]"
+          />
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-[#4cd34c]">
+              Response & Escalation Assistant
+            </h1>
+            <p className="mt-1 max-w-2xl text-[#b9c6b9]">
+              Create, edit, and send reusable support replies and Telegram-ready escalation notes.
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2 text-sm text-slate-400">
-          <span className={`h-2 w-2 rounded-full ${apiStatus === "checking" ? "bg-amber-400" : apiStatus === "offline" ? "bg-red-500" : "bg-emerald-400"}`} />
+        <div className="flex items-center gap-2 text-sm text-[#c2d0c2]">
+          <span className={`h-2 w-2 rounded-full ${apiStatus === "checking" ? "bg-[#f1c84b]" : apiStatus === "offline" ? "bg-[#b83838]" : "bg-[#4cd34c]"}`} />
           <span>{loading ? "Checking backend" : apiStatus === "offline" ? "Backend offline" : statusMessage || "Backend connected"}</span>
         </div>
       </header>
 
       {statusMessage && apiStatus !== "offline" ? (
-        <div className="mb-4 rounded-lg border border-emerald-700 bg-emerald-950/60 px-4 py-3 text-emerald-100">
+        <div className="mb-4 rounded-2xl border border-[#2b5a2b] bg-[#102110]/80 px-4 py-3 text-[#dff4df] shadow-[0_0_0_1px_rgba(76,211,76,0.06)] backdrop-blur">
           {statusMessage}
         </div>
       ) : null}
 
       {error ? (
-        <div className="mb-4 rounded-lg border border-amber-700 bg-amber-950/60 px-4 py-3 text-amber-100">
+        <div className="mb-4 rounded-2xl border border-[#8b5b19] bg-[#2a1f0e]/85 px-4 py-3 text-[#f5e3bf]">
           {error}. Make sure the FastAPI server is running and reachable at {API_BASE}.
         </div>
       ) : null}
 
       <main className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <section className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <section className="lg:col-span-4 rounded-3xl border border-[#263a26] bg-[#0b130b]/85 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold">Templates</h2>
+            <h2 className="font-semibold text-[#e9f5e9]">Templates</h2>
             <div className="flex gap-2">
               <button
                 onClick={() => upsertTemplate(null, "New template", "Hi {customer_name}, ")}
-                className="px-3 py-1 rounded bg-cyan-600 text-slate-900 text-sm disabled:opacity-50"
+                className="px-3 py-1 rounded-lg bg-[#4cd34c] text-[#071007] text-sm font-semibold shadow-[0_8px_20px_rgba(76,211,76,0.25)] disabled:opacity-50"
                 disabled={loading || saving}
               >
                 Add template
@@ -260,29 +268,29 @@ export default function App() {
 
           <div className="space-y-2">
             {templates.length === 0 ? (
-              <div className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm text-slate-400">
+              <div className="rounded-2xl border border-[#263a26] bg-[#081008] p-3 text-sm text-[#b9c6b9]">
                 No templates yet. Add one to get started.
               </div>
             ) : templates.map((t) => (
               <div
                 key={t.id}
-                className={`p-3 rounded-lg border border-slate-800 bg-slate-950 flex justify-between items-start ${t.id === selectedId ? "ring-2 ring-cyan-600" : ""}`}
+                className={`p-3 rounded-2xl border bg-[#081008] flex justify-between items-start transition ${t.id === selectedId ? "border-[#4cd34c] ring-2 ring-[#4cd34c]/30" : "border-[#263a26]"}`}
               >
                 <div onClick={() => setSelectedId(t.id)} className="cursor-pointer">
-                  <div className="font-medium">{t.name}</div>
-                  <div className="text-sm text-slate-400 mt-1 line-clamp-2">{t.body}</div>
+                  <div className="font-medium text-[#f4f7f4]">{t.name}</div>
+                  <div className="text-sm text-[#aab8aa] mt-1 line-clamp-2">{t.body}</div>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => { setSelectedId(t.id); setEditName(t.name); setEditBody(t.body); }}
-                    className="px-2 py-1 rounded border border-slate-700 text-sm disabled:opacity-50"
+                    className="px-2 py-1 rounded-lg border border-[#3b583b] text-sm text-[#dbe8db] disabled:opacity-50"
                     disabled={loading || saving}
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => deleteTemplate(t.id)}
-                    className="px-2 py-1 rounded border border-red-600 text-sm text-red-400 disabled:opacity-50"
+                    className="px-2 py-1 rounded-lg border border-[#8b5b19] text-sm text-[#f5c16c] disabled:opacity-50"
                     disabled={loading || saving}
                   >
                     Delete
@@ -293,30 +301,30 @@ export default function App() {
           </div>
 
           <div className="mt-4 pt-4 border-t border-slate-800">
-            <h3 className="font-medium mb-2">Edit / Create</h3>
+            <h3 className="font-medium mb-2 text-[#e9f5e9]">Edit / Create</h3>
             <input
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
               placeholder="Template name"
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 mb-2"
+              className="w-full rounded-xl border border-[#263a26] bg-[#081008] p-2 mb-2 text-[#f4f7f4] placeholder:text-[#6f806f]"
             />
             <textarea
               value={editBody}
               onChange={(e) => setEditBody(e.target.value)}
               placeholder="Write the template body and use placeholders like {customer_name}"
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 min-h-24"
+              className="w-full rounded-xl border border-[#263a26] bg-[#081008] p-2 min-h-24 text-[#f4f7f4] placeholder:text-[#6f806f]"
             />
             <div className="flex gap-2 mt-2">
               <button
                 onClick={() => upsertTemplate(selectedId, editName, editBody)}
-                className="px-3 py-2 rounded bg-cyan-500 text-slate-900 font-semibold disabled:opacity-50"
+                className="px-3 py-2 rounded-xl bg-[#4cd34c] text-[#071007] font-semibold shadow-[0_8px_20px_rgba(76,211,76,0.25)] disabled:opacity-50"
                 disabled={loading || saving}
               >
                 {saving ? "Saving..." : "Save"}
               </button>
               <button
                 onClick={() => { setEditName(templates[0]?.name ?? ""); setEditBody(templates[0]?.body ?? ""); setSelectedId(templates[0]?.id ?? null); }}
-                className="px-3 py-2 rounded border border-slate-700 disabled:opacity-50"
+                className="px-3 py-2 rounded-xl border border-[#3b583b] text-[#dbe8db] disabled:opacity-50"
                 disabled={loading || saving}
               >
                 Discard changes
@@ -325,14 +333,14 @@ export default function App() {
             <div className="mt-3 flex gap-2">
               <button
                 onClick={exportTemplates}
-                className="px-3 py-2 rounded border border-slate-700 disabled:opacity-50"
+                className="px-3 py-2 rounded-xl border border-[#3b583b] text-[#dbe8db] disabled:opacity-50"
                 disabled={loading || saving}
               >
                 Export JSON
               </button>
               <button
                 onClick={() => fileRef.current?.click()}
-                className="px-3 py-2 rounded border border-slate-700 disabled:opacity-50"
+                className="px-3 py-2 rounded-xl border border-[#3b583b] text-[#dbe8db] disabled:opacity-50"
                 disabled={loading || saving}
               >
                 Import JSON
@@ -352,12 +360,12 @@ export default function App() {
           </div>
         </section>
 
-        <section className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <h2 className="font-semibold mb-3">Message Builder</h2>
+        <section className="lg:col-span-5 rounded-3xl border border-[#263a26] bg-[#0b130b]/85 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur">
+          <h2 className="font-semibold mb-3 text-[#e9f5e9]">Message Builder</h2>
           <div className="space-y-3">
             <div className="flex gap-2">
-              <label className="text-sm text-slate-400">Template:</label>
-              <select value={selectedId ?? ""} onChange={(e) => setSelectedId(Number(e.target.value))} className="bg-slate-950 border border-slate-800 rounded-lg p-2 flex-1" disabled={loading || templates.length === 0}>
+              <label className="text-sm text-[#b9c6b9]">Template:</label>
+              <select value={selectedId ?? ""} onChange={(e) => setSelectedId(Number(e.target.value))} className="flex-1 rounded-xl border border-[#263a26] bg-[#081008] p-2 text-[#f4f7f4]" disabled={loading || templates.length === 0}>
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
@@ -365,7 +373,7 @@ export default function App() {
             </div>
 
             {placeholders.length === 0 ? (
-              <div className="text-sm text-slate-400">This template has no placeholders.</div>
+              <div className="text-sm text-[#b9c6b9]">This template has no placeholders.</div>
             ) : (
               <div className="grid grid-cols-1 gap-2">
                 {placeholders.map((ph) => (
@@ -374,35 +382,35 @@ export default function App() {
                     value={values[ph] ?? ""}
                     onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
                     placeholder={ph}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2"
+                    className="w-full rounded-xl border border-[#263a26] bg-[#081008] p-2 text-[#f4f7f4] placeholder:text-[#6f806f]"
                   />
                 ))}
               </div>
             )}
 
             <div>
-              <div className="text-sm text-slate-400 mb-1">Message preview</div>
-              <textarea readOnly value={message} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 min-h-28" />
+              <div className="text-sm text-[#b9c6b9] mb-1">Message preview</div>
+              <textarea readOnly value={message} className="w-full rounded-xl border border-[#263a26] bg-[#081008] p-2 min-h-28 text-[#f4f7f4]" />
             </div>
 
             <div className="flex gap-2">
               <button
                 onClick={() => copyText(message)}
                 disabled={!message || loading}
-                className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-semibold disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-[#4cd34c] text-[#071007] font-semibold shadow-[0_8px_20px_rgba(76,211,76,0.25)] disabled:opacity-50"
               >
                 Copy plain text
               </button>
               <button
                 onClick={() => copyText(escapeForTelegramMarkdownV2(message))}
                 disabled={!message || loading}
-                className="px-4 py-2 rounded-lg border border-slate-700 disabled:opacity-50"
+                className="px-4 py-2 rounded-xl border border-[#3b583b] text-[#dbe8db] disabled:opacity-50"
               >
                 Copy Telegram format
               </button>
               <button
                 onClick={() => setValues({})}
-                className="px-4 py-2 rounded-lg border border-slate-700 disabled:opacity-50"
+                className="px-4 py-2 rounded-xl border border-[#3b583b] text-[#dbe8db] disabled:opacity-50"
                 disabled={loading}
               >
                 Clear fields
