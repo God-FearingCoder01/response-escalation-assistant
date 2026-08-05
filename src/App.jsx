@@ -1,6 +1,72 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const THEME_KEY = "rea_theme_v1";
+
+const THEMES = {
+  night: {
+    label: "Night mode",
+    overlay:
+      "radial-gradient(circle at top, rgba(76,211,76,0.12), transparent 40%),radial-gradient(circle at bottom right, rgba(15,155,0,0.12), transparent 35%),linear-gradient(180deg, #091009 0%, #040804 100%)",
+    rootStyle: {
+      "--app-bg": "#081008",
+      "--app-text": "#f4f7f4",
+      "--text-muted": "#c9c9d8",
+      "--panel-bg": "rgba(11,19,11,0.85)",
+      "--panel-border": "#32324a",
+      "--panel-border-strong": "#4cd34c",
+      "--field-bg": "#10111a",
+      "--field-border": "#32324a",
+      "--field-placeholder": "#7d7d93",
+      "--neutral-bg": "#11111e",
+      "--neutral-text": "#e1e1ee",
+      "--badge-bg": "#11111e",
+      "--badge-border": "#4a4a63",
+      "--badge-text": "#c3c3d9",
+      "--status-bg": "#141422",
+      "--status-border": "#3a3a54",
+      "--error-bg": "#231f16",
+      "--error-border": "#6f5b2b",
+      "--error-text": "#f2e8cf",
+      "--panel-shadow": "0 12px 40px rgba(0,0,0,0.35)",
+      "--header-border": "#2f2f46",
+      "--header-bg": "rgba(11,19,11,0.85)",
+      "--header-text": "#f3fff3",
+      "--header-muted": "#c3d1c3",
+    },
+  },
+  day: {
+    label: "Day mode",
+    overlay:
+      "radial-gradient(circle at top, rgba(15,155,0,0.08), transparent 40%),radial-gradient(circle at bottom right, rgba(76,211,76,0.08), transparent 35%),linear-gradient(180deg, #ffffff 0%, #f2f6f2 100%)",
+    rootStyle: {
+      "--app-bg": "#ffffff",
+      "--app-text": "#132013",
+      "--text-muted": "#4d5c4d",
+      "--panel-bg": "rgba(255,255,255,0.92)",
+      "--panel-border": "#d7ded7",
+      "--panel-border-strong": "#0f9b00",
+      "--field-bg": "#ffffff",
+      "--field-border": "#d7ded7",
+      "--field-placeholder": "#7a867a",
+      "--neutral-bg": "#f3f6f3",
+      "--neutral-text": "#243024",
+      "--badge-bg": "#eef2ee",
+      "--badge-border": "#cad4ca",
+      "--badge-text": "#3b473b",
+      "--status-bg": "#edf4ed",
+      "--status-border": "#c7d6c7",
+      "--error-bg": "#fff7e7",
+      "--error-border": "#d7c084",
+      "--error-text": "#7a5f1c",
+      "--panel-shadow": "0 12px 40px rgba(0,0,0,0.10)",
+      "--header-border": "#d7ded7",
+      "--header-bg": "rgba(255,255,255,0.92)",
+      "--header-text": "#132013",
+      "--header-muted": "#4d5c4d",
+    },
+  },
+};
 
 export default function App() {
   const [templates, setTemplates] = useState([]);
@@ -13,6 +79,17 @@ export default function App() {
   const [error, setError] = useState("");
   const [apiStatus, setApiStatus] = useState("checking");
   const [statusMessage, setStatusMessage] = useState("");
+  const [themeMode, setThemeMode] = useState(() => {
+    if (typeof window === "undefined") return "night";
+    return window.localStorage.getItem(THEME_KEY) ?? "night";
+  });
+
+  const theme = THEMES[themeMode] ?? THEMES.night;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(THEME_KEY, themeMode);
+  }, [themeMode]);
 
   useEffect(() => {
     let mounted = true;
@@ -215,9 +292,9 @@ export default function App() {
   const message = generateMessage();
 
   return (
-    <div className="min-h-screen bg-[#081008] text-[#f4f7f4] p-6">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(76,211,76,0.12),_transparent_40%),radial-gradient(circle_at_bottom_right,_rgba(15,155,0,0.12),_transparent_35%),linear-gradient(180deg,_#091009_0%,_#040804_100%)]" />
-      <header className="mb-6 flex flex-col gap-4 rounded-3xl border border-[#2f2f46] bg-[#0b130b]/85 p-4 shadow-[0_0_0_1px_rgba(76,211,76,0.06),0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur md:flex-row md:items-center md:justify-between">
+    <div className="relative min-h-screen overflow-hidden p-6 text-[var(--app-text)] transition-colors duration-300" style={{ backgroundColor: "var(--app-bg)", ...theme.rootStyle }}>
+      <div className="absolute inset-0 -z-10" style={{ backgroundImage: theme.overlay }} />
+      <header className="mb-6 flex flex-col gap-4 rounded-3xl border p-4 shadow-[var(--panel-shadow)] backdrop-blur md:flex-row md:items-center md:justify-between" style={{ borderColor: "var(--header-border)", backgroundColor: "var(--header-bg)" }}>
         <div className="flex items-center gap-4">
           <img
             src="/casino-logo.DetIqsS6.svg"
@@ -225,39 +302,47 @@ export default function App() {
             className="h-12 w-auto max-w-[11rem] object-contain drop-shadow-[0_0_18px_rgba(76,211,76,0.18)] md:h-14 md:max-w-[13rem]"
           />
           <div>
-            <div className="mb-1 inline-flex rounded-full border border-[#4a4a63] bg-[#11111e] px-3 py-1 text-xs uppercase tracking-[0.24em] text-[#c3c3d9]">
-              Brand matched theme
+            <div className="mb-1 inline-flex rounded-full border px-3 py-1 text-xs uppercase tracking-[0.24em]" style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--badge-bg)", color: "var(--badge-text)" }}>
+              KUYANUKELELA ASIDLENI! TALKIT
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-[#f3fff3]">
+            <h1 className="text-2xl font-bold md:text-3xl" style={{ color: "var(--header-text)" }}>
               Response & Escalation Assistant
             </h1>
-            <p className="mt-1 max-w-2xl text-[#c3d1c3]">
+            <p className="mt-1 max-w-2xl" style={{ color: "var(--header-muted)" }}>
               Create, edit, and send reusable support replies and Telegram-ready escalation notes.
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-sm text-[#d3d3e4]">
+        <div className="flex items-center gap-2 text-sm" style={{ color: "var(--header-muted)" }}>
           <span className={`h-2 w-2 rounded-full ${apiStatus === "checking" ? "bg-[#f1c84b]" : apiStatus === "offline" ? "bg-[#b83838]" : "bg-[#4cd34c]"}`} />
           <span>{loading ? "Checking backend" : apiStatus === "offline" ? "Backend offline" : statusMessage || "Backend connected"}</span>
+          <button
+            type="button"
+            onClick={() => setThemeMode((current) => (current === "night" ? "day" : "night"))}
+            className="ml-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] transition-colors"
+            style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--neutral-bg)", color: "var(--neutral-text)" }}
+          >
+            {theme.label}
+          </button>
         </div>
       </header>
 
       {statusMessage && apiStatus !== "offline" ? (
-        <div className="mb-4 rounded-2xl border border-[#3a3a54] bg-[#141422]/80 px-4 py-3 text-[#ececf5] shadow-[0_0_0_1px_rgba(76,211,76,0.05)] backdrop-blur">
+        <div className="mb-4 rounded-2xl border px-4 py-3 shadow-[0_0_0_1px_rgba(76,211,76,0.05)] backdrop-blur" style={{ borderColor: "var(--status-border)", backgroundColor: "var(--status-bg)", color: "var(--app-text)" }}>
           {statusMessage}
         </div>
       ) : null}
 
       {error ? (
-        <div className="mb-4 rounded-2xl border border-[#6f5b2b] bg-[#231f16]/88 px-4 py-3 text-[#f2e8cf]">
+        <div className="mb-4 rounded-2xl border px-4 py-3" style={{ borderColor: "var(--error-border)", backgroundColor: "var(--error-bg)", color: "var(--error-text)" }}>
           {error}. Make sure the FastAPI server is running and reachable at {API_BASE}.
         </div>
       ) : null}
 
       <main className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <section className="lg:col-span-4 rounded-3xl border border-[#32324a] bg-[linear-gradient(180deg,rgba(17,17,30,0.92)_0%,rgba(11,19,11,0.88)_100%)] p-4 shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur">
+        <section className="lg:col-span-4 rounded-3xl border p-4 shadow-[var(--panel-shadow)] backdrop-blur" style={{ borderColor: "var(--panel-border)", background: "var(--panel-bg)" }}>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-[#f3f3fb]">Templates</h2>
+            <h2 className="font-semibold" style={{ color: "var(--app-text)" }}>Templates</h2>
             <div className="flex gap-2">
               <button
                 onClick={() => upsertTemplate(null, "New template", "Hi {customer_name}, ")}
@@ -271,29 +356,32 @@ export default function App() {
 
           <div className="space-y-2">
             {templates.length === 0 ? (
-              <div className="rounded-2xl border border-[#32324a] bg-[#10111a] p-3 text-sm text-[#c9c9d8]">
+              <div className="rounded-2xl border p-3 text-sm" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)", color: "var(--text-muted)" }}>
                 No templates yet. Add one to get started.
               </div>
             ) : templates.map((t) => (
               <div
                 key={t.id}
-                className={`p-3 rounded-2xl border bg-[#10111a] flex justify-between items-start transition ${t.id === selectedId ? "border-[#4cd34c] ring-2 ring-[#0f9b00]/30" : "border-[#32324a]"}`}
+                className={`p-3 rounded-2xl border flex justify-between items-start transition ${t.id === selectedId ? "ring-2 ring-[#0f9b00]/30" : ""}`}
+                style={{ borderColor: t.id === selectedId ? "var(--panel-border-strong)" : "var(--panel-border)", backgroundColor: "var(--field-bg)" }}
               >
                 <div onClick={() => setSelectedId(t.id)} className="cursor-pointer">
-                  <div className="font-medium text-[#f4f7f4]">{t.name}</div>
-                  <div className="text-sm text-[#aab8aa] mt-1 line-clamp-2">{t.body}</div>
+                  <div className="font-medium" style={{ color: "var(--app-text)" }}>{t.name}</div>
+                  <div className="text-sm mt-1 line-clamp-2" style={{ color: "var(--text-muted)" }}>{t.body}</div>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => { setSelectedId(t.id); setEditName(t.name); setEditBody(t.body); }}
-                    className="px-2 py-1 rounded-lg border border-[#4a4a63] text-sm text-[#e1e1ee] disabled:opacity-50"
+                    className="px-2 py-1 rounded-lg border text-sm disabled:opacity-50"
+                    style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
                     disabled={loading || saving}
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => deleteTemplate(t.id)}
-                    className="px-2 py-1 rounded-lg border border-[#6f5b2b] text-sm text-[#f2d39b] disabled:opacity-50"
+                    className="px-2 py-1 rounded-lg border text-sm disabled:opacity-50"
+                    style={{ borderColor: "var(--error-border)", color: "var(--error-text)", backgroundColor: "var(--neutral-bg)" }}
                     disabled={loading || saving}
                   >
                     Delete
@@ -303,19 +391,21 @@ export default function App() {
             ))}
           </div>
 
-          <div className="mt-4 pt-4 border-t border-[#32324a]">
-            <h3 className="font-medium mb-2 text-[#f3f3fb]">Edit / Create</h3>
+          <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--panel-border)" }}>
+            <h3 className="font-medium mb-2" style={{ color: "var(--app-text)" }}>Edit / Create</h3>
             <input
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
               placeholder="Template name"
-              className="w-full rounded-xl border border-[#32324a] bg-[#10111a] p-2 mb-2 text-[#f4f7f4] placeholder:text-[#7d7d93]"
+              className="w-full rounded-xl border p-2 mb-2 placeholder:text-[var(--field-placeholder)]"
+              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
             />
             <textarea
               value={editBody}
               onChange={(e) => setEditBody(e.target.value)}
               placeholder="Write the template body and use placeholders like {customer_name}"
-              className="w-full rounded-xl border border-[#32324a] bg-[#10111a] p-2 min-h-24 text-[#f4f7f4] placeholder:text-[#7d7d93]"
+              className="w-full rounded-xl border p-2 min-h-24 placeholder:text-[var(--field-placeholder)]"
+              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
             />
             <div className="flex gap-2 mt-2">
               <button
@@ -327,7 +417,8 @@ export default function App() {
               </button>
               <button
                 onClick={() => { setEditName(templates[0]?.name ?? ""); setEditBody(templates[0]?.body ?? ""); setSelectedId(templates[0]?.id ?? null); }}
-                className="px-3 py-2 rounded-xl border border-[#4a4a63] text-[#e1e1ee] disabled:opacity-50"
+                className="px-3 py-2 rounded-xl border disabled:opacity-50"
+                style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
                 disabled={loading || saving}
               >
                 Discard changes
@@ -336,14 +427,16 @@ export default function App() {
             <div className="mt-3 flex gap-2">
               <button
                 onClick={exportTemplates}
-                className="px-3 py-2 rounded-xl border border-[#4a4a63] text-[#e1e1ee] disabled:opacity-50"
+                className="px-3 py-2 rounded-xl border disabled:opacity-50"
+                style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
                 disabled={loading || saving}
               >
                 Export JSON
               </button>
               <button
                 onClick={() => fileRef.current?.click()}
-                className="px-3 py-2 rounded-xl border border-[#4a4a63] text-[#e1e1ee] disabled:opacity-50"
+                className="px-3 py-2 rounded-xl border disabled:opacity-50"
+                style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
                 disabled={loading || saving}
               >
                 Import JSON
@@ -363,12 +456,12 @@ export default function App() {
           </div>
         </section>
 
-        <section className="lg:col-span-5 rounded-3xl border border-[#32324a] bg-[linear-gradient(180deg,rgba(17,17,30,0.92)_0%,rgba(11,19,11,0.88)_100%)] p-4 shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur">
-          <h2 className="font-semibold mb-3 text-[#f3f3fb]">Message Builder</h2>
+        <section className="lg:col-span-5 rounded-3xl border p-4 shadow-[var(--panel-shadow)] backdrop-blur" style={{ borderColor: "var(--panel-border)", background: "var(--panel-bg)" }}>
+          <h2 className="font-semibold mb-3" style={{ color: "var(--app-text)" }}>Message Builder</h2>
           <div className="space-y-3">
             <div className="flex gap-2">
-              <label className="text-sm text-[#c9c9d8]">Template:</label>
-              <select value={selectedId ?? ""} onChange={(e) => setSelectedId(Number(e.target.value))} className="flex-1 rounded-xl border border-[#32324a] bg-[#10111a] p-2 text-[#f4f7f4]" disabled={loading || templates.length === 0}>
+              <label className="text-sm" style={{ color: "var(--text-muted)" }}>Template:</label>
+              <select value={selectedId ?? ""} onChange={(e) => setSelectedId(Number(e.target.value))} className="flex-1 rounded-xl border p-2" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }} disabled={loading || templates.length === 0}>
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
@@ -376,7 +469,7 @@ export default function App() {
             </div>
 
             {placeholders.length === 0 ? (
-              <div className="text-sm text-[#c9c9d8]">This template has no placeholders.</div>
+              <div className="text-sm" style={{ color: "var(--text-muted)" }}>This template has no placeholders.</div>
             ) : (
               <div className="grid grid-cols-1 gap-2">
                 {placeholders.map((ph) => (
@@ -385,15 +478,16 @@ export default function App() {
                     value={values[ph] ?? ""}
                     onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
                     placeholder={ph}
-                    className="w-full rounded-xl border border-[#32324a] bg-[#10111a] p-2 text-[#f4f7f4] placeholder:text-[#7d7d93]"
+                    className="w-full rounded-xl border p-2 placeholder:text-[var(--field-placeholder)]"
+                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                   />
                 ))}
               </div>
             )}
 
             <div>
-              <div className="text-sm text-[#c9c9d8] mb-1">Message preview</div>
-              <textarea readOnly value={message} className="w-full rounded-xl border border-[#32324a] bg-[#10111a] p-2 min-h-28 text-[#f4f7f4]" />
+              <div className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>Message preview</div>
+              <textarea readOnly value={message} className="w-full rounded-xl border p-2 min-h-28" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }} />
             </div>
 
             <div className="flex gap-2">
@@ -407,13 +501,15 @@ export default function App() {
               <button
                 onClick={() => copyText(escapeForTelegramMarkdownV2(message))}
                 disabled={!message || loading}
-                className="px-4 py-2 rounded-xl border border-[#4a4a63] text-[#e1e1ee] disabled:opacity-50"
+                className="px-4 py-2 rounded-xl border disabled:opacity-50"
+                style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
               >
                 Copy Telegram format
               </button>
               <button
                 onClick={() => setValues({})}
-                className="px-4 py-2 rounded-xl border border-[#4a4a63] text-[#e1e1ee] disabled:opacity-50"
+                className="px-4 py-2 rounded-xl border disabled:opacity-50"
+                style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
                 disabled={loading}
               >
                 Clear fields
