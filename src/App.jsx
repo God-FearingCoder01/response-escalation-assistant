@@ -38,32 +38,32 @@ const THEMES = {
   day: {
     label: "Day mode",
     overlay:
-      "radial-gradient(circle at top, rgba(15,155,0,0.08), transparent 40%),radial-gradient(circle at bottom right, rgba(76,211,76,0.08), transparent 35%),linear-gradient(180deg, #ffffff 0%, #f2f6f2 100%)",
+      "radial-gradient(circle at top, rgba(15,155,0,0.07), transparent 40%),radial-gradient(circle at bottom right, rgba(76,211,76,0.06), transparent 35%),linear-gradient(180deg, #f7f3ea 0%, #efeadf 100%)",
     rootStyle: {
-      "--app-bg": "#ffffff",
+      "--app-bg": "#f7f3ea",
       "--app-text": "#132013",
-      "--text-muted": "#4d5c4d",
-      "--panel-bg": "rgba(255,255,255,0.92)",
-      "--panel-border": "#d7ded7",
+      "--text-muted": "#556255",
+      "--panel-bg": "rgba(255,251,243,0.9)",
+      "--panel-border": "#d7d0c3",
       "--panel-border-strong": "#0f9b00",
-      "--field-bg": "#ffffff",
-      "--field-border": "#d7ded7",
-      "--field-placeholder": "#7a867a",
-      "--neutral-bg": "#f3f6f3",
+      "--field-bg": "#fffdf8",
+      "--field-border": "#d7d0c3",
+      "--field-placeholder": "#7c8377",
+      "--neutral-bg": "#f4efe5",
       "--neutral-text": "#243024",
-      "--badge-bg": "#eef2ee",
-      "--badge-border": "#cad4ca",
-      "--badge-text": "#3b473b",
-      "--status-bg": "#edf4ed",
-      "--status-border": "#c7d6c7",
-      "--error-bg": "#fff7e7",
-      "--error-border": "#d7c084",
-      "--error-text": "#7a5f1c",
-      "--panel-shadow": "0 12px 40px rgba(0,0,0,0.10)",
-      "--header-border": "#d7ded7",
-      "--header-bg": "rgba(255,255,255,0.92)",
+      "--badge-bg": "#f3ede1",
+      "--badge-border": "#d2cabd",
+      "--badge-text": "#3f493f",
+      "--status-bg": "#f2f0e7",
+      "--status-border": "#d2d2c5",
+      "--error-bg": "#fff5df",
+      "--error-border": "#d4be82",
+      "--error-text": "#785d18",
+      "--panel-shadow": "0 12px 40px rgba(0,0,0,0.08)",
+      "--header-border": "#d7d0c3",
+      "--header-bg": "rgba(255,251,243,0.9)",
       "--header-text": "#132013",
-      "--header-muted": "#4d5c4d",
+      "--header-muted": "#556255",
     },
   },
 };
@@ -319,10 +319,13 @@ export default function App() {
           <button
             type="button"
             onClick={() => setThemeMode((current) => (current === "night" ? "day" : "night"))}
-            className="ml-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] transition-colors"
-            style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--neutral-bg)", color: "var(--neutral-text)" }}
+            aria-label={`Switch to ${themeMode === "night" ? "day" : "night"} mode`}
+            className="ml-2 inline-flex h-9 w-[4.75rem] items-center rounded-full border px-1 transition-colors"
+            style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--neutral-bg)" }}
           >
-            {theme.label}
+            <span className={`flex h-7 w-7 items-center justify-center rounded-full text-sm shadow-sm transition-transform duration-200 ${themeMode === "night" ? "translate-x-0 bg-[#11111e] text-[#e1e1ee]" : "translate-x-12 bg-[#f4efe5] text-[#243024]"}`}>
+              {themeMode === "night" ? "☾" : "☀"}
+            </span>
           </button>
         </div>
       </header>
