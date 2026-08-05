@@ -5,25 +5,95 @@ const THEME_KEY = "rea_theme_v1";
 const AGENT_KEY = "rea_active_agent_v1";
 
 const DEFAULT_TEMPLATES = [
+  // Tech Escalation Templates
   {
     id: 1,
-    name: "Self Exclusion",
-    body: "Account {customer_name} is requesting to be removed from self exclusion.",
+    name: "Self Exclusion Request",
+    body: "Account {customer_name} is requesting to be removed from self exclusion. #{agent_name}",
+    category_type: "tech_escalation",
+    category: "Account Escalations",
+    subcategory: "Self Exclusion",
   },
   {
     id: 2,
-    name: "Account Verification",
-    body: "Account {account_number} is facing error code 146, kindly assist.",
+    name: "Account Verification Error 146",
+    body: "Account {account_number} is facing error code 146, kindly assist. #{agent_name}",
+    category_type: "tech_escalation",
+    category: "Account Escalations",
+    subcategory: "Verification",
   },
   {
     id: 3,
-    name: "Permanent Deactivation",
-    body: "User {account_number} has requested for the permanent deactivation of his account because {reason}.",
+    name: "Permanent Deactivation Request",
+    body: "User {account_number} has requested for the permanent deactivation of his account because {reason}. #{agent_name}",
+    category_type: "tech_escalation",
+    category: "Account Escalations",
+    subcategory: "Deactivation",
   },
   {
     id: 4,
-    name: "Processing Withdrawal",
-    body: "Processing withdrawal of ${amount} from account number {account_number}; on {day}.{month}.2026 time {time}hrs.",
+    name: "Withdrawal Processing Escalation",
+    body: "Processing withdrawal of ${amount} from account number {account_number}; on {day}.{month}.2026 time {time}hrs. #{agent_name}",
+    category_type: "tech_escalation",
+    category: "Payment Escalations",
+    subcategory: "Withdrawal",
+  },
+  // Customer Reply Templates
+  {
+    id: 5,
+    name: "Standard Welcome Greeting",
+    body: "Hi {customer_name}, my name is {agent_name} from Customer Support. How may I assist you today?",
+    category_type: "customer_reply",
+    category: "Agent Introductions",
+    subcategory: "Welcome",
+  },
+  {
+    id: 6,
+    name: "Follow-up Response Greeting",
+    body: "Hello {customer_name}, thank you for reaching back out. I'm {agent_name} and I'll be glad to continue assisting you.",
+    category_type: "customer_reply",
+    category: "Agent Introductions",
+    subcategory: "Follow-up",
+  },
+  {
+    id: 7,
+    name: "Deposit Under Review",
+    body: "Hi {customer_name}, your deposit of ${amount} is currently being processed by our financial partner. Reference: {reference_no}.",
+    category_type: "customer_reply",
+    category: "Transactions",
+    subcategory: "Deposit",
+  },
+  {
+    id: 8,
+    name: "Withdrawal Status Update",
+    body: "Hi {customer_name}, your withdrawal request for ${amount} (Ref: {reference_no}) has been approved and sent to your account.",
+    category_type: "customer_reply",
+    category: "Transactions",
+    subcategory: "Withdrawal",
+  },
+  {
+    id: 9,
+    name: "Password Reset Instructions",
+    body: "Hi {customer_name}, a password reset link has been dispatched to your registered email address. Please follow the instructions to secure your account.",
+    category_type: "customer_reply",
+    category: "Security",
+    subcategory: "Password Reset",
+  },
+  {
+    id: 10,
+    name: "KYC Document Request",
+    body: "Hi {customer_name}, to complete your account verification, please upload your proof of ID and address in the portal.",
+    category_type: "customer_reply",
+    category: "Security",
+    subcategory: "Verification",
+  },
+  {
+    id: 11,
+    name: "Game Cache Troubleshooting",
+    body: "Hi {customer_name}, if you're experiencing display issues with {game_title}, please clear your browser cache or switch to Google Chrome.",
+    category_type: "customer_reply",
+    category: "Games",
+    subcategory: "Troubleshooting",
   },
 ];
 
@@ -102,6 +172,14 @@ const THEMES = {
   },
 };
 
+// Auto generate initials helper from name
+function generateInitials(name) {
+  if (!name) return "";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return parts.map((p) => p[0]).join("").slice(0, 3).toUpperCase();
+}
+
 export default function App() {
   const [templates, setTemplates] = useState([]);
   const [agents, setAgents] = useState([]);
@@ -110,21 +188,35 @@ export default function App() {
     const stored = window.localStorage.getItem(AGENT_KEY);
     return stored ? JSON.parse(stored) : null;
   });
-  const [activeScreen, setActiveScreen] = useState(() => (currentAgent ? "builder" : "welcome"));
 
-  const [selectedId, setSelectedId] = useState(null);
-  const [selectedChannel, setSelectedChannel] = useState("whatsapp"); // whatsapp | livechat | telegram
+  // activeScreen: "welcome" | "tech_escalation" | "customer_reply" | "admin"
+  const [activeScreen, setActiveScreen] = useState(() => (currentAgent ? "tech_escalation" : "welcome"));
+
+  // Tech Escalation selections
+  const [selectedTechId, setSelectedTechId] = useState(null);
+
+  // Customer Reply selections & filters
+  const [selectedCustId, setSelectedCustId] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedSubcategory, setSelectedSubcategory] = useState("All");
+  const [replyChannel, setReplyChannel] = useState("whatsapp"); // "whatsapp" | "livechat"
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Edit template form states (Admin)
   const [editTplId, setEditTplId] = useState(null);
   const [editTplName, setEditTplName] = useState("");
   const [editTplBody, setEditTplBody] = useState("");
+  const [editTplType, setEditTplType] = useState("tech_escalation"); // "tech_escalation" | "customer_reply"
+  const [editTplCat, setEditTplCat] = useState("");
+  const [editTplSubcat, setEditTplSubcat] = useState("");
 
   // Edit agent form states (Admin)
   const [editAgentId, setEditAgentId] = useState(null);
+  const [editAgentFullName, setEditAgentFullName] = useState("");
   const [editAgentName, setEditAgentName] = useState("");
   const [editAgentInitials, setEditAgentInitials] = useState("");
   const [editAgentIsAdmin, setEditAgentIsAdmin] = useState(false);
+  const [userCustomizedInitials, setUserCustomizedInitials] = useState(false);
 
   const [values, setValues] = useState({});
   const [loading, setLoading] = useState(true);
@@ -156,9 +248,10 @@ export default function App() {
     }
   }, [currentAgent]);
 
+  // Non-admin redirect guard
   useEffect(() => {
     if (currentAgent && !currentAgent.is_admin && activeScreen === "admin") {
-      setActiveScreen("builder");
+      setActiveScreen("tech_escalation");
     }
   }, [currentAgent, activeScreen]);
 
@@ -193,9 +286,16 @@ export default function App() {
         }
 
         if (!mounted) return;
-        const normalizedTpls = Array.isArray(tplData) ? tplData : [];
+        const normalizedTpls = Array.isArray(tplData) && tplData.length > 0 ? tplData : DEFAULT_TEMPLATES;
         setTemplates(normalizedTpls);
-        setSelectedId(normalizedTpls[0]?.id ?? null);
+
+        // Select initial Tech Escalation template
+        const techTpls = normalizedTpls.filter((t) => t.category_type === "tech_escalation");
+        setSelectedTechId(techTpls[0]?.id ?? normalizedTpls[0]?.id ?? null);
+
+        // Select initial Customer Reply template
+        const custTpls = normalizedTpls.filter((t) => t.category_type === "customer_reply");
+        setSelectedCustId(custTpls[0]?.id ?? null);
 
         const normalizedAgents = Array.isArray(agentData) && agentData.length > 0 ? agentData : DEFAULT_AGENTS;
         setAgents(normalizedAgents);
@@ -210,7 +310,10 @@ export default function App() {
         setApiStatus("offline");
         setStatusMessage("Backend offline. Using built-in templates & agents.");
         setTemplates(DEFAULT_TEMPLATES);
-        setSelectedId(DEFAULT_TEMPLATES[0]?.id ?? null);
+        const techTpls = DEFAULT_TEMPLATES.filter((t) => t.category_type === "tech_escalation");
+        setSelectedTechId(techTpls[0]?.id ?? null);
+        const custTpls = DEFAULT_TEMPLATES.filter((t) => t.category_type === "customer_reply");
+        setSelectedCustId(custTpls[0]?.id ?? null);
         setAgents(DEFAULT_AGENTS);
       } finally {
         if (mounted) setLoading(false);
@@ -226,7 +329,7 @@ export default function App() {
   // Update selected agent profile & navigate
   function handleSelectAgent(agent) {
     setCurrentAgent(agent);
-    setActiveScreen("builder");
+    setActiveScreen("tech_escalation");
   }
 
   function handleLogout() {
@@ -234,19 +337,32 @@ export default function App() {
     setActiveScreen("welcome");
   }
 
+  // Auto-generate initials on name change if user hasn't typed custom initials
+  function handleAgentFullNameChange(val) {
+    setEditAgentFullName(val);
+    if (!editAgentName) {
+      setEditAgentName(val.split(" ")[0] || val);
+    }
+    if (!userCustomizedInitials) {
+      setEditAgentInitials(generateInitials(val));
+    }
+  }
+
+  function handleAgentNameChange(val) {
+    setEditAgentName(val);
+    if (!userCustomizedInitials && !editAgentFullName) {
+      setEditAgentInitials(generateInitials(val));
+    }
+  }
+
   // Refresh functions
-  async function refreshTemplates(nextSelectedId = null) {
+  async function refreshTemplates() {
     if (apiStatus === "offline") return;
     const response = await fetch(`${API_BASE}/templates`);
     if (!response.ok) return;
     const data = await response.json();
     const normalized = Array.isArray(data) ? data : [];
     setTemplates(normalized);
-    if (normalized.length > 0) {
-      const activeId = nextSelectedId ?? selectedId;
-      const exists = normalized.some((t) => t.id === activeId);
-      setSelectedId(exists ? activeId : normalized[0].id);
-    }
   }
 
   async function refreshAgents() {
@@ -258,22 +374,27 @@ export default function App() {
   }
 
   // Template CRUD
-  async function upsertTemplate(id, name, body) {
+  async function upsertTemplate(id, name, body, category_type, category, subcategory) {
     setSaving(true);
     setError("");
     try {
+      const payload = {
+        name,
+        body,
+        category_type,
+        category: category || null,
+        subcategory: subcategory || null,
+      };
+
       if (apiStatus === "offline") {
         if (id == null) {
-          const next = { id: Date.now(), name, body };
+          const next = { id: Date.now(), ...payload };
           setTemplates((curr) => [next, ...curr]);
-          setSelectedId(next.id);
         } else {
-          setTemplates((curr) => curr.map((t) => (t.id === id ? { ...t, name, body } : t)));
+          setTemplates((curr) => curr.map((t) => (t.id === id ? { ...t, ...payload } : t)));
         }
         setStatusMessage("Template saved locally");
-        setEditTplId(null);
-        setEditTplName("");
-        setEditTplBody("");
+        resetTemplateForm();
         return;
       }
 
@@ -281,31 +402,38 @@ export default function App() {
         const response = await fetch(`${API_BASE}/templates`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, body }),
+          body: JSON.stringify(payload),
         });
         if (!response.ok) throw new Error(`Create template failed (${response.status})`);
         const created = await response.json();
         setStatusMessage(`Template created: ${created.name}`);
-        await refreshTemplates(created.id);
+        await refreshTemplates();
       } else {
         const response = await fetch(`${API_BASE}/templates/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, body }),
+          body: JSON.stringify(payload),
         });
         if (!response.ok) throw new Error(`Update template failed (${response.status})`);
         const updated = await response.json();
         setStatusMessage(`Template updated: ${updated.name}`);
         setTemplates((s) => s.map((t) => (t.id === id ? updated : t)));
       }
-      setEditTplId(null);
-      setEditTplName("");
-      setEditTplBody("");
+      resetTemplateForm();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save template");
     } finally {
       setSaving(false);
     }
+  }
+
+  function resetTemplateForm() {
+    setEditTplId(null);
+    setEditTplName("");
+    setEditTplBody("");
+    setEditTplType("tech_escalation");
+    setEditTplCat("");
+    setEditTplSubcat("");
   }
 
   async function deleteTemplate(id) {
@@ -329,22 +457,26 @@ export default function App() {
   }
 
   // Agent CRUD
-  async function upsertAgent(id, agent_name, agent_initials, is_admin) {
+  async function upsertAgent(id, agent, agent_name, agent_initials, is_admin) {
     setSaving(true);
     setError("");
     try {
+      const payload = {
+        agent: agent || agent_name,
+        agent_name,
+        agent_initials: agent_initials.toUpperCase(),
+        is_admin,
+      };
+
       if (apiStatus === "offline") {
         if (id == null) {
-          const next = { id: Date.now(), agent_name, agent_initials, is_admin };
+          const next = { id: Date.now(), ...payload };
           setAgents((curr) => [...curr, next]);
         } else {
-          setAgents((curr) => curr.map((a) => (a.id === id ? { ...a, agent_name, agent_initials, is_admin } : a)));
+          setAgents((curr) => curr.map((a) => (a.id === id ? { ...a, ...payload } : a)));
         }
         setStatusMessage("Agent saved locally");
-        setEditAgentId(null);
-        setEditAgentName("");
-        setEditAgentInitials("");
-        setEditAgentIsAdmin(false);
+        resetAgentForm();
         return;
       }
 
@@ -352,7 +484,7 @@ export default function App() {
         const response = await fetch(`${API_BASE}/agents`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ agent_name, agent_initials, is_admin }),
+          body: JSON.stringify(payload),
         });
         if (!response.ok) throw new Error(`Create agent failed (${response.status})`);
         const created = await response.json();
@@ -362,22 +494,28 @@ export default function App() {
         const response = await fetch(`${API_BASE}/agents/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ agent_name, agent_initials, is_admin }),
+          body: JSON.stringify(payload),
         });
         if (!response.ok) throw new Error(`Update agent failed (${response.status})`);
         const updated = await response.json();
         setStatusMessage(`Agent updated: ${updated.agent_name}`);
         setAgents((s) => s.map((a) => (a.id === id ? updated : a)));
       }
-      setEditAgentId(null);
-      setEditAgentName("");
-      setEditAgentInitials("");
-      setEditAgentIsAdmin(false);
+      resetAgentForm();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save agent");
     } finally {
       setSaving(false);
     }
+  }
+
+  function resetAgentForm() {
+    setEditAgentId(null);
+    setEditAgentFullName("");
+    setEditAgentName("");
+    setEditAgentInitials("");
+    setEditAgentIsAdmin(false);
+    setUserCustomizedInitials(false);
   }
 
   async function deleteAgent(id) {
@@ -445,29 +583,81 @@ export default function App() {
     reader.readAsText(file);
   }
 
-  // Message builder calculations
+  // Categorized template lists
+  const techTemplates = useMemo(
+    () => templates.filter((t) => t.category_type === "tech_escalation"),
+    [templates]
+  );
+
+  const customerTemplates = useMemo(
+    () => templates.filter((t) => t.category_type === "customer_reply"),
+    [templates]
+  );
+
+  // Available categories & subcategories for Customer Reply screen
+  const customerCategories = useMemo(() => {
+    const cats = new Set();
+    customerTemplates.forEach((t) => {
+      if (t.category) cats.add(t.category);
+    });
+    return ["All", ...Array.from(cats)];
+  }, [customerTemplates]);
+
+  const customerSubcategories = useMemo(() => {
+    const subcats = new Set();
+    customerTemplates.forEach((t) => {
+      if (selectedCategory === "All" || t.category === selectedCategory) {
+        if (t.subcategory) subcats.add(t.subcategory);
+      }
+    });
+    return ["All", ...Array.from(subcats)];
+  }, [customerTemplates, selectedCategory]);
+
+  // Filtered customer templates
+  const filteredCustomerTemplates = useMemo(() => {
+    return customerTemplates.filter((t) => {
+      const matchCat = selectedCategory === "All" || t.category === selectedCategory;
+      const matchSub = selectedSubcategory === "All" || t.subcategory === selectedSubcategory;
+      const matchSearch =
+        !searchQuery ||
+        t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.body.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchCat && matchSub && matchSearch;
+    });
+  }, [customerTemplates, selectedCategory, selectedSubcategory, searchQuery]);
+
+  // Selected template object
+  const activeTemplate = useMemo(() => {
+    if (activeScreen === "tech_escalation") {
+      return techTemplates.find((t) => t.id === selectedTechId) ?? techTemplates[0];
+    }
+    if (activeScreen === "customer_reply") {
+      return templates.find((t) => t.id === selectedCustId) ?? filteredCustomerTemplates[0] ?? customerTemplates[0];
+    }
+    return null;
+  }, [activeScreen, selectedTechId, selectedCustId, techTemplates, templates, filteredCustomerTemplates, customerTemplates]);
+
+  // Placeholders calculation
   const placeholders = useMemo(() => {
-    const t = templates.find((p) => p.id === selectedId);
-    if (!t) return [];
+    if (!activeTemplate) return [];
     const set = new Set();
     const re = /\{([^}]+)\}/g;
     let m;
-    while ((m = re.exec(t.body))) set.add(m[1]);
+    while ((m = re.exec(activeTemplate.body))) set.add(m[1]);
     return Array.from(set);
-  }, [selectedId, templates]);
+  }, [activeTemplate]);
 
+  // Message generation logic
   function generateMessage() {
-    const t = templates.find((p) => p.id === selectedId);
-    if (!t) return "";
-    let out = t.body;
+    if (!activeTemplate) return "";
+    let out = activeTemplate.body;
 
-    // Auto replacement map
     const autoMap = {
       agent_name: currentAgent?.agent_name ?? "",
+      agent: currentAgent?.agent ?? currentAgent?.agent_name ?? "",
       agent_initials: currentAgent?.agent_initials ?? "",
     };
 
-    // Replace placeholders
     const allKeys = new Set([...Object.keys(autoMap), ...Object.keys(values)]);
     for (const key of allKeys) {
       const val = values[key] ?? autoMap[key] ?? "";
@@ -475,11 +665,19 @@ export default function App() {
       out = out.replace(re, val);
     }
 
-    // Channel specific rules from .ideas
-    if (selectedChannel === "whatsapp") {
-      const initials = currentAgent?.agent_initials ? ` - ${currentAgent.agent_initials}` : "";
-      if (!out.endsWith(initials) && initials) {
-        out = out.trim() + `${initials}`;
+    // Tech Escalation rule: Always ends with #{agent_name}
+    if (activeScreen === "tech_escalation") {
+      const sig = ` #${currentAgent?.agent_name ?? ""}`;
+      if (currentAgent?.agent_name && !out.endsWith(sig) && !out.includes(`#${currentAgent.agent_name}`)) {
+        out = out.trim() + sig;
+      }
+    }
+
+    // Customer Reply WhatsApp rule: Appends ^{agent_initials}
+    if (activeScreen === "customer_reply" && replyChannel === "whatsapp") {
+      const initialsSig = ` ^${currentAgent?.agent_initials ?? ""}`;
+      if (currentAgent?.agent_initials && !out.endsWith(initialsSig)) {
+        out = out.trim() + initialsSig;
       }
     }
 
@@ -515,8 +713,9 @@ export default function App() {
         <aside
           onMouseEnter={() => setIsSidebarHovered(true)}
           onMouseLeave={() => setIsSidebarHovered(false)}
-          className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col justify-between border-r p-3 shadow-2xl backdrop-blur transition-all duration-300 ease-in-out ${isSidebarHovered ? "w-64" : "w-16"
-            }`}
+          className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col justify-between border-r p-3 shadow-2xl backdrop-blur transition-all duration-300 ease-in-out ${
+            isSidebarHovered ? "w-64" : "w-16"
+          }`}
           style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--sidebar-bg)" }}
         >
           <div className="space-y-6">
@@ -533,26 +732,43 @@ export default function App() {
             {/* Nav links */}
             <nav className="space-y-2">
               <button
-                onClick={() => setActiveScreen("builder")}
-                className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${activeScreen === "builder"
+                onClick={() => setActiveScreen("tech_escalation")}
+                className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${
+                  activeScreen === "tech_escalation"
                     ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
                     : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
-                  }`}
-                title="Message Builder"
+                }`}
+                title="Tech Escalation"
+              >
+                <span className="text-xl shrink-0">⚡</span>
+                <span className={`whitespace-nowrap transition-opacity duration-200 ${isSidebarHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+                  Tech Escalation
+                </span>
+              </button>
+
+              <button
+                onClick={() => setActiveScreen("customer_reply")}
+                className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${
+                  activeScreen === "customer_reply"
+                    ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
+                    : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+                }`}
+                title="Customer Reply"
               >
                 <span className="text-xl shrink-0">💬</span>
                 <span className={`whitespace-nowrap transition-opacity duration-200 ${isSidebarHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-                  Message Builder
+                  Customer Reply
                 </span>
               </button>
 
               {currentAgent?.is_admin ? (
                 <button
                   onClick={() => setActiveScreen("admin")}
-                  className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${activeScreen === "admin"
+                  className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${
+                    activeScreen === "admin"
                       ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
                       : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
-                    }`}
+                  }`}
                   title="System Admin"
                 >
                   <span className="text-xl shrink-0">🛠️</span>
@@ -606,7 +822,13 @@ export default function App() {
                 RESPONSE & ESCALATION ASSISTANT
               </div>
               <h1 className="text-2xl font-bold md:text-3xl" style={{ color: "var(--header-text)" }}>
-                {activeScreen === "welcome" ? "Welcome Portal" : activeScreen === "admin" ? "System Admin Dashboard" : "Message Builder"}
+                {activeScreen === "welcome"
+                  ? "Welcome Portal"
+                  : activeScreen === "tech_escalation"
+                  ? "Tech Escalation Builder"
+                  : activeScreen === "customer_reply"
+                  ? "Customer Reply Center"
+                  : "System Admin Dashboard"}
               </h1>
             </div>
           </div>
@@ -681,6 +903,9 @@ export default function App() {
                     <h3 className="text-xl font-bold mb-1" style={{ color: "var(--app-text)" }}>
                       {agent.agent_name}
                     </h3>
+                    {agent.agent && agent.agent !== agent.agent_name ? (
+                      <div className="text-xs mb-1 text-[var(--text-muted)] font-medium">{agent.agent}</div>
+                    ) : null}
                     <p className="text-xs mb-6" style={{ color: "var(--text-muted)" }}>
                       Initials Code: <code className="text-[#4cd34c] font-semibold">{agent.agent_initials}</code>
                     </p>
@@ -698,74 +923,37 @@ export default function App() {
           </section>
         ) : null}
 
-        {/* SCREEN 2: MESSAGE BUILDER SCREEN */}
-        {currentAgent && activeScreen === "builder" ? (
+        {/* SCREEN 2: TECH ESCALATION SCREEN (Telegram Target Only) */}
+        {currentAgent && activeScreen === "tech_escalation" ? (
           <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto">
             {/* Left Panel: Template & Inputs */}
             <div className="lg:col-span-7 rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-5" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold" style={{ color: "var(--app-text)" }}>
-                  Build Escalation Response
-                </h2>
-                <div className="text-xs rounded-full border px-3 py-1" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
-                  Agent: <strong className="text-[#4cd34c]">{currentAgent.agent_name} ({currentAgent.agent_initials})</strong>
+                <div>
+                  <h2 className="text-xl font-bold" style={{ color: "var(--app-text)" }}>
+                    ⚡ Tech Escalation Builder
+                  </h2>
+                  <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                    Escalation requests targeted exclusively for Telegram resolution.
+                  </p>
                 </div>
-              </div>
-
-              {/* Channel Selector */}
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>
-                  Select Output Target Channel:
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedChannel("whatsapp")}
-                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${selectedChannel === "whatsapp"
-                        ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
-                        : "hover:bg-[var(--neutral-bg)]"
-                      }`}
-                    style={{ borderColor: selectedChannel === "whatsapp" ? "#4cd34c" : "var(--field-border)" }}
-                  >
-                    <span>💬 WhatsApp</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedChannel("livechat")}
-                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${selectedChannel === "livechat"
-                        ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
-                        : "hover:bg-[var(--neutral-bg)]"
-                      }`}
-                    style={{ borderColor: selectedChannel === "livechat" ? "#4cd34c" : "var(--field-border)" }}
-                  >
-                    <span>🎧 Live Chat</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedChannel("telegram")}
-                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${selectedChannel === "telegram"
-                        ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
-                        : "hover:bg-[var(--neutral-bg)]"
-                      }`}
-                    style={{ borderColor: selectedChannel === "telegram" ? "#4cd34c" : "var(--field-border)" }}
-                  >
-                    <span>✈️ Telegram</span>
-                  </button>
-                </div>
+                <span className="text-xs uppercase font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-3 py-1 rounded-full">
+                  ✈️ Telegram Exclusive
+                </span>
               </div>
 
               {/* Template Picker */}
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>
-                  Select Response Template:
+                  Select Escalation Template:
                 </label>
                 <select
-                  value={selectedId ?? ""}
-                  onChange={(e) => setSelectedId(Number(e.target.value))}
+                  value={selectedTechId ?? ""}
+                  onChange={(e) => setSelectedTechId(Number(e.target.value))}
                   className="w-full rounded-xl border p-3 font-medium text-sm"
                   style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                 >
-                  {templates.map((t) => (
+                  {techTemplates.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
                     </option>
@@ -773,10 +961,10 @@ export default function App() {
                 </select>
               </div>
 
-              {/* Dynamic Placeholders */}
+              {/* Dynamic Parameters */}
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
-                  Message Parameters:
+                  Escalation Parameters:
                 </h3>
 
                 {placeholders.length === 0 ? (
@@ -786,7 +974,7 @@ export default function App() {
                 ) : (
                   <div className="space-y-3">
                     {placeholders.map((ph) => {
-                      const isAgentField = ph === "agent_name" || ph === "agent_initials";
+                      const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
                       return (
                         <div key={ph}>
                           <div className="flex justify-between items-center mb-1">
@@ -798,7 +986,7 @@ export default function App() {
                             ) : null}
                           </div>
                           <input
-                            value={values[ph] ?? (isAgentField ? (ph === "agent_name" ? currentAgent.agent_name : currentAgent.agent_initials) : "")}
+                            value={values[ph] ?? (isAgentField ? (ph === "agent_initials" ? currentAgent.agent_initials : currentAgent.agent_name) : "")}
                             onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
                             placeholder={`Enter ${ph.replace("_", " ")}`}
                             className="w-full rounded-xl border p-2.5 text-sm placeholder:text-[var(--field-placeholder)]"
@@ -817,41 +1005,41 @@ export default function App() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold" style={{ color: "var(--app-text)" }}>
-                    Live Preview
+                    Telegram Escalation Preview
                   </h2>
-                  <span className="text-xs uppercase font-semibold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2.5 py-0.5 rounded-full">
-                    {selectedChannel} Target
-                  </span>
                 </div>
 
                 <div className="rounded-2xl border p-4 min-h-[12rem] whitespace-pre-wrap font-mono text-sm leading-relaxed" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}>
-                  {generatedMsg || <span style={{ color: "var(--field-placeholder)" }}>Select a template to preview message...</span>}
+                  {generatedMsg || <span style={{ color: "var(--field-placeholder)" }}>Select an escalation template...</span>}
                 </div>
 
-                {selectedChannel === "whatsapp" ? (
-                  <p className="text-xs italic" style={{ color: "var(--text-muted)" }}>
-                    💡 WhatsApp channel format automatically appends agent initials signature <code className="text-[#4cd34c]">{currentAgent.agent_initials}</code>.
-                  </p>
-                ) : selectedChannel === "telegram" ? (
-                  <p className="text-xs italic" style={{ color: "var(--text-muted)" }}>
-                    💡 Telegram channel format applies MarkdownV2 special character escaping.
-                  </p>
-                ) : null}
+                <p className="text-xs italic" style={{ color: "var(--text-muted)" }}>
+                  💡 Tech Escalation messages automatically end with signature <code className="text-[#4cd34c]">#{currentAgent.agent_name}</code>.
+                </p>
               </div>
 
               <div className="space-y-2 mt-6">
                 <button
                   type="button"
-                  onClick={() => copyText(selectedChannel === "telegram" ? escapeForTelegramMarkdownV2(generatedMsg) : generatedMsg)}
+                  onClick={() => copyText(escapeForTelegramMarkdownV2(generatedMsg))}
                   disabled={!generatedMsg}
                   className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3 font-semibold text-[#071007] shadow-lg disabled:opacity-50 transition"
                 >
-                  Copy Formatted Message
+                  Copy Telegram Formatted Escalation
+                </button>
+                <button
+                  type="button"
+                  onClick={() => copyText(generatedMsg)}
+                  disabled={!generatedMsg}
+                  className="w-full rounded-xl border py-2 text-sm font-medium transition"
+                  style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
+                >
+                  Copy Plain Text Escalation
                 </button>
                 <button
                   type="button"
                   onClick={() => setValues({})}
-                  className="w-full rounded-xl border py-2.5 text-sm font-medium transition"
+                  className="w-full rounded-xl border py-2 text-sm font-medium transition"
                   style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
                 >
                   Clear Parameter Inputs
@@ -861,7 +1049,241 @@ export default function App() {
           </section>
         ) : null}
 
-        {/* SCREEN 3: SYSTEM ADMIN SCREEN */}
+        {/* SCREEN 3: CUSTOMER REPLY SCREEN (WhatsApp & Live Chat with Categorized Browser) */}
+        {currentAgent && activeScreen === "customer_reply" ? (
+          <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto">
+            {/* Left Panel: Hierarchical Category Browser & Inputs */}
+            <div className="lg:col-span-7 rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-5" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+              <div>
+                <h2 className="text-xl font-bold mb-1" style={{ color: "var(--app-text)" }}>
+                  💬 Customer Reply Center
+                </h2>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Browse categorized response templates for WhatsApp and Live Chat customer replies.
+                </p>
+              </div>
+
+              {/* Target Channel Selector */}
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>
+                  Select Response Channel:
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setReplyChannel("whatsapp")}
+                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
+                      replyChannel === "whatsapp"
+                        ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
+                        : "hover:bg-[var(--neutral-bg)]"
+                    }`}
+                    style={{ borderColor: replyChannel === "whatsapp" ? "#4cd34c" : "var(--field-border)" }}
+                  >
+                    <span>💬 WhatsApp (Appends ^{currentAgent.agent_initials})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReplyChannel("livechat")}
+                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
+                      replyChannel === "livechat"
+                        ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
+                        : "hover:bg-[var(--neutral-bg)]"
+                    }`}
+                    style={{ borderColor: replyChannel === "livechat" ? "#4cd34c" : "var(--field-border)" }}
+                  >
+                    <span>🎧 Live Chat (Clean Text)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* SEARCH & CATEGORY BROWSER */}
+              <div className="space-y-3 pt-2 border-t" style={{ borderColor: "var(--field-border)" }}>
+                {/* Search Bar */}
+                <div className="relative">
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="🔍 Search customer reply templates..."
+                    className="w-full rounded-xl border p-2.5 text-sm pl-9 placeholder:text-[var(--field-placeholder)]"
+                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                  />
+                </div>
+
+                {/* Level 1: Category Pills */}
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "var(--text-muted)" }}>
+                    Primary Category:
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {customerCategories.map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCategory(cat);
+                          setSelectedSubcategory("All");
+                        }}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                          selectedCategory === cat
+                            ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] border-[#4cd34c] shadow-sm"
+                            : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+                        }`}
+                        style={{ borderColor: selectedCategory === cat ? "#4cd34c" : "var(--badge-border)" }}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Level 2: Subcategory Chips */}
+                {customerSubcategories.length > 1 ? (
+                  <div>
+                    <label className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "var(--text-muted)" }}>
+                      Subcategory:
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {customerSubcategories.map((subcat) => (
+                        <button
+                          key={subcat}
+                          type="button"
+                          onClick={() => setSelectedSubcategory(subcat)}
+                          className={`rounded-xl border px-2.5 py-0.5 text-[11px] transition ${
+                            selectedSubcategory === subcat
+                              ? "border-[#4cd34c] bg-[#4cd34c]/20 text-[#4cd34c] font-bold"
+                              : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
+                          }`}
+                          style={{ borderColor: selectedSubcategory === subcat ? "#4cd34c" : "var(--field-border)" }}
+                        >
+                          {subcat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Categorized Template List Cards */}
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "var(--text-muted)" }}>
+                    Select Response Template ({filteredCustomerTemplates.length}):
+                  </label>
+                  <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                    {filteredCustomerTemplates.length === 0 ? (
+                      <div className="text-xs italic p-3 rounded-xl border" style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}>
+                        No templates found matching your category filter.
+                      </div>
+                    ) : (
+                      filteredCustomerTemplates.map((t) => (
+                        <div
+                          key={t.id}
+                          onClick={() => setSelectedCustId(t.id)}
+                          className={`p-3 rounded-2xl border cursor-pointer transition flex items-center justify-between ${
+                            t.id === (activeTemplate?.id)
+                              ? "border-[#4cd34c] ring-1 ring-[#4cd34c]/30 bg-[#4cd34c]/5"
+                              : "hover:border-[#4cd34c]/50"
+                          }`}
+                          style={{ borderColor: t.id === (activeTemplate?.id) ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
+                        >
+                          <div>
+                            <div className="font-semibold text-sm">{t.name}</div>
+                            <div className="text-xs truncate max-w-md mt-0.5" style={{ color: "var(--text-muted)" }}>
+                              {t.body}
+                            </div>
+                          </div>
+                          <span className="text-[10px] rounded-full border px-2 py-0.5 shrink-0 ml-2" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                            {t.category ?? "General"}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Dynamic Parameter Inputs */}
+              {placeholders.length > 0 ? (
+                <div className="pt-2 border-t" style={{ borderColor: "var(--field-border)" }}>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
+                    Customer Response Parameters:
+                  </h3>
+                  <div className="space-y-3">
+                    {placeholders.map((ph) => {
+                      const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
+                      return (
+                        <div key={ph}>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs capitalize" style={{ color: "var(--text-muted)" }}>
+                              {ph.replace("_", " ")}:
+                            </span>
+                            {isAgentField ? (
+                              <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from profile</span>
+                            ) : null}
+                          </div>
+                          <input
+                            value={values[ph] ?? (isAgentField ? (ph === "agent_initials" ? currentAgent.agent_initials : currentAgent.agent_name) : "")}
+                            onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                            placeholder={`Enter ${ph.replace("_", " ")}`}
+                            className="w-full rounded-xl border p-2.5 text-sm placeholder:text-[var(--field-placeholder)]"
+                            style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Right Panel: Live Message Preview */}
+            <div className="lg:col-span-5 rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur flex flex-col justify-between" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold" style={{ color: "var(--app-text)" }}>
+                    Customer Reply Preview
+                  </h2>
+                  <span className="text-xs uppercase font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-3 py-1 rounded-full">
+                    {replyChannel === "whatsapp" ? "💬 WhatsApp" : "🎧 Live Chat"}
+                  </span>
+                </div>
+
+                <div className="rounded-2xl border p-4 min-h-[12rem] whitespace-pre-wrap font-mono text-sm leading-relaxed" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}>
+                  {generatedMsg || <span style={{ color: "var(--field-placeholder)" }}>Select a response template...</span>}
+                </div>
+
+                {replyChannel === "whatsapp" ? (
+                  <p className="text-xs italic" style={{ color: "var(--text-muted)" }}>
+                    💡 WhatsApp channel format automatically appends agent initials signature <code className="text-[#4cd34c]">^{currentAgent.agent_initials}</code>.
+                  </p>
+                ) : (
+                  <p className="text-xs italic" style={{ color: "var(--text-muted)" }}>
+                    💡 Live Chat format presents clean customer-facing response text.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2 mt-6">
+                <button
+                  type="button"
+                  onClick={() => copyText(generatedMsg)}
+                  disabled={!generatedMsg}
+                  className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3 font-semibold text-[#071007] shadow-lg disabled:opacity-50 transition"
+                >
+                  Copy Response Message
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setValues({})}
+                  className="w-full rounded-xl border py-2 text-sm font-medium transition"
+                  style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
+                >
+                  Clear Parameter Inputs
+                </button>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {/* SCREEN 4: SYSTEM ADMIN SCREEN */}
         {currentAgent && activeScreen === "admin" ? (
           <section className="max-w-7xl mx-auto space-y-8">
             <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
@@ -870,7 +1292,7 @@ export default function App() {
                   System Admin Control Panel
                 </h2>
                 <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                  Manage global response templates and agent credentials.
+                  Manage global response templates, categories, and agent credentials.
                 </p>
               </div>
               <span className="rounded-full border px-3 py-1 text-xs uppercase font-bold tracking-wider text-[#f1c84b] border-[#f1c84b]/40 bg-[#f1c84b]/10">
@@ -913,30 +1335,69 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Create/Edit Form */}
+              {/* Create/Edit Template Form */}
               <div className="rounded-2xl border p-4 space-y-3" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
                 <h4 className="text-xs uppercase font-semibold" style={{ color: "var(--text-muted)" }}>
-                  {editTplId ? `Edit Template #${editTplId}` : "Create New Template"}
+                  {editTplId ? `Edit Template #${editTplId}` : "Create New Response Template"}
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <input
-                    value={editTplName}
-                    onChange={(e) => setEditTplName(e.target.value)}
-                    placeholder="Template Name (e.g., Withdrawal Delay)"
-                    className="w-full rounded-xl border p-2.5 text-sm"
-                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
-                  />
-                  <input
-                    value={editTplBody}
-                    onChange={(e) => setEditTplBody(e.target.value)}
-                    placeholder="Body text with {placeholders}"
-                    className="w-full md:col-span-2 rounded-xl border p-2.5 text-sm"
-                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
-                  />
+                  <div>
+                    <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Category Type:</label>
+                    <select
+                      value={editTplType}
+                      onChange={(e) => setEditTplType(e.target.value)}
+                      className="w-full rounded-xl border p-2.5 text-sm"
+                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                    >
+                      <option value="tech_escalation">⚡ Tech Escalation (Telegram)</option>
+                      <option value="customer_reply">💬 Customer Reply (WhatsApp & Live Chat)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Primary Category:</label>
+                    <input
+                      value={editTplCat}
+                      onChange={(e) => setEditTplCat(e.target.value)}
+                      placeholder="e.g. Agent Introductions, Transactions"
+                      className="w-full rounded-xl border p-2.5 text-sm"
+                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Subcategory (Optional):</label>
+                    <input
+                      value={editTplSubcat}
+                      onChange={(e) => setEditTplSubcat(e.target.value)}
+                      placeholder="e.g. Deposit, Withdrawal"
+                      className="w-full rounded-xl border p-2.5 text-sm"
+                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Template Title:</label>
+                    <input
+                      value={editTplName}
+                      onChange={(e) => setEditTplName(e.target.value)}
+                      placeholder="e.g. Deposit Under Review"
+                      className="w-full rounded-xl border p-2.5 text-sm"
+                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Template Body (use placeholders like {"{customer_name}"}):</label>
+                    <textarea
+                      value={editTplBody}
+                      onChange={(e) => setEditTplBody(e.target.value)}
+                      placeholder="Write message template..."
+                      className="w-full rounded-xl border p-2.5 min-h-[5rem] text-sm"
+                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                    />
+                  </div>
                 </div>
+
                 <div className="flex gap-2 justify-end">
                   <button
-                    onClick={() => upsertTemplate(editTplId, editTplName, editTplBody)}
+                    onClick={() => upsertTemplate(editTplId, editTplName, editTplBody, editTplType, editTplCat, editTplSubcat)}
                     disabled={!editTplName || !editTplBody || saving}
                     className="px-4 py-2 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-sm font-semibold shadow-md disabled:opacity-50"
                   >
@@ -944,11 +1405,7 @@ export default function App() {
                   </button>
                   {editTplId ? (
                     <button
-                      onClick={() => {
-                        setEditTplId(null);
-                        setEditTplName("");
-                        setEditTplBody("");
-                      }}
+                      onClick={resetTemplateForm}
                       className="px-4 py-2 rounded-xl border text-sm"
                       style={{ borderColor: "var(--badge-border)" }}
                     >
@@ -963,7 +1420,17 @@ export default function App() {
                 {templates.map((t) => (
                   <div key={t.id} className="rounded-2xl border p-4 flex items-center justify-between transition hover:border-[#4cd34c]/50" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
                     <div>
-                      <div className="font-bold text-base">{t.name}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-base">{t.name}</span>
+                        <span className="text-[10px] rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                          {t.category_type === "tech_escalation" ? "⚡ Tech Escalation" : "💬 Customer Reply"}
+                        </span>
+                        {t.category ? (
+                          <span className="text-[10px] rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                            {t.category} {t.subcategory ? `> ${t.subcategory}` : ""}
+                          </span>
+                        ) : null}
+                      </div>
                       <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
                         {t.body}
                       </div>
@@ -974,6 +1441,9 @@ export default function App() {
                           setEditTplId(t.id);
                           setEditTplName(t.name);
                           setEditTplBody(t.body);
+                          setEditTplType(t.category_type ?? "tech_escalation");
+                          setEditTplCat(t.category ?? "");
+                          setEditTplSubcat(t.subcategory ?? "");
                         }}
                         className="px-3 py-1.5 rounded-xl border text-xs font-semibold"
                         style={{ borderColor: "var(--badge-border)" }}
@@ -993,7 +1463,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* SECTION 2: AGENT CONTROL MANAGEMENT */}
+            {/* SECTION 2: AGENT PROFILE CONTROL MANAGEMENT */}
             <div className="rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-6" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
               <h3 className="text-lg font-bold" style={{ color: "var(--app-text)" }}>
                 2. Agent Profile Control
@@ -1005,47 +1475,67 @@ export default function App() {
                   {editAgentId ? `Edit Agent Profile #${editAgentId}` : "Add New Agent Profile"}
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <input
-                    value={editAgentName}
-                    onChange={(e) => setEditAgentName(e.target.value)}
-                    placeholder="Full Agent Name (e.g., Sarah Smith)"
-                    className="w-full rounded-xl border p-2.5 text-sm"
-                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
-                  />
-                  <input
-                    value={editAgentInitials}
-                    onChange={(e) => setEditAgentInitials(e.target.value)}
-                    placeholder="Initials (e.g., SS)"
-                    className="w-full rounded-xl border p-2.5 text-sm uppercase"
-                    maxLength={4}
-                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
-                  />
-                  <label className="flex items-center gap-2 text-sm cursor-pointer px-2">
+                  <div>
+                    <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Agent Full Name (Agent):</label>
                     <input
-                      type="checkbox"
-                      checked={editAgentIsAdmin}
-                      onChange={(e) => setEditAgentIsAdmin(e.target.checked)}
-                      className="rounded accent-[#4cd34c] h-4 w-4"
+                      value={editAgentFullName}
+                      onChange={(e) => handleAgentFullNameChange(e.target.value)}
+                      placeholder="e.g. Vuyo Ndlovu"
+                      className="w-full rounded-xl border p-2.5 text-sm"
+                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                     />
-                    <span>Grant System Admin Privileges</span>
-                  </label>
+                  </div>
+                  <div>
+                    <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Display Name (Agent Name):</label>
+                    <input
+                      value={editAgentName}
+                      onChange={(e) => handleAgentNameChange(e.target.value)}
+                      placeholder="e.g. Vuyo"
+                      className="w-full rounded-xl border p-2.5 text-sm"
+                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] block mb-1 flex justify-between" style={{ color: "var(--text-muted)" }}>
+                      <span>Agent Initials:</span>
+                      <span className="text-[10px] text-[#4cd34c]">Auto-generated</span>
+                    </label>
+                    <input
+                      value={editAgentInitials}
+                      onChange={(e) => {
+                        setEditAgentInitials(e.target.value);
+                        setUserCustomizedInitials(true);
+                      }}
+                      placeholder="e.g. VN"
+                      className="w-full rounded-xl border p-2.5 text-sm uppercase font-semibold"
+                      maxLength={4}
+                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer p-1">
+                      <input
+                        type="checkbox"
+                        checked={editAgentIsAdmin}
+                        onChange={(e) => setEditAgentIsAdmin(e.target.checked)}
+                        className="rounded accent-[#4cd34c] h-4 w-4"
+                      />
+                      <span>Grant System Admin Privileges</span>
+                    </label>
+                  </div>
                 </div>
+
                 <div className="flex gap-2 justify-end">
                   <button
-                    onClick={() => upsertAgent(editAgentId, editAgentName, editAgentInitials, editAgentIsAdmin)}
+                    onClick={() => upsertAgent(editAgentId, editAgentFullName || editAgentName, editAgentName, editAgentInitials, editAgentIsAdmin)}
                     disabled={!editAgentName || !editAgentInitials || saving}
                     className="px-4 py-2 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-sm font-semibold shadow-md disabled:opacity-50"
                   >
-                    {saving ? "Saving..." : editAgentId ? "Save Agent Changes" : "Create Agent"}
+                    {saving ? "Saving..." : editAgentId ? "Save Agent Changes" : "Create Agent Profile"}
                   </button>
                   {editAgentId ? (
                     <button
-                      onClick={() => {
-                        setEditAgentId(null);
-                        setEditAgentName("");
-                        setEditAgentInitials("");
-                        setEditAgentIsAdmin(false);
-                      }}
+                      onClick={resetAgentForm}
                       className="px-4 py-2 rounded-xl border text-sm"
                       style={{ borderColor: "var(--badge-border)" }}
                     >
@@ -1060,21 +1550,26 @@ export default function App() {
                 {agents.map((agent) => (
                   <div key={agent.id} className="rounded-2xl border p-4 flex items-center justify-between" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#32324a_0%,#11111e_100%)] text-xs font-bold text-[#4cd34c] border" style={{ borderColor: "var(--badge-border)" }}>
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#32324a_0%,#11111e_100%)] text-sm font-bold text-[#4cd34c] border" style={{ borderColor: "var(--badge-border)" }}>
                         {agent.agent_initials}
                       </div>
                       <div>
                         <div className="font-bold text-sm">{agent.agent_name}</div>
-                        <div className="text-xs text-[#4cd34c]">{agent.is_admin ? "System Admin" : "Support Agent"}</div>
+                        {agent.agent && agent.agent !== agent.agent_name ? (
+                          <div className="text-xs text-[var(--text-muted)]">{agent.agent}</div>
+                        ) : null}
+                        <div className="text-[11px] text-[#4cd34c] mt-0.5">{agent.is_admin ? "System Admin" : "Support Agent"}</div>
                       </div>
                     </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => {
                           setEditAgentId(agent.id);
+                          setEditAgentFullName(agent.agent ?? agent.agent_name);
                           setEditAgentName(agent.agent_name);
                           setEditAgentInitials(agent.agent_initials);
                           setEditAgentIsAdmin(agent.is_admin);
+                          setUserCustomizedInitials(true);
                         }}
                         className="px-3 py-1.5 rounded-xl border text-xs font-semibold"
                         style={{ borderColor: "var(--badge-border)" }}

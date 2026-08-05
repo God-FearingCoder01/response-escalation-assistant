@@ -36,21 +36,84 @@ except ImportError:
 
 
 DEFAULT_TEMPLATES = [
+    # Tech Escalation Templates
     {
-        "name": "Self Exclusion",
-        "body": "Account {customer_name} is requesting to be removed from self exclusion.",
+        "name": "Self Exclusion Request",
+        "body": "Account {customer_name} is requesting to be removed from self exclusion. #{agent_name}",
+        "category_type": "tech_escalation",
+        "category": "Account Escalations",
+        "subcategory": "Self Exclusion",
     },
     {
-        "name": "Account Verification",
-        "body": "Account {account_number} is facing error code 146, kindly assist.",
+        "name": "Account Verification Error 146",
+        "body": "Account {account_number} is facing error code 146, kindly assist. #{agent_name}",
+        "category_type": "tech_escalation",
+        "category": "Account Escalations",
+        "subcategory": "Verification",
     },
     {
-        "name": "Permanent Deactivation",
-        "body": "User {account_number} has requested for the permanent deactivation of his account because {reason}.",
+        "name": "Permanent Deactivation Request",
+        "body": "User {account_number} has requested for the permanent deactivation of his account because {reason}. #{agent_name}",
+        "category_type": "tech_escalation",
+        "category": "Account Escalations",
+        "subcategory": "Deactivation",
     },
     {
-        "name": "Processing Withdrawal",
-        "body": "Processing withdrawal of ${amount} from account number {account_number}; on {day}.{month}.2026 time {time}hrs.",
+        "name": "Withdrawal Processing Escalation",
+        "body": "Processing withdrawal of ${amount} from account number {account_number}; on {day}.{month}.2026 time {time}hrs. #{agent_name}",
+        "category_type": "tech_escalation",
+        "category": "Payment Escalations",
+        "subcategory": "Withdrawal",
+    },
+    # Customer Reply Templates
+    {
+        "name": "Standard Welcome Greeting",
+        "body": "Hi {customer_name}, my name is {agent_name} from Customer Support. How may I assist you today?",
+        "category_type": "customer_reply",
+        "category": "Agent Introductions",
+        "subcategory": "Welcome",
+    },
+    {
+        "name": "Follow-up Response Greeting",
+        "body": "Hello {customer_name}, thank you for reaching back out. I'm {agent_name} and I'll be glad to continue assisting you.",
+        "category_type": "customer_reply",
+        "category": "Agent Introductions",
+        "subcategory": "Follow-up",
+    },
+    {
+        "name": "Deposit Under Review",
+        "body": "Hi {customer_name}, your deposit of ${amount} is currently being processed by our financial partner. Reference: {reference_no}.",
+        "category_type": "customer_reply",
+        "category": "Transactions",
+        "subcategory": "Deposit",
+    },
+    {
+        "name": "Withdrawal Status Update",
+        "body": "Hi {customer_name}, your withdrawal request for ${amount} (Ref: {reference_no}) has been approved and sent to your account.",
+        "category_type": "customer_reply",
+        "category": "Transactions",
+        "subcategory": "Withdrawal",
+    },
+    {
+        "name": "Password Reset Instructions",
+        "body": "Hi {customer_name}, a password reset link has been dispatched to your registered email address. Please follow the instructions to secure your account.",
+        "category_type": "customer_reply",
+        "category": "Security",
+        "subcategory": "Password Reset",
+    },
+    {
+        "name": "KYC Document Request",
+        "body": "Hi {customer_name}, to complete your account verification, please upload your proof of ID and address in the portal.",
+        "category_type": "customer_reply",
+        "category": "Security",
+        "subcategory": "Verification",
+    },
+    {
+        "name": "Game Cache Troubleshooting",
+        "body": "Hi {customer_name}, if you're experiencing display issues with {game_title}, please clear your browser cache or switch to Google Chrome.",
+        "category_type": "customer_reply",
+        "category": "Games",
+        "subcategory": "Troubleshooting",
     },
 ]
 
@@ -95,28 +158,30 @@ def sync_default_data_if_needed(session: Session) -> None:
             )
     session.commit()
 
-
-    # 3. Purge old sample templates if they exist
-    old_templates = session.exec(
-        select(Template).where(Template.name.in_(["Withdrawal Delay", "KYC Pending", "Bonus Not Received"]))
-    ).all()
-    for t in old_templates:
-        session.delete(t)
-    session.commit()
-
-    # 4. Seed user's default templates if missing
-    existing_template_names = set(session.exec(select(Template.name)).all())
+    # 3. Seed or update user's default templates
     for item in DEFAULT_TEMPLATES:
-        if item["name"] not in existing_template_names:
+        existing = session.exec(select(Template).where(Template.name == item["name"])).first()
+        if existing:
+            existing.body = item["body"]
+            existing.category_type = item["category_type"]
+            existing.category = item.get("category")
+            existing.subcategory = item.get("subcategory")
+            existing.updated_at = now
+            session.add(existing)
+        else:
             session.add(
                 Template(
                     name=item["name"],
                     body=item["body"],
+                    category_type=item["category_type"],
+                    category=item.get("category"),
+                    subcategory=item.get("subcategory"),
                     created_at=now,
                     updated_at=now,
                 )
             )
     session.commit()
+
 
 
 @asynccontextmanager
@@ -160,6 +225,9 @@ def create_template(template: TemplateCreate):
         db_template = Template(
             name=template.name,
             body=template.body,
+            category_type=template.category_type,
+            category=template.category,
+            subcategory=template.subcategory,
             created_at=now,
             updated_at=now,
         )
@@ -186,6 +254,9 @@ def update_template(template_id: int, incoming: TemplateUpdate):
             raise HTTPException(status_code=404, detail="Template not found")
         existing.name = incoming.name
         existing.body = incoming.body
+        existing.category_type = incoming.category_type
+        existing.category = incoming.category
+        existing.subcategory = incoming.subcategory
         existing.updated_at = datetime.now(timezone.utc)
         session.add(existing)
         session.commit()
@@ -220,6 +291,9 @@ def import_templates(items: List[TemplateCreate]):
                 Template(
                     name=item.name,
                     body=item.body,
+                    category_type=item.category_type,
+                    category=item.category,
+                    subcategory=item.subcategory,
                     created_at=now,
                     updated_at=now,
                 )
@@ -241,6 +315,7 @@ def create_agent(agent: AgentCreate):
     with Session(engine) as session:
         now = datetime.now(timezone.utc)
         db_agent = Agent(
+            agent=agent.agent,
             agent_name=agent.agent_name,
             agent_initials=agent.agent_initials.upper(),
             is_admin=agent.is_admin,
@@ -259,6 +334,7 @@ def update_agent(agent_id: int, incoming: AgentUpdate):
         existing = session.get(Agent, agent_id)
         if not existing:
             raise HTTPException(status_code=404, detail="Agent not found")
+        existing.agent = incoming.agent
         existing.agent_name = incoming.agent_name
         existing.agent_initials = incoming.agent_initials.upper()
         existing.is_admin = incoming.is_admin
@@ -278,3 +354,4 @@ def delete_agent(agent_id: int):
         session.delete(existing)
         session.commit()
     return {"ok": True, "message": "Agent deleted"}
+

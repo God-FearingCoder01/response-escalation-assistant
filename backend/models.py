@@ -12,6 +12,9 @@ def get_utc_now() -> datetime:
 class TemplateBase(SQLModel):
     name: str
     body: str
+    category_type: str = "tech_escalation"  # "tech_escalation" or "customer_reply"
+    category: Optional[str] = None
+    subcategory: Optional[str] = None
 
 
 class Template(TemplateBase, table=True):
@@ -32,6 +35,7 @@ class TemplateRead(TemplateBase):
     id: int
     created_at: datetime
     updated_at: datetime
+
 
 
 class AgentBase(SQLModel):
