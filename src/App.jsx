@@ -2,6 +2,23 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 const THEME_KEY = "rea_theme_v1";
+const DEFAULT_TEMPLATES = [
+  {
+    id: 1,
+    name: "Withdrawal Delay",
+    body: "Hi {customer_name}, your withdrawal {reference_no} is under review. ETA: {eta}.",
+  },
+  {
+    id: 2,
+    name: "KYC Pending",
+    body: "Hi {customer_name}, your account verification is still pending. Please upload: {required_docs}.",
+  },
+  {
+    id: 3,
+    name: "Bonus Not Received",
+    body: "Hi {customer_name}, we checked your bonus request for promo {promo_code}. Status: {status}.",
+  },
+];
 
 const THEMES = {
   night: {
@@ -115,11 +132,11 @@ export default function App() {
         setSelectedId(normalized[0]?.id ?? null);
       } catch (err) {
         if (!mounted) return;
-        setError(err instanceof Error ? err.message : "Failed to load templates");
         setApiStatus("offline");
-        setStatusMessage("");
-        setTemplates([]);
-        setSelectedId(null);
+        setError("");
+        setStatusMessage("Backend offline. Using built-in templates for this session.");
+        setTemplates(DEFAULT_TEMPLATES);
+        setSelectedId(DEFAULT_TEMPLATES[0]?.id ?? null);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -155,6 +172,14 @@ export default function App() {
   }, [selectedId, templates]);
 
   async function refreshTemplates(nextSelectedId = null) {
+    if (apiStatus === "offline") {
+      if (templates.length === 0) {
+        setTemplates(DEFAULT_TEMPLATES);
+        setSelectedId(DEFAULT_TEMPLATES[0]?.id ?? null);
+      }
+      return;
+    }
+
     const response = await fetch(`${API_BASE}/templates`);
     if (!response.ok) throw new Error(`Failed to refresh templates (${response.status})`);
     const data = await response.json();
@@ -173,6 +198,19 @@ export default function App() {
     setSaving(true);
     setError("");
     try {
+      if (apiStatus === "offline") {
+        if (id == null) {
+          const next = { id: Date.now(), name, body };
+          setTemplates((current) => [next, ...current]);
+          setSelectedId(next.id);
+          setStatusMessage(`Template created locally: ${next.name}`);
+        } else {
+          setTemplates((current) => current.map((t) => (t.id === id ? { ...t, name, body } : t)));
+          setStatusMessage(`Template updated locally: ${name}`);
+        }
+        return;
+      }
+
       if (id == null) {
         const response = await fetch(`${API_BASE}/templates`, {
           method: "POST",
@@ -205,6 +243,16 @@ export default function App() {
     setSaving(true);
     setError("");
     try {
+      if (apiStatus === "offline") {
+        setTemplates((current) => current.filter((t) => t.id !== id));
+        setSelectedId((currentSelectedId) => {
+          if (currentSelectedId === id) return DEFAULT_TEMPLATES[0]?.id ?? null;
+          return currentSelectedId;
+        });
+        setStatusMessage("Template deleted locally");
+        return;
+      }
+
       const response = await fetch(`${API_BASE}/templates/${id}`, { method: "DELETE" });
       if (!response.ok) throw new Error(`Delete failed (${response.status})`);
       const result = await response.json();
@@ -222,6 +270,18 @@ export default function App() {
 
   async function exportTemplates() {
     try {
+      if (apiStatus === "offline") {
+        const blob = new Blob([JSON.stringify(templates, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "templates.json";
+        a.click();
+        URL.revokeObjectURL(url);
+        setStatusMessage(`Exported ${templates.length} template(s) locally`);
+        return;
+      }
+
       const response = await fetch(`${API_BASE}/export`);
       if (!response.ok) throw new Error(`Export failed (${response.status})`);
       const data = await response.json();
@@ -243,6 +303,14 @@ export default function App() {
     reader.onload = () => {
       try {
         const items = JSON.parse(reader.result);
+        if (apiStatus === "offline") {
+          const imported = Array.isArray(items) ? items : [];
+          setTemplates(imported);
+          setSelectedId(imported[0]?.id ?? null);
+          setStatusMessage("Templates imported locally");
+          return;
+        }
+
         fetch(`${API_BASE}/import`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
