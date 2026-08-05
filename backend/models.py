@@ -36,8 +36,10 @@ class TemplateRead(TemplateBase):
 
 class AgentBase(SQLModel):
     agent_name: str
+    agent: Optional[str] = None
     agent_initials: str
     is_admin: bool = False
+
 
 
 class Agent(AgentBase, table=True):

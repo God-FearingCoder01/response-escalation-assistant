@@ -192,6 +192,12 @@ export default function App() {
 
         const normalizedAgents = Array.isArray(agentData) && agentData.length > 0 ? agentData : DEFAULT_AGENTS;
         setAgents(normalizedAgents);
+
+        // Reset stale active agent if not in current agent list
+        if (currentAgent && !normalizedAgents.some((a) => a.agent_initials === currentAgent.agent_initials)) {
+          setCurrentAgent(null);
+          setActiveScreen("welcome");
+        }
       } catch (err) {
         if (!mounted) return;
         setApiStatus("offline");

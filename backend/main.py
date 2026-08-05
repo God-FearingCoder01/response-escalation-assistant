@@ -37,62 +37,77 @@ except ImportError:
 
 DEFAULT_TEMPLATES = [
     {
+        "name": "Self Exclusion",
+        "body": "Account {customer_name} is requesting to be removed from self exclusion.",
+    },
+    {
         "name": "Account Verification",
-        "body": "Account {account_number}  is facing error code 146, kindly assist.",
+        "body": "Account {account_number} is facing error code 146, kindly assist.",
     },
     {
-        "name": "Permanent Deletion",
-        "body": "User {account_number} has requested for the permanent deactivation  of his account because {reason}.",
+        "name": "Permanent Deactivation",
+        "body": "User {account_number} has requested for the permanent deactivation of his account because {reason}.",
     },
     {
-        "name": "Self-Exclusion",
-        "body": "Account {account_number} is requesting to be removed from self exclusion.",
+        "name": "Processing Withdrawal",
+        "body": "Processing withdrawal of ${amount} from account number {account_number}; on {day}.{month}.2026 time {time}hrs.",
     },
 ]
 
 DEFAULT_AGENTS = [
     {"agent": "Vuyo Ndlovu", "agent_name": "Vuyo", "agent_initials": "VN", "is_admin": True},
-    {"agent": "Kilian D", "agent_name": "Kilian" , "agent_initials": "KD", "is_admin": False},
-    {"agent": "Thembi Sibanda", "agent_name": "Thembie", "agent_initials": "TS", "is_admin": False},
-    {"agent": "Kudzi Honde", "agent_name": "Kudzie", "agent_initials": "KH", "is_admin": False},
+    {"agent": "Kilian D", "agent_name": "Kilian", "agent_initials": "KD", "is_admin": False},
+    {"agent": "Thembi Sibanda", "agent_name": "Thembi", "agent_initials": "TS", "is_admin": False},
+    {"agent": "Kudzi Honde", "agent_name": "Kudzi", "agent_initials": "KH", "is_admin": False},
 ]
 
 
-def seed_default_templates_if_empty(session: Session) -> None:
-    has_templates = session.exec(select(Template.id).limit(1)).first() is not None
-    if has_templates:
-        return
-
-    now = datetime.now(timezone.utc)
-    for item in DEFAULT_TEMPLATES:
-        session.add(
-            Template(
-                name=item["name"],
-                body=item["body"],
-                created_at=now,
-                updated_at=now,
-            )
-        )
+def sync_default_data_if_needed(session: Session) -> None:
+    # 1. Purge old sample agents if they exist
+    old_agents = session.exec(
+        select(Agent).where(Agent.agent_name.in_(["Sarah Smith", "John Doe", "Alex Vance", "System Admin"]))
+    ).all()
+    for a in old_agents:
+        session.delete(a)
     session.commit()
 
-
-def seed_default_agents_if_empty(session: Session) -> None:
-    has_agents = session.exec(select(Agent.id).limit(1)).first() is not None
-    if has_agents:
-        return
-
+    # 2. Seed user's default agents if missing
+    existing_agent_initials = set(session.exec(select(Agent.agent_initials)).all())
     now = datetime.now(timezone.utc)
     for item in DEFAULT_AGENTS:
-        session.add(
-            Agent(
-                agent_name=item["agent_name"],
-                agent=item["agent"],
-                agent_initials=item["agent_initials"],
-                is_admin=item["is_admin"],
-                created_at=now,
-                updated_at=now,
+        if item["agent_initials"] not in existing_agent_initials:
+            session.add(
+                Agent(
+                    agent=item["agent"],
+                    agent_name=item["agent_name"],
+                    agent_initials=item["agent_initials"],
+                    is_admin=item["is_admin"],
+                    created_at=now,
+                    updated_at=now,
+                )
             )
-        )
+    session.commit()
+
+    # 3. Purge old sample templates if they exist
+    old_templates = session.exec(
+        select(Template).where(Template.name.in_(["Withdrawal Delay", "KYC Pending", "Bonus Not Received"]))
+    ).all()
+    for t in old_templates:
+        session.delete(t)
+    session.commit()
+
+    # 4. Seed user's default templates if missing
+    existing_template_names = set(session.exec(select(Template.name)).all())
+    for item in DEFAULT_TEMPLATES:
+        if item["name"] not in existing_template_names:
+            session.add(
+                Template(
+                    name=item["name"],
+                    body=item["body"],
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
     session.commit()
 
 
@@ -100,12 +115,12 @@ def seed_default_agents_if_empty(session: Session) -> None:
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     with Session(engine) as session:
-        seed_default_templates_if_empty(session)
-        seed_default_agents_if_empty(session)
+        sync_default_data_if_needed(session)
     yield
 
 
 app = FastAPI(title="Response Escalation Assistant API", lifespan=lifespan)
+
 
 app.add_middleware(
     CORSMiddleware,
