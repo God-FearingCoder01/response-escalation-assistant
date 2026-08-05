@@ -8,10 +8,28 @@ from sqlmodel import Session, select
 
 try:
     from .database import create_db_and_tables, engine
-    from .models import Template, TemplateCreate, TemplateRead, TemplateUpdate
+    from .models import (
+        Agent,
+        AgentCreate,
+        AgentRead,
+        AgentUpdate,
+        Template,
+        TemplateCreate,
+        TemplateRead,
+        TemplateUpdate,
+    )
 except ImportError:
     from database import create_db_and_tables, engine
-    from models import Template, TemplateCreate, TemplateRead, TemplateUpdate
+    from models import (
+        Agent,
+        AgentCreate,
+        AgentRead,
+        AgentUpdate,
+        Template,
+        TemplateCreate,
+        TemplateRead,
+        TemplateUpdate,
+    )
 
 
 DEFAULT_TEMPLATES = [
@@ -27,6 +45,13 @@ DEFAULT_TEMPLATES = [
         "name": "Bonus Not Received",
         "body": "Hi {customer_name}, we checked your bonus request for promo {promo_code}. Status: {status}.",
     },
+]
+
+DEFAULT_AGENTS = [
+    {"agent_name": "Sarah Smith", "agent_initials": "SS", "is_admin": False},
+    {"agent_name": "John Doe", "agent_initials": "JD", "is_admin": False},
+    {"agent_name": "Alex Vance", "agent_initials": "AV", "is_admin": False},
+    {"agent_name": "System Admin", "agent_initials": "SA", "is_admin": True},
 ]
 
 
@@ -48,11 +73,31 @@ def seed_default_templates_if_empty(session: Session) -> None:
     session.commit()
 
 
+def seed_default_agents_if_empty(session: Session) -> None:
+    has_agents = session.exec(select(Agent.id).limit(1)).first() is not None
+    if has_agents:
+        return
+
+    now = datetime.now(timezone.utc)
+    for item in DEFAULT_AGENTS:
+        session.add(
+            Agent(
+                agent_name=item["agent_name"],
+                agent_initials=item["agent_initials"],
+                is_admin=item["is_admin"],
+                created_at=now,
+                updated_at=now,
+            )
+        )
+    session.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     with Session(engine) as session:
         seed_default_templates_if_empty(session)
+        seed_default_agents_if_empty(session)
     yield
 
 
@@ -71,6 +116,7 @@ app.add_middleware(
 def health_check():
     with Session(engine) as session:
         seed_default_templates_if_empty(session)
+        seed_default_agents_if_empty(session)
     return {"status": "ok", "message": "Backend is ready"}
 
 
@@ -155,3 +201,53 @@ def import_templates(items: List[TemplateCreate]):
         session.commit()
     return {"imported": count, "message": f"Imported {count} template(s)"}
 
+
+# Agent endpoints
+@app.get("/agents", response_model=List[AgentRead])
+def list_agents():
+    with Session(engine) as session:
+        return session.exec(select(Agent).order_by(Agent.id.asc())).all()
+
+
+@app.post("/agents", response_model=AgentRead)
+def create_agent(agent: AgentCreate):
+    with Session(engine) as session:
+        now = datetime.now(timezone.utc)
+        db_agent = Agent(
+            agent_name=agent.agent_name,
+            agent_initials=agent.agent_initials.upper(),
+            is_admin=agent.is_admin,
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(db_agent)
+        session.commit()
+        session.refresh(db_agent)
+        return db_agent
+
+
+@app.put("/agents/{agent_id}", response_model=AgentRead)
+def update_agent(agent_id: int, incoming: AgentUpdate):
+    with Session(engine) as session:
+        existing = session.get(Agent, agent_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        existing.agent_name = incoming.agent_name
+        existing.agent_initials = incoming.agent_initials.upper()
+        existing.is_admin = incoming.is_admin
+        existing.updated_at = datetime.now(timezone.utc)
+        session.add(existing)
+        session.commit()
+        session.refresh(existing)
+        return existing
+
+
+@app.delete("/agents/{agent_id}")
+def delete_agent(agent_id: int):
+    with Session(engine) as session:
+        existing = session.get(Agent, agent_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        session.delete(existing)
+        session.commit()
+    return {"ok": True, "message": "Agent deleted"}
