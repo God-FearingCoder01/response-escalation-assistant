@@ -199,7 +199,7 @@ export default function App() {
   const [selectedCustId, setSelectedCustId] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedSubcategory, setSelectedSubcategory] = useState("All");
-  const [replyChannel, setReplyChannel] = useState("whatsapp"); // "whatsapp" | "livechat"
+  const [replyChannel, setReplyChannel] = useState("signed"); // "signed" | "unsigned"
   const [searchQuery, setSearchQuery] = useState("");
 
   // Edit template form states (Admin)
@@ -254,6 +254,11 @@ export default function App() {
       setActiveScreen("tech_escalation");
     }
   }, [currentAgent, activeScreen]);
+
+  // Collapse sidebar when switching screens or agent profiles
+  useEffect(() => {
+    setIsSidebarHovered(false);
+  }, [activeScreen, currentAgent]);
 
   // Initial Data Fetch
   useEffect(() => {
@@ -673,11 +678,14 @@ export default function App() {
       }
     }
 
-    // Customer Reply WhatsApp rule: Appends ^{agent_initials}
-    if (activeScreen === "customer_reply" && replyChannel === "whatsapp") {
-      const initialsSig = ` ^${currentAgent?.agent_initials ?? ""}`;
-      if (currentAgent?.agent_initials && !out.endsWith(initialsSig)) {
-        out = out.trim() + initialsSig;
+    // Customer Reply Signed rule: Appends ^{agent_initials} unless template already contains {agent_name}
+    if (activeScreen === "customer_reply" && replyChannel === "signed") {
+      const templateHasAgentName = activeTemplate?.body?.includes("{agent_name}");
+      if (!templateHasAgentName) {
+        const initialsSig = ` ^${currentAgent?.agent_initials ?? ""}`;
+        if (currentAgent?.agent_initials && !out.endsWith(initialsSig)) {
+          out = out.trim() + initialsSig;
+        }
       }
     }
 
@@ -713,8 +721,9 @@ export default function App() {
         <aside
           onMouseEnter={() => setIsSidebarHovered(true)}
           onMouseLeave={() => setIsSidebarHovered(false)}
+          onPointerLeave={() => setIsSidebarHovered(false)}
           className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col justify-between border-r p-3 shadow-2xl backdrop-blur transition-all duration-300 ease-in-out ${
-            isSidebarHovered ? "w-64" : "w-16"
+            isSidebarHovered ? "w-64" : "w-20"
           }`}
           style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--sidebar-bg)" }}
         >
@@ -732,30 +741,36 @@ export default function App() {
             {/* Nav links */}
             <nav className="space-y-2">
               <button
-                onClick={() => setActiveScreen("tech_escalation")}
-                className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${
+                onClick={() => {
+                  setActiveScreen("tech_escalation");
+                  setIsSidebarHovered(false);
+                }}
+                className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-3 text-left font-medium transition-all ${
                   activeScreen === "tech_escalation"
                     ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
                     : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
                 }`}
                 title="Tech Escalation"
               >
-                <span className="text-xl shrink-0">⚡</span>
+                <span className="text-xl shrink-0 h-8 w-8 flex items-center justify-center">⚡</span>
                 <span className={`whitespace-nowrap transition-opacity duration-200 ${isSidebarHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
                   Tech Escalation
                 </span>
               </button>
 
               <button
-                onClick={() => setActiveScreen("customer_reply")}
-                className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${
+                onClick={() => {
+                  setActiveScreen("customer_reply");
+                  setIsSidebarHovered(false);
+                }}
+                className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-3 text-left font-medium transition-all ${
                   activeScreen === "customer_reply"
                     ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
                     : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
                 }`}
                 title="Customer Reply"
               >
-                <span className="text-xl shrink-0">💬</span>
+                <span className="text-xl shrink-0 h-8 w-8 flex items-center justify-center">💬</span>
                 <span className={`whitespace-nowrap transition-opacity duration-200 ${isSidebarHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
                   Customer Reply
                 </span>
@@ -763,15 +778,18 @@ export default function App() {
 
               {currentAgent?.is_admin ? (
                 <button
-                  onClick={() => setActiveScreen("admin")}
-                  className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${
+                  onClick={() => {
+                    setActiveScreen("admin");
+                    setIsSidebarHovered(false);
+                  }}
+                  className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-3 text-left font-medium transition-all ${
                     activeScreen === "admin"
                       ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
                       : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
                   }`}
                   title="System Admin"
                 >
-                  <span className="text-xl shrink-0">🛠️</span>
+                  <span className="text-xl shrink-0 h-8 w-8 flex items-center justify-center">🛠️</span>
                   <span className={`whitespace-nowrap transition-opacity duration-200 ${isSidebarHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
                     System Admin
                   </span>
@@ -785,7 +803,7 @@ export default function App() {
             {/* Theme Toggle */}
             <button
               onClick={() => setThemeMode((c) => (c === "night" ? "day" : "night"))}
-              className="flex w-full items-center gap-4 rounded-2xl p-2 transition hover:bg-[var(--neutral-bg)] text-sm"
+              className="flex w-full items-center gap-3 rounded-2xl p-2 transition hover:bg-[var(--neutral-bg)] text-sm"
               title={`Switch to ${themeMode === "night" ? "Day" : "Night"} mode`}
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-sm" style={{ borderColor: "var(--badge-border)" }}>
@@ -813,7 +831,7 @@ export default function App() {
       ) : null}
 
       {/* MAIN CONTENT CONTAINER */}
-      <div className={`flex-1 p-6 transition-all duration-300 ${currentAgent && activeScreen !== "welcome" ? "ml-16" : ""}`}>
+      <div className={`flex-1 p-6 transition-all duration-300 ${currentAgent && activeScreen !== "welcome" ? "ml-20" : ""}`}>
         {/* TOP STATUS BAR */}
         <header className="mb-6 flex flex-col gap-4 rounded-3xl border p-4 shadow-[var(--panel-shadow)] backdrop-blur md:flex-row md:items-center md:justify-between" style={{ borderColor: "var(--header-border)", backgroundColor: "var(--header-bg)" }}>
           <div className="flex items-center gap-4">
@@ -900,15 +918,9 @@ export default function App() {
                       )}
                     </div>
 
-                    <h3 className="text-xl font-bold mb-1" style={{ color: "var(--app-text)" }}>
+                    <h3 className="text-xl font-bold mb-6" style={{ color: "var(--app-text)" }}>
                       {agent.agent_name}
                     </h3>
-                    {agent.agent && agent.agent !== agent.agent_name ? (
-                      <div className="text-xs mb-1 text-[var(--text-muted)] font-medium">{agent.agent}</div>
-                    ) : null}
-                    <p className="text-xs mb-6" style={{ color: "var(--text-muted)" }}>
-                      Initials Code: <code className="text-[#4cd34c] font-semibold">{agent.agent_initials}</code>
-                    </p>
                   </div>
 
                   <button
@@ -1059,39 +1071,39 @@ export default function App() {
                   💬 Customer Reply Center
                 </h2>
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  Browse categorized response templates for WhatsApp and Live Chat customer replies.
+                  Browse categorized response templates for signed and unsigned customer replies.
                 </p>
               </div>
 
               {/* Target Channel Selector */}
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>
-                  Select Response Channel:
+                  Select Response Mode:
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={() => setReplyChannel("whatsapp")}
+                    onClick={() => setReplyChannel("signed")}
                     className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
-                      replyChannel === "whatsapp"
+                      replyChannel === "signed"
                         ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
                         : "hover:bg-[var(--neutral-bg)]"
                     }`}
-                    style={{ borderColor: replyChannel === "whatsapp" ? "#4cd34c" : "var(--field-border)" }}
+                    style={{ borderColor: replyChannel === "signed" ? "#4cd34c" : "var(--field-border)" }}
                   >
-                    <span>💬 WhatsApp (Appends ^{currentAgent.agent_initials})</span>
+                    <span>✍️ Signed (^{currentAgent.agent_initials})</span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => setReplyChannel("livechat")}
+                    onClick={() => setReplyChannel("unsigned")}
                     className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
-                      replyChannel === "livechat"
+                      replyChannel === "unsigned"
                         ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
                         : "hover:bg-[var(--neutral-bg)]"
                     }`}
-                    style={{ borderColor: replyChannel === "livechat" ? "#4cd34c" : "var(--field-border)" }}
+                    style={{ borderColor: replyChannel === "unsigned" ? "#4cd34c" : "var(--field-border)" }}
                   >
-                    <span>🎧 Live Chat (Clean Text)</span>
+                    <span>💬 Unsigned (plain text)</span>
                   </button>
                 </div>
               </div>
@@ -1242,7 +1254,7 @@ export default function App() {
                     Customer Reply Preview
                   </h2>
                   <span className="text-xs uppercase font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-3 py-1 rounded-full">
-                    {replyChannel === "whatsapp" ? "💬 WhatsApp" : "🎧 Live Chat"}
+                    {replyChannel === "signed" ? "✍️ Signed Mode" : "💬 Unsigned Mode"}
                   </span>
                 </div>
 
@@ -1250,13 +1262,13 @@ export default function App() {
                   {generatedMsg || <span style={{ color: "var(--field-placeholder)" }}>Select a response template...</span>}
                 </div>
 
-                {replyChannel === "whatsapp" ? (
+                {replyChannel === "signed" ? (
                   <p className="text-xs italic" style={{ color: "var(--text-muted)" }}>
-                    💡 WhatsApp channel format automatically appends agent initials signature <code className="text-[#4cd34c]">^{currentAgent.agent_initials}</code>.
+                    💡 Signed mode appends signature <code className="text-[#4cd34c]">^{currentAgent.agent_initials}</code> (unless <code className="text-[#4cd34c]">{"{agent_name}"}</code> is included in template).
                   </p>
                 ) : (
                   <p className="text-xs italic" style={{ color: "var(--text-muted)" }}>
-                    💡 Live Chat format presents clean customer-facing response text.
+                    💡 Unsigned mode presents clean plain text response without initials signature.
                   </p>
                 )}
               </div>

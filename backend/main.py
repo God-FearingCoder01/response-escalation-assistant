@@ -206,9 +206,6 @@ app.add_middleware(
 
 @app.get("/health")
 def health_check():
-    with Session(engine) as session:
-        seed_default_templates_if_empty(session)
-        seed_default_agents_if_empty(session)
     return {"status": "ok", "message": "Backend is ready"}
 
 
