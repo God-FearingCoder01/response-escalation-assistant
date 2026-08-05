@@ -1,7 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlmodel import Field, SQLModel
+
+
+def get_utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class TemplateBase(SQLModel):
@@ -11,8 +15,8 @@ class TemplateBase(SQLModel):
 
 class Template(TemplateBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
-    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
 
 
 class TemplateCreate(TemplateBase):
@@ -27,3 +31,4 @@ class TemplateRead(TemplateBase):
     id: int
     created_at: datetime
     updated_at: datetime
+

@@ -1,12 +1,17 @@
-from datetime import datetime
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from typing import List
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List
 from sqlmodel import Session, select
 
-from .database import create_db_and_tables, engine
-from .models import Template, TemplateCreate, TemplateRead, TemplateUpdate
+try:
+    from .database import create_db_and_tables, engine
+    from .models import Template, TemplateCreate, TemplateRead, TemplateUpdate
+except ImportError:
+    from database import create_db_and_tables, engine
+    from models import Template, TemplateCreate, TemplateRead, TemplateUpdate
 
 
 DEFAULT_TEMPLATES = [
@@ -25,39 +30,41 @@ DEFAULT_TEMPLATES = [
 ]
 
 
-app = FastAPI(title="Response Escalation Assistant API")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
 def seed_default_templates_if_empty(session: Session) -> None:
     has_templates = session.exec(select(Template.id).limit(1)).first() is not None
     if has_templates:
         return
 
+    now = datetime.now(timezone.utc)
     for item in DEFAULT_TEMPLATES:
         session.add(
             Template(
                 name=item["name"],
                 body=item["body"],
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
+                created_at=now,
+                updated_at=now,
             )
         )
     session.commit()
 
 
-@app.on_event("startup")
-def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     create_db_and_tables()
     with Session(engine) as session:
         seed_default_templates_if_empty(session)
+    yield
+
+
+app = FastAPI(title="Response Escalation Assistant API", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
@@ -76,11 +83,12 @@ def list_templates():
 @app.post("/templates", response_model=TemplateRead)
 def create_template(template: TemplateCreate):
     with Session(engine) as session:
+        now = datetime.now(timezone.utc)
         db_template = Template(
             name=template.name,
             body=template.body,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=now,
+            updated_at=now,
         )
         session.add(db_template)
         session.commit()
@@ -105,7 +113,7 @@ def update_template(template_id: int, incoming: TemplateUpdate):
             raise HTTPException(status_code=404, detail="Template not found")
         existing.name = incoming.name
         existing.body = incoming.body
-        existing.updated_at = datetime.utcnow()
+        existing.updated_at = datetime.now(timezone.utc)
         session.add(existing)
         session.commit()
         session.refresh(existing)
@@ -133,15 +141,17 @@ def export_templates():
 def import_templates(items: List[TemplateCreate]):
     with Session(engine) as session:
         count = 0
+        now = datetime.now(timezone.utc)
         for item in items:
             session.add(
                 Template(
                     name=item.name,
                     body=item.body,
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow(),
+                    created_at=now,
+                    updated_at=now,
                 )
             )
             count += 1
         session.commit()
     return {"imported": count, "message": f"Imported {count} template(s)"}
+

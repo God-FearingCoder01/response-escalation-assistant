@@ -1,49 +1,57 @@
 # Handover: Response & Escalation Assistant
 
-Date: 2026-08-04
+Date: 2026-08-05
 Branch: main
 
 Summary
 -------
-This file documents the changes I made while removing the World/Digital Clock feature from this repository.
+This file documents recent project updates, including backend setup, database persistence configuration, and previous feature removals.
 
-Changes made
-------------
+Changes made (2026-08-05)
+--------------------------
+- **Backend & Database Configuration**:
+  - Configured FastAPI backend service and SQLite database storage (`backend/backend_data.db`).
+  - Updated `backend/database.py` with deterministic `Path` resolution for SQLite database location.
+  - Modernized `backend/main.py` using FastAPI `lifespan` context manager and explicit UTC timestamps (`datetime.now(timezone.utc)`).
+  - Updated `backend/models.py` default factories for timezone awareness.
+  - Created Python virtual environment (`.venv`) and installed dependencies (`fastapi`, `uvicorn`, `sqlmodel`, `pydantic`).
+  - Updated `package.json` with npm `backend` script to launch the API server.
+  - Added `.gitignore` patterns for `.venv`, `__pycache__`, and `*.db`.
+
+Previous changes (2026-08-04)
+------------------------------
 - Removed the World/Digital Clock feature from `src/App.jsx`.
-  - Deleted the `zones` constant (timezone list).
-  - Removed the `useState` and `useEffect` hooks that updated the current time every second.
-  - Removed the `<aside>` section that rendered the clock UI (the "World Clock" panel).
 
 Files edited
 ----------
-- `src/App.jsx` — removed clock-related code (about 28 deletions, 1 insertion).
-
-Commits
--------
-- fc587e8 — "Remove World/Digital Clock UI and related code" (pushed to origin/main)
+- `backend/database.py` — deterministic SQLite database file path.
+- `backend/models.py` — timezone-aware UTC datetime defaults.
+- `backend/main.py` — lifespan application context manager & timezone-aware timestamps.
+- `package.json` — added `"backend"` npm script.
+- `.gitignore` — added python cache, venv, and database file exclusions.
+- `HANDOVER.md` — updated handover records.
 
 Verification performed
 ----------------------
-- Ran `npm run build` successfully (build completed; only warnings about Tailwind `@tailwind` rules were emitted by the CSS minifier).
-- Searched repository for remaining references to "clock"/timezone constants — none found.
+- Tested `GET /health`: returned HTTP 200 `{"status": "ok", "message": "Backend is ready"}`.
+- Tested `GET /templates`: returned HTTP 200 with 3 seeded template records from SQLite.
+- Verified database persistence file `backend/backend_data.db` is created and populated.
+- Ran production build `cmd /c npm run build` successfully with zero errors.
 
-Commands run
-------------
+Commands to run
+---------------
+Start backend server:
+```bash
+npm run backend
 ```
-git add -A
-git commit -m "Remove World/Digital Clock UI and related code"
-git push origin HEAD
+
+Start frontend server:
+```bash
+npm run dev
+```
+
+Build production bundle:
+```bash
 npm run build
 ```
 
-Notes & next steps
-------------------
-- The removal was limited to UI and local-time logic in `src/App.jsx`; no other files required modification.
-- If you'd like, I can:
-  - Run the dev server (`npm run dev`) and manually preview the app.
-  - Search and clean README or docs for feature mentions.
-  - Create a short changelog entry in `CHANGELOG.md` or add a release tag.
-
-Contact
--------
-If anything in this handover needs clarification, tell me what you'd like me to expand on.
