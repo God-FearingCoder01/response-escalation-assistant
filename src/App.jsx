@@ -217,18 +217,21 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#081008] text-[#f4f7f4] p-6">
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(76,211,76,0.12),_transparent_40%),radial-gradient(circle_at_bottom_right,_rgba(15,155,0,0.12),_transparent_35%),linear-gradient(180deg,_#091009_0%,_#040804_100%)]" />
-      <header className="mb-6 flex flex-col gap-4 rounded-3xl border border-[#234023] bg-[#0b130b]/85 p-4 shadow-[0_0_0_1px_rgba(76,211,76,0.06),0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur md:flex-row md:items-end md:justify-between">
-        <div className="flex items-start gap-4">
+      <header className="mb-6 flex flex-col gap-4 rounded-3xl border border-[#234023] bg-[#0b130b]/85 p-4 shadow-[0_0_0_1px_rgba(76,211,76,0.06),0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-4">
           <img
             src="/casino-logo.DetIqsS6.svg"
             alt="Casino logo"
-            className="h-12 w-12 rounded-xl border border-[#365336] bg-[#081008] p-1 shadow-[0_0_20px_rgba(76,211,76,0.15)]"
+            className="h-12 w-auto max-w-[11rem] object-contain drop-shadow-[0_0_18px_rgba(76,211,76,0.18)] md:h-14 md:max-w-[13rem]"
           />
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-[#4cd34c]">
+            <div className="mb-1 inline-flex rounded-full border border-[#365336] bg-[#081008] px-3 py-1 text-xs uppercase tracking-[0.24em] text-[#9bd49b]">
+              Brand matched theme
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold text-[#f3fff3]">
               Response & Escalation Assistant
             </h1>
-            <p className="mt-1 max-w-2xl text-[#b9c6b9]">
+            <p className="mt-1 max-w-2xl text-[#c3d1c3]">
               Create, edit, and send reusable support replies and Telegram-ready escalation notes.
             </p>
           </div>
@@ -258,7 +261,7 @@ export default function App() {
             <div className="flex gap-2">
               <button
                 onClick={() => upsertTemplate(null, "New template", "Hi {customer_name}, ")}
-                className="px-3 py-1 rounded-lg bg-[#4cd34c] text-[#071007] text-sm font-semibold shadow-[0_8px_20px_rgba(76,211,76,0.25)] disabled:opacity-50"
+                className="px-3 py-1 rounded-lg bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-sm font-semibold shadow-[0_8px_20px_rgba(15,155,0,0.25)] disabled:opacity-50"
                 disabled={loading || saving}
               >
                 Add template
@@ -274,7 +277,7 @@ export default function App() {
             ) : templates.map((t) => (
               <div
                 key={t.id}
-                className={`p-3 rounded-2xl border bg-[#081008] flex justify-between items-start transition ${t.id === selectedId ? "border-[#4cd34c] ring-2 ring-[#4cd34c]/30" : "border-[#263a26]"}`}
+                className={`p-3 rounded-2xl border bg-[#081008] flex justify-between items-start transition ${t.id === selectedId ? "border-[#4cd34c] ring-2 ring-[#0f9b00]/30" : "border-[#263a26]"}`}
               >
                 <div onClick={() => setSelectedId(t.id)} className="cursor-pointer">
                   <div className="font-medium text-[#f4f7f4]">{t.name}</div>
@@ -317,7 +320,7 @@ export default function App() {
             <div className="flex gap-2 mt-2">
               <button
                 onClick={() => upsertTemplate(selectedId, editName, editBody)}
-                className="px-3 py-2 rounded-xl bg-[#4cd34c] text-[#071007] font-semibold shadow-[0_8px_20px_rgba(76,211,76,0.25)] disabled:opacity-50"
+                className="px-3 py-2 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] font-semibold shadow-[0_8px_20px_rgba(15,155,0,0.25)] disabled:opacity-50"
                 disabled={loading || saving}
               >
                 {saving ? "Saving..." : "Save"}
@@ -397,7 +400,7 @@ export default function App() {
               <button
                 onClick={() => copyText(message)}
                 disabled={!message || loading}
-                className="px-4 py-2 rounded-xl bg-[#4cd34c] text-[#071007] font-semibold shadow-[0_8px_20px_rgba(76,211,76,0.25)] disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] font-semibold shadow-[0_8px_20px_rgba(15,155,0,0.25)] disabled:opacity-50"
               >
                 Copy plain text
               </button>
