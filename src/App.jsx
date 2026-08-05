@@ -8,30 +8,30 @@ const DEFAULT_TEMPLATES = [
   {
     id: 1,
     name: "Self Exclusion",
-    body: "Account {customer_name} is requesting to be removed from self exclusion. #{agent_name}",
+    body: "Account {customer_name} is requesting to be removed from self exclusion.",
   },
   {
     id: 2,
     name: "Account Verification",
-    body: "Account {account_number} is facing error code 146, kindly assist. #{agent_name}",
+    body: "Account {account_number} is facing error code 146, kindly assist.",
   },
   {
     id: 3,
     name: "Permanent Deactivation",
-    body: "User {account_number} has requested for the permanent deactivation of his account because {reason}. #{agent_name}",
+    body: "User {account_number} has requested for the permanent deactivation of his account because {reason}.",
   },
   {
     id: 4,
     name: "Processing Withdrawal",
-    body: "Processing withdrawal of ${amount} from account number {account_number}; time {time}hrs. #{agent_name}",
+    body: "Processing withdrawal of ${amount} from account number {account_number}; on {day}.{month}.2026 time {time}hrs.",
   },
 ];
 
 const DEFAULT_AGENTS = [
-  { id: 1, agent_name: "Sarah Smith", agent_initials: "SS", is_admin: false },
-  { id: 2, agent_name: "John Doe", agent_initials: "JD", is_admin: false },
-  { id: 3, agent_name: "Alex Vance", agent_initials: "AV", is_admin: false },
-  { id: 4, agent_name: "System Admin", agent_initials: "SA", is_admin: true },
+  { id: 1, agent: "Vuyo Ndlovu", agent_name: "Vuyo", agent_initials: "VN", is_admin: true },
+  { id: 2, agent: "Kilian D", agent_name: "Kilian", agent_initials: "KD", is_admin: false },
+  { id: 3, agent: "Thembi Sibanda", agent_name: "Thembi", agent_initials: "TS", is_admin: false },
+  { id: 4, agent: "Kudzi Honde", agent_name: "Kudzi", agent_initials: "KH", is_admin: false },
 ];
 
 const THEMES = {
@@ -502,9 +502,8 @@ export default function App() {
         <aside
           onMouseEnter={() => setIsSidebarHovered(true)}
           onMouseLeave={() => setIsSidebarHovered(false)}
-          className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col justify-between border-r p-3 shadow-2xl backdrop-blur transition-all duration-300 ease-in-out ${
-            isSidebarHovered ? "w-64" : "w-16"
-          }`}
+          className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col justify-between border-r p-3 shadow-2xl backdrop-blur transition-all duration-300 ease-in-out ${isSidebarHovered ? "w-64" : "w-16"
+            }`}
           style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--sidebar-bg)" }}
         >
           <div className="space-y-6">
@@ -522,11 +521,10 @@ export default function App() {
             <nav className="space-y-2">
               <button
                 onClick={() => setActiveScreen("builder")}
-                className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${
-                  activeScreen === "builder"
+                className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${activeScreen === "builder"
                     ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
                     : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
-                }`}
+                  }`}
                 title="Message Builder"
               >
                 <span className="text-xl shrink-0">💬</span>
@@ -537,11 +535,10 @@ export default function App() {
 
               <button
                 onClick={() => setActiveScreen("admin")}
-                className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${
-                  activeScreen === "admin"
+                className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${activeScreen === "admin"
                     ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
                     : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
-                }`}
+                  }`}
                 title="System Admin"
               >
                 <span className="text-xl shrink-0">🛠️</span>
@@ -709,11 +706,10 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setSelectedChannel("whatsapp")}
-                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
-                      selectedChannel === "whatsapp"
+                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${selectedChannel === "whatsapp"
                         ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
                         : "hover:bg-[var(--neutral-bg)]"
-                    }`}
+                      }`}
                     style={{ borderColor: selectedChannel === "whatsapp" ? "#4cd34c" : "var(--field-border)" }}
                   >
                     <span>💬 WhatsApp</span>
@@ -721,11 +717,10 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setSelectedChannel("livechat")}
-                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
-                      selectedChannel === "livechat"
+                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${selectedChannel === "livechat"
                         ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
                         : "hover:bg-[var(--neutral-bg)]"
-                    }`}
+                      }`}
                     style={{ borderColor: selectedChannel === "livechat" ? "#4cd34c" : "var(--field-border)" }}
                   >
                     <span>🎧 Live Chat</span>
@@ -733,11 +728,10 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setSelectedChannel("telegram")}
-                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
-                      selectedChannel === "telegram"
+                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${selectedChannel === "telegram"
                         ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
                         : "hover:bg-[var(--neutral-bg)]"
-                    }`}
+                      }`}
                     style={{ borderColor: selectedChannel === "telegram" ? "#4cd34c" : "var(--field-border)" }}
                   >
                     <span>✈️ Telegram</span>

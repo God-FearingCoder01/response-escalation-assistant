@@ -1,4 +1,5 @@
 from pathlib import Path
+# pyrefly: ignore [missing-import]
 from sqlmodel import create_engine, SQLModel, Session
 
 BASE_DIR = Path(__file__).resolve().parent

@@ -2,8 +2,11 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import List
 
+# pyrefly: ignore [missing-import]
 from fastapi import FastAPI, HTTPException
+# pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
+# pyrefly: ignore [missing-import]
 from sqlmodel import Session, select
 
 try:
@@ -34,24 +37,24 @@ except ImportError:
 
 DEFAULT_TEMPLATES = [
     {
-        "name": "Withdrawal Delay",
-        "body": "Hi {customer_name}, your withdrawal {reference_no} is under review. ETA: {eta}.",
+        "name": "Account Verification",
+        "body": "Account {account_number}  is facing error code 146, kindly assist.",
     },
     {
-        "name": "KYC Pending",
-        "body": "Hi {customer_name}, your account verification is still pending. Please upload: {required_docs}.",
+        "name": "Permanent Deletion",
+        "body": "User {account_number} has requested for the permanent deactivation  of his account because {reason}.",
     },
     {
-        "name": "Bonus Not Received",
-        "body": "Hi {customer_name}, we checked your bonus request for promo {promo_code}. Status: {status}.",
+        "name": "Self-Exclusion",
+        "body": "Account {account_number} is requesting to be removed from self exclusion.",
     },
 ]
 
 DEFAULT_AGENTS = [
-    {"agent_name": "Sarah Smith", "agent_initials": "SS", "is_admin": False},
-    {"agent_name": "John Doe", "agent_initials": "JD", "is_admin": False},
-    {"agent_name": "Alex Vance", "agent_initials": "AV", "is_admin": False},
-    {"agent_name": "System Admin", "agent_initials": "SA", "is_admin": True},
+    {"agent": "Vuyo Ndlovu", "agent_name": "Vuyo", "agent_initials": "VN", "is_admin": True},
+    {"agent": "Kilian D", "agent_name": "Kilian" , "agent_initials": "KD", "is_admin": False},
+    {"agent": "Thembi Sibanda", "agent_name": "Thembie", "agent_initials": "TS", "is_admin": False},
+    {"agent": "Kudzi Honde", "agent_name": "Kudzie", "agent_initials": "KH", "is_admin": False},
 ]
 
 
@@ -83,6 +86,7 @@ def seed_default_agents_if_empty(session: Session) -> None:
         session.add(
             Agent(
                 agent_name=item["agent_name"],
+                agent=item["agent"],
                 agent_initials=item["agent_initials"],
                 is_admin=item["is_admin"],
                 created_at=now,
