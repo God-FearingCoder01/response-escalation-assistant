@@ -55,27 +55,34 @@ DEFAULT_TEMPLATES = [
 ]
 
 DEFAULT_AGENTS = [
-    {"agent": "Vuyo Ndlovu", "agent_name": "Vuyo", "agent_initials": "VN", "is_admin": True},
+    {"agent": "Vuyo Ndlovu", "agent_name": "Vuyo", "agent_initials": "VN", "is_admin": False},
     {"agent": "Kilian D", "agent_name": "Kilian", "agent_initials": "KD", "is_admin": False},
     {"agent": "Thembi Sibanda", "agent_name": "Thembi", "agent_initials": "TS", "is_admin": False},
     {"agent": "Kudzi Honde", "agent_name": "Kudzi", "agent_initials": "KH", "is_admin": False},
+    {"agent": "System Admin", "agent_name": "System Admin", "agent_initials": "SA", "is_admin": True},
 ]
 
 
 def sync_default_data_if_needed(session: Session) -> None:
     # 1. Purge old sample agents if they exist
     old_agents = session.exec(
-        select(Agent).where(Agent.agent_name.in_(["Sarah Smith", "John Doe", "Alex Vance", "System Admin"]))
+        select(Agent).where(Agent.agent_name.in_(["Sarah Smith", "John Doe", "Alex Vance"]))
     ).all()
     for a in old_agents:
         session.delete(a)
     session.commit()
 
-    # 2. Seed user's default agents if missing
-    existing_agent_initials = set(session.exec(select(Agent.agent_initials)).all())
+    # 2. Seed or update user's default agents
     now = datetime.now(timezone.utc)
     for item in DEFAULT_AGENTS:
-        if item["agent_initials"] not in existing_agent_initials:
+        existing = session.exec(select(Agent).where(Agent.agent_initials == item["agent_initials"])).first()
+        if existing:
+            existing.agent = item["agent"]
+            existing.agent_name = item["agent_name"]
+            existing.is_admin = item["is_admin"]
+            existing.updated_at = now
+            session.add(existing)
+        else:
             session.add(
                 Agent(
                     agent=item["agent"],
@@ -87,6 +94,7 @@ def sync_default_data_if_needed(session: Session) -> None:
                 )
             )
     session.commit()
+
 
     # 3. Purge old sample templates if they exist
     old_templates = session.exec(

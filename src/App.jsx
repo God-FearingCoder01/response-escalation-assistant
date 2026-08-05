@@ -28,10 +28,11 @@ const DEFAULT_TEMPLATES = [
 ];
 
 const DEFAULT_AGENTS = [
-  { id: 1, agent: "Vuyo Ndlovu", agent_name: "Vuyo", agent_initials: "VN", is_admin: true },
+  { id: 1, agent: "Vuyo Ndlovu", agent_name: "Vuyo", agent_initials: "VN", is_admin: false },
   { id: 2, agent: "Kilian D", agent_name: "Kilian", agent_initials: "KD", is_admin: false },
   { id: 3, agent: "Thembi Sibanda", agent_name: "Thembi", agent_initials: "TS", is_admin: false },
   { id: 4, agent: "Kudzi Honde", agent_name: "Kudzi", agent_initials: "KH", is_admin: false },
+  { id: 5, agent: "System Admin", agent_name: "System Admin", agent_initials: "SA", is_admin: true },
 ];
 
 const THEMES = {
@@ -154,6 +155,12 @@ export default function App() {
       window.localStorage.removeItem(AGENT_KEY);
     }
   }, [currentAgent]);
+
+  useEffect(() => {
+    if (currentAgent && !currentAgent.is_admin && activeScreen === "admin") {
+      setActiveScreen("builder");
+    }
+  }, [currentAgent, activeScreen]);
 
   // Initial Data Fetch
   useEffect(() => {
@@ -539,19 +546,21 @@ export default function App() {
                 </span>
               </button>
 
-              <button
-                onClick={() => setActiveScreen("admin")}
-                className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${activeScreen === "admin"
-                    ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
-                    : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
-                  }`}
-                title="System Admin"
-              >
-                <span className="text-xl shrink-0">🛠️</span>
-                <span className={`whitespace-nowrap transition-opacity duration-200 ${isSidebarHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-                  System Admin
-                </span>
-              </button>
+              {currentAgent?.is_admin ? (
+                <button
+                  onClick={() => setActiveScreen("admin")}
+                  className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${activeScreen === "admin"
+                      ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
+                      : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+                    }`}
+                  title="System Admin"
+                >
+                  <span className="text-xl shrink-0">🛠️</span>
+                  <span className={`whitespace-nowrap transition-opacity duration-200 ${isSidebarHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+                    System Admin
+                  </span>
+                </button>
+              ) : null}
             </nav>
           </div>
 
