@@ -1040,9 +1040,7 @@ export default function App() {
           <div className="space-y-6">
             {/* Logo / Header */}
             <div className="flex items-center gap-3 overflow-hidden px-1">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] font-bold text-[#071007] shadow-lg">
-                REA
-              </div>
+              <img src="/REA.png" alt="REA Logo" className="h-10 w-10 shrink-0 object-contain rounded-2xl shadow-lg border border-[#4cd34c]/30" />
               {isSidebarHovered ? (
                 <span className="font-bold text-lg whitespace-nowrap">
                   Assistant
@@ -1154,6 +1152,7 @@ export default function App() {
         {/* TOP STATUS BAR */}
         <header className="mb-6 flex flex-col gap-4 rounded-3xl border p-4 shadow-[var(--panel-shadow)] backdrop-blur md:flex-row md:items-center md:justify-between" style={{ borderColor: "var(--header-border)", backgroundColor: "var(--header-bg)" }}>
           <div className="flex items-center gap-4">
+            <img src="/REA.png" alt="REA Logo" className="h-12 w-12 shrink-0 object-contain rounded-2xl shadow-md border border-[#4cd34c]/30" />
             <div>
               <div className="mb-1 inline-flex rounded-full border px-3 py-1 text-xs uppercase tracking-[0.2em]" style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--badge-bg)", color: "var(--badge-text)" }}>
                 RESPONSE & ESCALATION ASSISTANT
@@ -1198,7 +1197,8 @@ export default function App() {
         {/* SCREEN 1: WELCOME & AGENT SELECTION SCREEN */}
         {activeScreen === "welcome" || !currentAgent ? (
           <section className="max-w-6xl mx-auto py-8">
-            <div className="text-center mb-10">
+            <div className="text-center mb-10 flex flex-col items-center justify-center">
+              <img src="/REA.png" alt="REA Logo" className="h-16 w-16 mb-4 object-contain rounded-2xl shadow-xl border border-[#4cd34c]/30" />
               <span className="inline-block rounded-full border px-4 py-1 text-xs uppercase tracking-widest mb-3" style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--badge-bg)", color: "var(--badge-text)" }}>
                 AGENT AUTHENTICATION
               </span>
