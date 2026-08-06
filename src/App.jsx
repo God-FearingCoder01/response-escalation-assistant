@@ -1061,7 +1061,9 @@ export default function App() {
                   }`}
                 title="Tech Escalation"
               >
-                <span className="text-xl flex h-6 w-6 items-center justify-center shrink-0">⚡</span>
+                <span className="flex h-6 w-6 items-center justify-center shrink-0">
+                  <img src="/Lightning.png" alt="Tech Escalation" className="h-5 w-5 object-contain" />
+                </span>
                 {isSidebarHovered ? (
                   <span className="ml-3 font-semibold text-sm whitespace-nowrap">
                     Tech Escalation
@@ -1080,7 +1082,9 @@ export default function App() {
                   }`}
                 title="Customer Reply"
               >
-                <span className="text-xl flex h-6 w-6 items-center justify-center shrink-0">💬</span>
+                <span className="flex h-6 w-6 items-center justify-center shrink-0">
+                  <img src="/chat.png" alt="Customer Reply" className="h-5 w-5 object-contain" />
+                </span>
                 {isSidebarHovered ? (
                   <span className="ml-3 font-semibold text-sm whitespace-nowrap">
                     Customer Reply
@@ -1100,7 +1104,9 @@ export default function App() {
                     }`}
                   title="System Admin"
                 >
-                  <span className="text-xl flex h-6 w-6 items-center justify-center shrink-0">🛠️</span>
+                  <span className="flex h-6 w-6 items-center justify-center shrink-0">
+                    <img src="/admin.png" alt="System Admin" className="h-5 w-5 object-contain" />
+                  </span>
                   {isSidebarHovered ? (
                     <span className="ml-3 font-semibold text-sm whitespace-nowrap">
                       System Admin
@@ -1261,8 +1267,9 @@ export default function App() {
             <div className="lg:col-span-7 rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-5" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-bold" style={{ color: "var(--app-text)" }}>
-                    ⚡ Tech Escalation Builder
+                  <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: "var(--app-text)" }}>
+                    <img src="/Lightning.png" alt="Tech Escalation" className="h-6 w-6 shrink-0 object-contain" />
+                    Tech Escalation Builder
                   </h2>
                   <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
                     Escalation requests targeted exclusively for Telegram resolution.
@@ -1380,15 +1387,15 @@ export default function App() {
             </div>
           </section>
         ) : null}
-
         {/* SCREEN 3: CUSTOMER REPLY SCREEN (WhatsApp & Live Chat with Categorized Browser) */}
         {currentAgent && activeScreen === "customer_reply" ? (
           <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto">
             {/* Left Panel: Hierarchical Category Browser & Inputs */}
             <div className="lg:col-span-7 rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-5" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
               <div>
-                <h2 className="text-xl font-bold mb-1" style={{ color: "var(--app-text)" }}>
-                  💬 Customer Reply Center
+                <h2 className="text-xl font-bold mb-1 flex items-center gap-2" style={{ color: "var(--app-text)" }}>
+                  <img src="/chat.png" alt="Customer Reply" className="h-6 w-6 shrink-0 object-contain" />
+                  Customer Reply Center
                 </h2>
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                   Browse categorized response templates for Signed and Unsigned customer replies.
@@ -1410,7 +1417,10 @@ export default function App() {
                       }`}
                     style={{ borderColor: replyChannel === "signed" ? "#4cd34c" : "var(--field-border)" }}
                   >
-                    <span>✍️ Signed (^{currentAgent.agent_initials})</span>
+                    <span className="flex items-center gap-1.5">
+                      <img src="/signed.png" alt="Signed" className="h-4 w-4 shrink-0 object-contain" />
+                      Signed (^{currentAgent.agent_initials})
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -1421,7 +1431,10 @@ export default function App() {
                       }`}
                     style={{ borderColor: replyChannel === "unsigned" ? "#4cd34c" : "var(--field-border)" }}
                   >
-                    <span>📄 Unsigned (Plain Text)</span>
+                    <span className="flex items-center gap-1.5">
+                      <img src="/unsigned.png" alt="Unsigned" className="h-4 w-4 shrink-0 object-contain" />
+                      Unsigned (Plain Text)
+                    </span>
                   </button>
                 </div>
               </div>
@@ -1429,11 +1442,12 @@ export default function App() {
               {/* SEARCH & CATEGORY BROWSER */}
               <div className="space-y-3 pt-2 border-t" style={{ borderColor: "var(--field-border)" }}>
                 {/* Search Bar */}
-                <div className="relative">
+                <div className="relative flex items-center">
+                  <img src="/search.png" alt="Search" className="absolute left-3 h-4 w-4 shrink-0 object-contain pointer-events-none" />
                   <input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="🔍 Search customer reply templates..."
+                    placeholder="Search customer reply templates..."
                     className="w-full rounded-xl border p-2.5 text-sm pl-9 placeholder:text-[var(--field-placeholder)]"
                     style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                   />
@@ -1535,8 +1549,18 @@ export default function App() {
                   <h2 className="text-xl font-bold" style={{ color: "var(--app-text)" }}>
                     Customer Reply Preview
                   </h2>
-                  <span className="text-xs uppercase font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-3 py-1 rounded-full">
-                    {replyChannel === "signed" ? "✍️ Signed" : "📄 Unsigned"}
+                  <span className="text-xs uppercase font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-3 py-1 rounded-full flex items-center gap-1.5">
+                    {replyChannel === "signed" ? (
+                      <>
+                        <img src="/signed.png" alt="Signed" className="h-3.5 w-3.5 object-contain" />
+                        Signed
+                      </>
+                    ) : (
+                      <>
+                        <img src="/unsigned.png" alt="Unsigned" className="h-3.5 w-3.5 object-contain" />
+                        Unsigned
+                      </>
+                    )}
                   </span>
                 </div>
 
@@ -1582,7 +1606,8 @@ export default function App() {
           <section className="max-w-7xl mx-auto space-y-8">
             <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
               <div>
-                <h2 className="text-2xl font-bold" style={{ color: "var(--app-text)" }}>
+                <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: "var(--app-text)" }}>
+                  <img src="/admin.png" alt="System Admin" className="h-7 w-7 shrink-0 object-contain" />
                   System Admin Control Panel
                 </h2>
                 <p className="text-sm" style={{ color: "var(--text-muted)" }}>
@@ -1644,7 +1669,7 @@ export default function App() {
                       style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                     >
                       <option value="tech_escalation">⚡ Tech Escalation (Telegram)</option>
-                      <option value="customer_reply">💬 Customer Reply (WhatsApp & Live Chat)</option>
+                      <option value="customer_reply">💬 Customer Reply (Signed & Unsigned)</option>
                     </select>
                   </div>
                   <div>
