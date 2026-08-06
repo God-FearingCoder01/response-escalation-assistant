@@ -10,3 +10,15 @@ Admin dashbord
 1. Message Template modifier (or creator)
 2. Agent Control
 3. 
+
+Tech_Escalation Screen & Customer_Response Screen & Admin_Dashboard Screen
+1. Reset button
+2. Reset changes when I logout (Agent User Sessions)
+
+Admin_DashBoard Screen
+1. Sort Created Message Templates according to catergories and subcategories.  
+2. Upon Clicking 'Edit' button automatically shift Focus to the text area
+
+Tech_Esclation Screen
+1. Order Alphabetically the templates in the comboBox.
+2. Auto-fill for {day} and {month_number} field with the current correct values as according to the current date in real life.

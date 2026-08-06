@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-# pyrefly: ignore [missing-import]
 from sqlmodel import Field, SQLModel
 
 

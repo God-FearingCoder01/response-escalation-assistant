@@ -1,13 +1,14 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import List
+from typing import List, TypedDict
 
-# pyrefly: ignore [missing-import]
+
 from fastapi import FastAPI, HTTPException
-# pyrefly: ignore [missing-import]
+
 from fastapi.middleware.cors import CORSMiddleware
-# pyrefly: ignore [missing-import]
-from sqlmodel import Session, select
+
+from sqlmodel import Session, select, col
+
 
 try:
     from .database import create_db_and_tables, engine
@@ -22,8 +23,8 @@ try:
         TemplateUpdate,
     )
 except ImportError:
-    from database import create_db_and_tables, engine
-    from models import (
+    from backend.database import create_db_and_tables, engine
+    from backend.models import (
         Agent,
         AgentCreate,
         AgentRead,
@@ -39,7 +40,7 @@ DEFAULT_TEMPLATES = [
     # Tech Escalation Templates
     {
         "name": "Self Exclusion Request",
-        "body": "Account {customer_name} is requesting to be removed from self exclusion. #{agent_name}",
+        "body": "Account {account_number} is requesting to be removed from self exclusion. #{agent_name}",
         "category_type": "tech_escalation",
         "category": "Account Escalations",
         "subcategory": "Self Exclusion",
@@ -117,19 +118,26 @@ DEFAULT_TEMPLATES = [
     },
 ]
 
-DEFAULT_AGENTS = [
+class DefaultAgent(TypedDict):
+    agent: str
+    agent_name: str
+    agent_initials: str
+    is_admin: bool
+
+
+DEFAULT_AGENTS: List[DefaultAgent] = [
     {"agent": "Vuyo Ndlovu", "agent_name": "Vuyo", "agent_initials": "VN", "is_admin": False},
     {"agent": "Kilian D", "agent_name": "Kilian", "agent_initials": "KD", "is_admin": False},
-    {"agent": "Thembi Sibanda", "agent_name": "Thembi", "agent_initials": "TS", "is_admin": False},
-    {"agent": "Kudzi Honde", "agent_name": "Kudzi", "agent_initials": "KH", "is_admin": False},
-    {"agent": "System Admin", "agent_name": "System Admin", "agent_initials": "SA", "is_admin": True},
+    {"agent": "Thembi Sibanda", "agent_name": "Thembie", "agent_initials": "TS", "is_admin": False},
+    {"agent": "Kudzi Honde", "agent_name": "Kudzie", "agent_initials": "KH", "is_admin": False},
+    {"agent": "System Admin", "agent_name": "Sys_Admin", "agent_initials": "SA", "is_admin": True},
 ]
 
 
 def sync_default_data_if_needed(session: Session) -> None:
     # 1. Purge old sample agents if they exist
     old_agents = session.exec(
-        select(Agent).where(Agent.agent_name.in_(["Sarah Smith", "John Doe", "Alex Vance"]))
+        select(Agent).where(col(Agent.agent_name).in_(["Vuyo Ndlovu", "Kilian D", "Thembi Sibanda", "Kudzi Honde", "Sys_Admin"]))
     ).all()
     for a in old_agents:
         session.delete(a)
@@ -206,13 +214,15 @@ app.add_middleware(
 
 @app.get("/health")
 def health_check():
+    with Session(engine) as session:
+        sync_default_data_if_needed(session)
     return {"status": "ok", "message": "Backend is ready"}
 
 
 @app.get("/templates", response_model=List[TemplateRead])
 def list_templates():
     with Session(engine) as session:
-        return session.exec(select(Template).order_by(Template.updated_at.desc())).all()
+        return session.exec(select(Template).order_by(col(Template.updated_at).desc())).all()
 
 
 @app.post("/templates", response_model=TemplateRead)
@@ -275,7 +285,7 @@ def delete_template(template_id: int):
 @app.get("/export", response_model=List[TemplateRead])
 def export_templates():
     with Session(engine) as session:
-        return session.exec(select(Template).order_by(Template.updated_at.desc())).all()
+        return session.exec(select(Template).order_by(col(Template.updated_at).desc())).all()
 
 
 @app.post("/import")
@@ -304,7 +314,7 @@ def import_templates(items: List[TemplateCreate]):
 @app.get("/agents", response_model=List[AgentRead])
 def list_agents():
     with Session(engine) as session:
-        return session.exec(select(Agent).order_by(Agent.id.asc())).all()
+        return session.exec(select(Agent).order_by(col(Agent.id).asc())).all()
 
 
 @app.post("/agents", response_model=AgentRead)

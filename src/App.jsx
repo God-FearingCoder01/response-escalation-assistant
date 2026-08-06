@@ -9,7 +9,7 @@ const DEFAULT_TEMPLATES = [
   {
     id: 1,
     name: "Self Exclusion Request",
-    body: "Account {customer_name} is requesting to be removed from self exclusion. #{agent_name}",
+    body: "Account {account_number} is requesting to be removed from self exclusion. #{agent_name}",
     category_type: "tech_escalation",
     category: "Account Escalations",
     subcategory: "Self Exclusion",
@@ -100,9 +100,9 @@ const DEFAULT_TEMPLATES = [
 const DEFAULT_AGENTS = [
   { id: 1, agent: "Vuyo Ndlovu", agent_name: "Vuyo", agent_initials: "VN", is_admin: false },
   { id: 2, agent: "Kilian D", agent_name: "Kilian", agent_initials: "KD", is_admin: false },
-  { id: 3, agent: "Thembi Sibanda", agent_name: "Thembi", agent_initials: "TS", is_admin: false },
-  { id: 4, agent: "Kudzi Honde", agent_name: "Kudzi", agent_initials: "KH", is_admin: false },
-  { id: 5, agent: "System Admin", agent_name: "System Admin", agent_initials: "SA", is_admin: true },
+  { id: 3, agent: "Thembi Sibanda", agent_name: "Thembie", agent_initials: "TS", is_admin: false },
+  { id: 4, agent: "Kudzi Honde", agent_name: "Kudzie", agent_initials: "KH", is_admin: false },
+  { id: 5, agent: "System Admin", agent_name: "Sys_Admin", agent_initials: "SA", is_admin: true },
 ];
 
 const THEMES = {
@@ -722,9 +722,8 @@ export default function App() {
           onMouseEnter={() => setIsSidebarHovered(true)}
           onMouseLeave={() => setIsSidebarHovered(false)}
           onPointerLeave={() => setIsSidebarHovered(false)}
-          className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col justify-between border-r p-3 shadow-2xl backdrop-blur transition-all duration-300 ease-in-out ${
-            isSidebarHovered ? "w-64" : "w-20"
-          }`}
+          className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col justify-between border-r p-3 shadow-2xl backdrop-blur transition-all duration-300 ease-in-out ${isSidebarHovered ? "w-64" : "w-20"
+            }`}
           style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--sidebar-bg)" }}
         >
           <div className="space-y-6">
@@ -745,11 +744,10 @@ export default function App() {
                   setActiveScreen("tech_escalation");
                   setIsSidebarHovered(false);
                 }}
-                className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-3 text-left font-medium transition-all ${
-                  activeScreen === "tech_escalation"
+                className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-3 text-left font-medium transition-all ${activeScreen === "tech_escalation"
                     ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
                     : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
-                }`}
+                  }`}
                 title="Tech Escalation"
               >
                 <span className="text-xl shrink-0 h-8 w-8 flex items-center justify-center">⚡</span>
@@ -763,11 +761,10 @@ export default function App() {
                   setActiveScreen("customer_reply");
                   setIsSidebarHovered(false);
                 }}
-                className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-3 text-left font-medium transition-all ${
-                  activeScreen === "customer_reply"
+                className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-3 text-left font-medium transition-all ${activeScreen === "customer_reply"
                     ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
                     : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
-                }`}
+                  }`}
                 title="Customer Reply"
               >
                 <span className="text-xl shrink-0 h-8 w-8 flex items-center justify-center">💬</span>
@@ -782,11 +779,10 @@ export default function App() {
                     setActiveScreen("admin");
                     setIsSidebarHovered(false);
                   }}
-                  className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-3 text-left font-medium transition-all ${
-                    activeScreen === "admin"
+                  className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-3 text-left font-medium transition-all ${activeScreen === "admin"
                       ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
                       : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
-                  }`}
+                    }`}
                   title="System Admin"
                 >
                   <span className="text-xl shrink-0 h-8 w-8 flex items-center justify-center">🛠️</span>
@@ -843,10 +839,10 @@ export default function App() {
                 {activeScreen === "welcome"
                   ? "Welcome Portal"
                   : activeScreen === "tech_escalation"
-                  ? "Tech Escalation Builder"
-                  : activeScreen === "customer_reply"
-                  ? "Customer Reply Center"
-                  : "System Admin Dashboard"}
+                    ? "Tech Escalation Builder"
+                    : activeScreen === "customer_reply"
+                      ? "Customer Reply Center"
+                      : "System Admin Dashboard"}
               </h1>
             </div>
           </div>
@@ -1084,11 +1080,10 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setReplyChannel("signed")}
-                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
-                      replyChannel === "signed"
+                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${replyChannel === "signed"
                         ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
                         : "hover:bg-[var(--neutral-bg)]"
-                    }`}
+                      }`}
                     style={{ borderColor: replyChannel === "signed" ? "#4cd34c" : "var(--field-border)" }}
                   >
                     <span>✍️ Signed (^{currentAgent.agent_initials})</span>
@@ -1096,11 +1091,10 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setReplyChannel("unsigned")}
-                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
-                      replyChannel === "unsigned"
+                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${replyChannel === "unsigned"
                         ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
                         : "hover:bg-[var(--neutral-bg)]"
-                    }`}
+                      }`}
                     style={{ borderColor: replyChannel === "unsigned" ? "#4cd34c" : "var(--field-border)" }}
                   >
                     <span>💬 Unsigned (plain text)</span>
@@ -1135,11 +1129,10 @@ export default function App() {
                           setSelectedCategory(cat);
                           setSelectedSubcategory("All");
                         }}
-                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                          selectedCategory === cat
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${selectedCategory === cat
                             ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] border-[#4cd34c] shadow-sm"
                             : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
-                        }`}
+                          }`}
                         style={{ borderColor: selectedCategory === cat ? "#4cd34c" : "var(--badge-border)" }}
                       >
                         {cat}
@@ -1160,11 +1153,10 @@ export default function App() {
                           key={subcat}
                           type="button"
                           onClick={() => setSelectedSubcategory(subcat)}
-                          className={`rounded-xl border px-2.5 py-0.5 text-[11px] transition ${
-                            selectedSubcategory === subcat
+                          className={`rounded-xl border px-2.5 py-0.5 text-[11px] transition ${selectedSubcategory === subcat
                               ? "border-[#4cd34c] bg-[#4cd34c]/20 text-[#4cd34c] font-bold"
                               : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
-                          }`}
+                            }`}
                           style={{ borderColor: selectedSubcategory === subcat ? "#4cd34c" : "var(--field-border)" }}
                         >
                           {subcat}
@@ -1189,11 +1181,10 @@ export default function App() {
                         <div
                           key={t.id}
                           onClick={() => setSelectedCustId(t.id)}
-                          className={`p-3 rounded-2xl border cursor-pointer transition flex items-center justify-between ${
-                            t.id === (activeTemplate?.id)
+                          className={`p-3 rounded-2xl border cursor-pointer transition flex items-center justify-between ${t.id === (activeTemplate?.id)
                               ? "border-[#4cd34c] ring-1 ring-[#4cd34c]/30 bg-[#4cd34c]/5"
                               : "hover:border-[#4cd34c]/50"
-                          }`}
+                            }`}
                           style={{ borderColor: t.id === (activeTemplate?.id) ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
                         >
                           <div>
