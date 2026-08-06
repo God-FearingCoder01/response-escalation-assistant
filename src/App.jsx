@@ -253,16 +253,30 @@ export default function App() {
   const templateFormRef = useRef(null);
   const templateBodyRef = useRef(null);
 
+  function adjustTextareaHeight(el) {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.max(80, el.scrollHeight + 6)}px`;
+  }
+
   function scrollToTemplateForm() {
     setTimeout(() => {
       if (templateFormRef.current) {
         templateFormRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
       }
       if (templateBodyRef.current) {
+        adjustTextareaHeight(templateBodyRef.current);
         templateBodyRef.current.focus();
       }
     }, 50);
   }
+
+  // Auto-resize template body textarea whenever editTplBody changes
+  useEffect(() => {
+    if (templateBodyRef.current) {
+      adjustTextareaHeight(templateBodyRef.current);
+    }
+  }, [editTplBody, activeScreen]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1303,7 +1317,7 @@ export default function App() {
                   💬 Customer Reply Center
                 </h2>
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  Browse categorized response templates for WhatsApp and Live Chat customer replies.
+                  Browse categorized response templates for Signed and Unsigned customer replies.
                 </p>
               </div>
 
@@ -1323,7 +1337,7 @@ export default function App() {
                     }`}
                     style={{ borderColor: replyChannel === "signed" ? "#4cd34c" : "var(--field-border)" }}
                   >
-                    <span>💬 Signed (Appends ^{currentAgent.agent_initials})</span>
+                    <span>✍️ Signed (^{currentAgent.agent_initials})</span>
                   </button>
                   <button
                     type="button"
@@ -1335,7 +1349,7 @@ export default function App() {
                     }`}
                     style={{ borderColor: replyChannel === "unsigned" ? "#4cd34c" : "var(--field-border)" }}
                   >
-                    <span>🎧 Unsigned (Clean Text)</span>
+                    <span>📄 Unsigned (Plain Text)</span>
                   </button>
                 </div>
               </div>
@@ -1453,7 +1467,7 @@ export default function App() {
                     Customer Reply Preview
                   </h2>
                   <span className="text-xs uppercase font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-3 py-1 rounded-full">
-                    {replyChannel === "signed" ? "💬 Signed" : "🎧 Unsigned"}
+                    {replyChannel === "signed" ? "✍️ Signed" : "📄 Unsigned"}
                   </span>
                 </div>
 
@@ -1599,9 +1613,12 @@ export default function App() {
                     <textarea
                       ref={templateBodyRef}
                       value={editTplBody}
-                      onChange={(e) => setEditTplBody(e.target.value)}
+                      onChange={(e) => {
+                        setEditTplBody(e.target.value);
+                        adjustTextareaHeight(e.target);
+                      }}
                       placeholder="Write message template..."
-                      className="w-full rounded-xl border p-2.5 min-h-[5rem] text-sm"
+                      className="w-full rounded-xl border p-2.5 min-h-[5rem] text-sm overflow-hidden resize-none transition-all"
                       style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                     />
                   </div>
