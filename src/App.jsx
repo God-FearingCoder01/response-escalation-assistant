@@ -359,6 +359,7 @@ export default function App() {
   // Update selected agent profile & navigate (With Security PIN Check for Admin)
   function handleSelectAgent(agent) {
     resetAllSessionStates();
+    setIsSidebarHovered(false);
     if (agent.is_admin) {
       setPendingAdminAgent(agent);
       setPinDigits(["", "", "", ""]);
@@ -382,6 +383,7 @@ export default function App() {
       setPendingAdminAgent(null);
       setPinDigits(["", "", "", ""]);
       setPinError("");
+      setIsSidebarHovered(false);
       setActiveScreen("tech_escalation");
     } else {
       setPinError("Incorrect 4-digit Security PIN. Default PIN is 0000.");
@@ -390,6 +392,7 @@ export default function App() {
 
   function handleLogout() {
     resetAllSessionStates();
+    setIsSidebarHovered(false);
     setCurrentAgent(null);
     setActiveScreen("welcome");
   }
@@ -923,7 +926,7 @@ export default function App() {
         <aside
           onMouseEnter={() => setIsSidebarHovered(true)}
           onMouseLeave={() => setIsSidebarHovered(false)}
-          className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col justify-between border-r p-3 shadow-2xl backdrop-blur transition-all duration-300 ease-in-out ${
+          className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col justify-between border-r p-2.5 shadow-2xl backdrop-blur transition-all duration-300 ease-in-out ${
             isSidebarHovered ? "w-64" : "w-16"
           }`}
           style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--sidebar-bg)" }}
@@ -934,9 +937,11 @@ export default function App() {
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] font-bold text-[#071007] shadow-lg">
                 REA
               </div>
-              <span className={`font-bold text-lg whitespace-nowrap transition-opacity duration-200 ${isSidebarHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-                Assistant
-              </span>
+              {isSidebarHovered ? (
+                <span className="font-bold text-lg whitespace-nowrap">
+                  Assistant
+                </span>
+              ) : null}
             </div>
 
             {/* Nav links */}
@@ -946,17 +951,19 @@ export default function App() {
                   setActiveScreen("tech_escalation");
                   setIsSidebarHovered(false);
                 }}
-                className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${
+                className={`flex w-full items-center justify-start rounded-2xl p-2.5 font-medium transition-all ${
                   activeScreen === "tech_escalation"
                     ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
                     : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
                 }`}
                 title="Tech Escalation"
               >
-                <span className="text-xl shrink-0">⚡</span>
-                <span className={`whitespace-nowrap transition-opacity duration-200 ${isSidebarHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-                  Tech Escalation
-                </span>
+                <span className="text-xl flex h-6 w-6 items-center justify-center shrink-0">⚡</span>
+                {isSidebarHovered ? (
+                  <span className="ml-3 font-semibold text-sm whitespace-nowrap">
+                    Tech Escalation
+                  </span>
+                ) : null}
               </button>
 
               <button
@@ -964,17 +971,19 @@ export default function App() {
                   setActiveScreen("customer_reply");
                   setIsSidebarHovered(false);
                 }}
-                className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${
+                className={`flex w-full items-center justify-start rounded-2xl p-2.5 font-medium transition-all ${
                   activeScreen === "customer_reply"
                     ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
                     : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
                 }`}
                 title="Customer Reply"
               >
-                <span className="text-xl shrink-0">💬</span>
-                <span className={`whitespace-nowrap transition-opacity duration-200 ${isSidebarHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-                  Customer Reply
-                </span>
+                <span className="text-xl flex h-6 w-6 items-center justify-center shrink-0">💬</span>
+                {isSidebarHovered ? (
+                  <span className="ml-3 font-semibold text-sm whitespace-nowrap">
+                    Customer Reply
+                  </span>
+                ) : null}
               </button>
 
               {currentAgent?.is_admin ? (
@@ -983,17 +992,19 @@ export default function App() {
                     setActiveScreen("admin");
                     setIsSidebarHovered(false);
                   }}
-                  className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${
+                  className={`flex w-full items-center justify-start rounded-2xl p-2.5 font-medium transition-all ${
                     activeScreen === "admin"
                       ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
                       : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
                   }`}
                   title="System Admin"
                 >
-                  <span className="text-xl shrink-0">🛠️</span>
-                  <span className={`whitespace-nowrap transition-opacity duration-200 ${isSidebarHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-                    System Admin
-                  </span>
+                  <span className="text-xl flex h-6 w-6 items-center justify-center shrink-0">🛠️</span>
+                  {isSidebarHovered ? (
+                    <span className="ml-3 font-semibold text-sm whitespace-nowrap">
+                      System Admin
+                    </span>
+                  ) : null}
                 </button>
               ) : null}
             </nav>
@@ -1004,15 +1015,17 @@ export default function App() {
             {/* Theme Toggle */}
             <button
               onClick={() => setThemeMode((c) => (c === "night" ? "day" : "night"))}
-              className="flex w-full items-center gap-4 rounded-2xl p-2 transition hover:bg-[var(--neutral-bg)] text-sm"
+              className="flex w-full items-center justify-start rounded-2xl p-2 transition hover:bg-[var(--neutral-bg)] text-sm"
               title={`Switch to ${themeMode === "night" ? "Day" : "Night"} mode`}
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-sm" style={{ borderColor: "var(--badge-border)" }}>
                 {themeMode === "night" ? "🌙" : "☀️"}
               </span>
-              <span className={`whitespace-nowrap transition-opacity duration-200 ${isSidebarHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-                {themeMode === "night" ? "Night Mode" : "Day Mode"}
-              </span>
+              {isSidebarHovered ? (
+                <span className="ml-3 text-sm font-medium whitespace-nowrap">
+                  {themeMode === "night" ? "Night Mode" : "Day Mode"}
+                </span>
+              ) : null}
             </button>
 
             {/* Profile badge & logout */}
@@ -1020,12 +1033,14 @@ export default function App() {
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#32324a_0%,#11111e_100%)] text-xs font-bold text-[#4cd34c] border" style={{ borderColor: "var(--badge-border)" }}>
                 {currentAgent.agent_initials}
               </div>
-              <div className={`overflow-hidden whitespace-nowrap transition-opacity duration-200 ${isSidebarHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-                <div className="text-xs font-semibold truncate">{currentAgent.agent_name}</div>
-                <button onClick={handleLogout} className="text-[10px] text-[#4cd34c] hover:underline block mt-0.5">
-                  Switch Profile ↩
-                </button>
-              </div>
+              {isSidebarHovered ? (
+                <div className="overflow-hidden whitespace-nowrap">
+                  <div className="text-xs font-semibold truncate">{currentAgent.agent_name}</div>
+                  <button onClick={handleLogout} className="text-[10px] text-[#4cd34c] hover:underline block mt-0.5">
+                    Switch Profile ↩
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         </aside>
@@ -1088,7 +1103,7 @@ export default function App() {
                 Select Your Agent Profile
               </h2>
               <p className="max-w-xl mx-auto text-base" style={{ color: "var(--text-muted)" }}>
-                Welcome to the Escalation Assistant. Please choose your agent profile below to enter the system.
+                Welcome to Response & Escalation Assistant. Please choose your agent profile below to enter the system.
               </p>
             </div>
 
@@ -1412,39 +1427,6 @@ export default function App() {
                   </div>
                 </div>
               </div>
-
-              {/* Dynamic Parameter Inputs */}
-              {placeholders.length > 0 ? (
-                <div className="pt-2 border-t" style={{ borderColor: "var(--field-border)" }}>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
-                    Customer Response Parameters:
-                  </h3>
-                  <div className="space-y-3">
-                    {placeholders.map((ph) => {
-                      const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
-                      return (
-                        <div key={ph}>
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs capitalize" style={{ color: "var(--text-muted)" }}>
-                              {ph.replace("_", " ")}:
-                            </span>
-                            {isAgentField ? (
-                              <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from profile</span>
-                            ) : null}
-                          </div>
-                          <input
-                            value={values[ph] ?? (isAgentField ? (ph === "agent_initials" ? currentAgent.agent_initials : currentAgent.agent_name) : "")}
-                            onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
-                            placeholder={`Enter ${ph.replace("_", " ")}`}
-                            className="w-full rounded-xl border p-2.5 text-sm placeholder:text-[var(--field-placeholder)]"
-                            style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
             </div>
 
             {/* Right Panel: Live Message Preview */}
