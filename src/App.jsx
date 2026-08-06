@@ -250,6 +250,19 @@ export default function App() {
 
   const theme = THEMES[themeMode] ?? THEMES.night;
   const fileRef = useRef(null);
+  const templateFormRef = useRef(null);
+  const templateBodyRef = useRef(null);
+
+  function scrollToTemplateForm() {
+    setTimeout(() => {
+      if (templateFormRef.current) {
+        templateFormRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      if (templateBodyRef.current) {
+        templateBodyRef.current.focus();
+      }
+    }, 50);
+  }
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -798,11 +811,14 @@ export default function App() {
       }
     }
 
-    // Customer Reply rule: WhatsApp/Signed appends ^{agent_initials}
+    // Customer Reply rule: WhatsApp/Signed appends ^{agent_initials} only if template body does NOT already include an agent signature placeholder
     if (activeScreen === "customer_reply" && replyChannel === "signed") {
-      const initialsSig = ` ^${currentAgent?.agent_initials ?? ""}`;
-      if (currentAgent?.agent_initials && !out.endsWith(initialsSig)) {
-        out = out.trim() + initialsSig;
+      const hasAgentPlaceholder = activeTemplate?.body && /\{agent(_name|_initials)?\}/.test(activeTemplate.body);
+      if (!hasAgentPlaceholder && currentAgent?.agent_initials) {
+        const initialsSig = ` ^${currentAgent.agent_initials}`;
+        if (!out.endsWith(initialsSig)) {
+          out = out.trim() + initialsSig;
+        }
       }
     }
 
@@ -1531,7 +1547,7 @@ export default function App() {
               </div>
 
               {/* Create/Edit Template Form */}
-              <div className="rounded-2xl border p-4 space-y-3" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
+              <div ref={templateFormRef} className="rounded-2xl border p-4 space-y-3" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
                 <h4 className="text-xs uppercase font-semibold" style={{ color: "var(--text-muted)" }}>
                   {editTplId ? `Edit Template #${editTplId}` : "Create New Response Template"}
                 </h4>
@@ -1581,6 +1597,7 @@ export default function App() {
                   <div className="md:col-span-3">
                     <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Template Body (use placeholders like {"{customer_name}"}):</label>
                     <textarea
+                      ref={templateBodyRef}
                       value={editTplBody}
                       onChange={(e) => setEditTplBody(e.target.value)}
                       placeholder="Write message template..."
@@ -1740,6 +1757,7 @@ export default function App() {
                                         setEditTplType(t.category_type ?? "tech_escalation");
                                         setEditTplCat(t.category ?? "");
                                         setEditTplSubcat(t.subcategory ?? "");
+                                        scrollToTemplateForm();
                                       }}
                                       className="px-3 py-1.5 rounded-xl border text-xs font-semibold transition hover:bg-[var(--neutral-bg)]"
                                       style={{ borderColor: "var(--badge-border)" }}
