@@ -370,7 +370,7 @@ export default function App() {
     };
   }, []);
 
-  // Reset all temporary form states, filters, and admin drafts for agent user session
+  // Reset all temporary form states, filters, parameter inputs, and admin drafts
   function resetAllSessionStates() {
     setValues({});
     setSearchQuery("");
@@ -382,6 +382,11 @@ export default function App() {
     setPinSuccessMsg("");
     setPinErrorMsg("");
   }
+
+  // Automatically reset form states and parameters whenever active screen or logged-in agent changes
+  useEffect(() => {
+    resetAllSessionStates();
+  }, [activeScreen, currentAgent?.id]);
 
   // Update selected agent profile & navigate (With Security PIN Check for Admin)
   function handleSelectAgent(agent) {
@@ -708,9 +713,12 @@ export default function App() {
     reader.readAsText(file);
   }
 
-  // Categorized template lists
+  // Categorized template lists (Tech Escalation templates sorted alphabetically ascending)
   const techTemplates = useMemo(
-    () => templates.filter((t) => t.category_type === "tech_escalation"),
+    () =>
+      templates
+        .filter((t) => t.category_type === "tech_escalation")
+        .sort((a, b) => a.name.localeCompare(b.name)),
     [templates]
   );
 
