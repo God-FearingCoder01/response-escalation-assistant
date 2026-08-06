@@ -942,6 +942,9 @@ export default function App() {
       agent_name: currentAgent?.agent_name ?? "",
       agent: currentAgent?.agent ?? currentAgent?.agent_name ?? "",
       agent_initials: currentAgent?.agent_initials ?? "",
+      time_units: "hour(s)",
+      time_unit: "hour(s)",
+      time_units_list: "hour(s)",
       ...dateAuto,
     };
 
@@ -1217,38 +1220,6 @@ export default function App() {
 
       {/* MAIN CONTENT CONTAINER */}
       <div className={`flex-1 p-6 transition-all duration-300 ${currentAgent && activeScreen !== "welcome" ? "ml-16" : ""}`}>
-        {/* TOP STATUS BAR */}
-        <header className="mb-6 flex flex-col gap-4 rounded-3xl border p-4 shadow-[var(--panel-shadow)] backdrop-blur md:flex-row md:items-center md:justify-between" style={{ borderColor: "var(--header-border)", backgroundColor: "var(--header-bg)" }}>
-          <div className="flex items-center gap-4">
-            <img src="/REA.png" alt="REA Logo" className="h-12 w-12 shrink-0 object-contain rounded-2xl shadow-md border border-[#4cd34c]/30" />
-            <div>
-              <div className="mb-1 inline-flex rounded-full border px-3 py-1 text-xs uppercase tracking-[0.2em]" style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--badge-bg)", color: "var(--badge-text)" }}>
-                RESPONSE & ESCALATION ASSISTANT
-              </div>
-              <h1 className="text-2xl font-bold md:text-3xl" style={{ color: "var(--header-text)" }}>
-                {activeScreen === "welcome"
-                  ? "Welcome Portal"
-                  : activeScreen === "tech_escalation"
-                    ? "Tech Escalation Builder"
-                    : activeScreen === "customer_reply"
-                      ? "Customer Reply Center"
-                      : "System Admin Dashboard"}
-              </h1>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 text-sm" style={{ color: "var(--header-muted)" }}>
-            <span className={`h-2.5 w-2.5 rounded-full ${apiStatus === "checking" ? "bg-[#f1c84b]" : apiStatus === "offline" ? "bg-[#b83838]" : "bg-[#4cd34c]"}`} />
-            <span>{loading ? "Connecting..." : apiStatus === "offline" ? "Offline Mode" : "Backend Connected"}</span>
-
-            {currentAgent ? (
-              <div className="ml-3 flex items-center gap-2 rounded-full border px-3 py-1 text-xs" style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--badge-bg)" }}>
-                <span>Signed in:</span>
-                <strong className="text-[#4cd34c]">{currentAgent.agent_name} ({currentAgent.agent_initials})</strong>
-              </div>
-            ) : null}
-          </div>
-        </header>
 
         {statusMessage && apiStatus !== "offline" ? (
           <div className="mb-4 rounded-2xl border px-4 py-2.5 text-sm backdrop-blur" style={{ borderColor: "var(--status-border)", backgroundColor: "var(--status-bg)", color: "var(--app-text)" }}>
@@ -1378,12 +1349,15 @@ export default function App() {
                     {placeholders.map((ph) => {
                       const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
                       const isDateField = /^(day|month|year|date)/i.test(ph);
+                      const isTimeUnitField = /^time_unit/i.test(ph);
                       const dateAuto = getDateAutoValues();
                       const autoVal = isAgentField
                         ? (ph === "agent_initials" ? currentAgent?.agent_initials : currentAgent?.agent_name)
                         : isDateField
                           ? dateAuto[ph]
-                          : "";
+                          : isTimeUnitField
+                            ? "hour(s)"
+                            : "";
                       return (
                         <div key={ph}>
                           <div className="flex justify-between items-center mb-1">
@@ -1394,15 +1368,29 @@ export default function App() {
                               <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from profile</span>
                             ) : isDateField ? (
                               <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from date</span>
+                            ) : isTimeUnitField ? (
+                              <span className="text-[10px] text-[#4cd34c] font-semibold">Preset dropdown</span>
                             ) : null}
                           </div>
-                          <input
-                            value={values[ph] ?? autoVal}
-                            onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
-                            placeholder={`Enter ${ph.replace("_", " ")}`}
-                            className="w-full rounded-xl border p-2.5 text-sm placeholder:text-[var(--field-placeholder)]"
-                            style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                          />
+                          {isTimeUnitField ? (
+                            <select
+                              value={values[ph] ?? "hour(s)"}
+                              onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                              className="w-full rounded-xl border p-2.5 text-sm font-medium"
+                              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                            >
+                              <option value="hour(s)">hour(s)</option>
+                              <option value="minutes">minutes</option>
+                            </select>
+                          ) : (
+                            <input
+                              value={values[ph] ?? autoVal}
+                              onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                              placeholder={`Enter ${ph.replace("_", " ")}`}
+                              className="w-full rounded-xl border p-2.5 text-sm placeholder:text-[var(--field-placeholder)]"
+                              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                            />
+                          )}
                         </div>
                       );
                     })}
@@ -1440,7 +1428,7 @@ export default function App() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => copyText(generatedMsg)}
+                  onClick={() => copyText(generatedMsg.replace(new RegExp(`\\s*#${currentAgent?.agent_name}$`), ""))}
                   disabled={!generatedMsg}
                   className="w-full rounded-xl border py-2 text-sm font-medium transition"
                   style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
@@ -1623,12 +1611,15 @@ export default function App() {
                       {placeholders.map((ph) => {
                         const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
                         const isDateField = /^(day|month|year|date)/i.test(ph);
+                        const isTimeUnitField = /^time_unit/i.test(ph);
                         const dateAuto = getDateAutoValues();
                         const autoVal = isAgentField
                           ? (ph === "agent_initials" ? currentAgent?.agent_initials : currentAgent?.agent_name)
                           : isDateField
                             ? dateAuto[ph]
-                            : "";
+                            : isTimeUnitField
+                              ? "hour(s)"
+                              : "";
                         return (
                           <div key={ph}>
                             <div className="flex justify-between items-center mb-1">
@@ -1639,15 +1630,29 @@ export default function App() {
                                 <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from profile</span>
                               ) : isDateField ? (
                                 <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from date</span>
+                              ) : isTimeUnitField ? (
+                                <span className="text-[10px] text-[#4cd34c] font-semibold">Preset dropdown</span>
                               ) : null}
                             </div>
-                            <input
-                              value={values[ph] ?? autoVal}
-                              onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
-                              placeholder={`Enter ${ph.replace("_", " ")}`}
-                              className="w-full rounded-xl border p-2.5 text-sm placeholder:text-[var(--field-placeholder)]"
-                              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                            />
+                            {isTimeUnitField ? (
+                              <select
+                                value={values[ph] ?? "hour(s)"}
+                                onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                                className="w-full rounded-xl border p-2.5 text-sm font-medium"
+                                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                              >
+                                <option value="hour(s)">hour(s)</option>
+                                <option value="minutes">minutes</option>
+                              </select>
+                            ) : (
+                              <input
+                                value={values[ph] ?? autoVal}
+                                onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                                placeholder={`Enter ${ph.replace("_", " ")}`}
+                                className="w-full rounded-xl border p-2.5 text-sm placeholder:text-[var(--field-placeholder)]"
+                                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                              />
+                            )}
                           </div>
                         );
                       })}
