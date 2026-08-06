@@ -1056,7 +1056,7 @@ export default function App() {
                 </div>
               ) : (
                 <p className="text-[11px] text-center text-[var(--text-muted)] italic">
-                  Default System Admin PIN is <code className="text-[#4cd34c] font-bold">0000</code>
+                  Kindly contact system support for your default admin PIN.
                 </p>
               )}
 
