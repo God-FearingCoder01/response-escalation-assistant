@@ -210,6 +210,10 @@ export default function App() {
   const [editAgentIsAdmin, setEditAgentIsAdmin] = useState(false);
   const [userCustomizedInitials, setUserCustomizedInitials] = useState(false);
 
+  // Admin Dashboard category card states
+  const [expandedAdminCats, setExpandedAdminCats] = useState({});
+  const [adminSubcatFilter, setAdminSubcatFilter] = useState({});
+
   const [values, setValues] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -225,6 +229,7 @@ export default function App() {
 
   const theme = THEMES[themeMode] ?? THEMES.night;
   const fileRef = useRef(null);
+  const editTplBodyRef = useRef(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -323,13 +328,26 @@ export default function App() {
     };
   }, []);
 
+  // Reset all temporary form states, filters, and admin drafts for agent user session
+  function resetAllSessionStates() {
+    setValues({});
+    setSearchQuery("");
+    setSelectedCategory("All");
+    setSelectedSubcategory("All");
+    setReplyChannel("signed");
+    resetTemplateForm();
+    resetAgentForm();
+  }
+
   // Update selected agent profile & navigate
   function handleSelectAgent(agent) {
+    resetAllSessionStates();
     setCurrentAgent(agent);
     setActiveScreen("tech_escalation");
   }
 
   function handleLogout() {
+    resetAllSessionStates();
     setCurrentAgent(null);
     setActiveScreen("welcome");
   }
@@ -580,14 +598,31 @@ export default function App() {
     reader.readAsText(file);
   }
 
-  // Categorized template lists
+  // Helper to resolve auto-filled defaults for agent profile fields and real-life date fields ({day}, {month}, {month_number}, {year})
+  function getDefaultPlaceholderValue(ph, agent) {
+    const now = new Date();
+    if (ph === "agent_name" || ph === "agent") return agent?.agent_name ?? "";
+    if (ph === "agent_initials") return agent?.agent_initials ?? "";
+    if (ph === "day") return String(now.getDate()).padStart(2, "0");
+    if (ph === "month" || ph === "month_number") return String(now.getMonth() + 1).padStart(2, "0");
+    if (ph === "year") return String(now.getFullYear());
+    return "";
+  }
+
+  // Categorized template lists (Sorted alphabetically by template title)
   const techTemplates = useMemo(
-    () => templates.filter((t) => t.category_type === "tech_escalation"),
+    () =>
+      templates
+        .filter((t) => t.category_type === "tech_escalation")
+        .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "")),
     [templates]
   );
 
   const customerTemplates = useMemo(
-    () => templates.filter((t) => t.category_type === "customer_reply"),
+    () =>
+      templates
+        .filter((t) => t.category_type === "customer_reply")
+        .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "")),
     [templates]
   );
 
@@ -623,6 +658,42 @@ export default function App() {
     });
   }, [customerTemplates, selectedCategory, selectedSubcategory, searchQuery]);
 
+  // Grouped templates by Primary Category for Admin Dashboard
+  const groupedAdminCategories = useMemo(() => {
+    const map = new Map();
+
+    templates.forEach((t) => {
+      const catKey = (t.category ?? "").trim() || "General / Uncategorized";
+      if (!map.has(catKey)) {
+        map.set(catKey, {
+          categoryName: catKey,
+          categoryType: t.category_type,
+          templates: [],
+          subcategoriesSet: new Set(),
+        });
+      }
+      const entry = map.get(catKey);
+      entry.templates.push(t);
+      if (t.subcategory && t.subcategory.trim()) {
+        entry.subcategoriesSet.add(t.subcategory.trim());
+      }
+    });
+
+    const list = Array.from(map.values()).map((entry) => ({
+      categoryName: entry.categoryName,
+      categoryType: entry.categoryType,
+      templates: entry.templates.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "")),
+      subcategories: ["All", ...Array.from(entry.subcategoriesSet).sort((a, b) => a.localeCompare(b))],
+      totalCount: entry.templates.length,
+    }));
+
+    return list.sort((a, b) => {
+      if (a.categoryName === "General / Uncategorized") return 1;
+      if (b.categoryName === "General / Uncategorized") return -1;
+      return a.categoryName.localeCompare(b.categoryName);
+    });
+  }, [templates]);
+
   // Selected template object
   const activeTemplate = useMemo(() => {
     if (activeScreen === "tech_escalation") {
@@ -649,10 +720,15 @@ export default function App() {
     if (!activeTemplate) return "";
     let out = activeTemplate.body;
 
+    const now = new Date();
     const autoMap = {
       agent_name: currentAgent?.agent_name ?? "",
       agent: currentAgent?.agent ?? currentAgent?.agent_name ?? "",
       agent_initials: currentAgent?.agent_initials ?? "",
+      day: String(now.getDate()).padStart(2, "0"),
+      month: String(now.getMonth() + 1).padStart(2, "0"),
+      month_number: String(now.getMonth() + 1).padStart(2, "0"),
+      year: String(now.getFullYear()),
     };
 
     const allKeys = new Set([...Object.keys(autoMap), ...Object.keys(values)]);
@@ -963,9 +1039,20 @@ export default function App() {
 
               {/* Dynamic Parameters */}
               <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
-                  Escalation Parameters:
-                </h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+                    Escalation Parameters:
+                  </h3>
+                  {Object.keys(values).length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setValues({})}
+                      className="text-xs text-[#4cd34c] hover:underline flex items-center gap-1 font-semibold"
+                    >
+                      🔄 Reset Fields
+                    </button>
+                  ) : null}
+                </div>
 
                 {placeholders.length === 0 ? (
                   <p className="text-xs italic p-3 rounded-xl border" style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}>
@@ -975,6 +1062,9 @@ export default function App() {
                   <div className="space-y-3">
                     {placeholders.map((ph) => {
                       const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
+                      const isDateField = ph === "day" || ph === "month" || ph === "month_number" || ph === "year";
+                      const defaultValue = getDefaultPlaceholderValue(ph, currentAgent);
+
                       return (
                         <div key={ph}>
                           <div className="flex justify-between items-center mb-1">
@@ -983,10 +1073,12 @@ export default function App() {
                             </span>
                             {isAgentField ? (
                               <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from profile</span>
+                            ) : isDateField ? (
+                              <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled current date</span>
                             ) : null}
                           </div>
                           <input
-                            value={values[ph] ?? (isAgentField ? (ph === "agent_initials" ? currentAgent.agent_initials : currentAgent.agent_name) : "")}
+                            value={values[ph] ?? defaultValue}
                             onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
                             placeholder={`Enter ${ph.replace("_", " ")}`}
                             className="w-full rounded-xl border p-2.5 text-sm placeholder:text-[var(--field-placeholder)]"
@@ -1039,10 +1131,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setValues({})}
-                  className="w-full rounded-xl border py-2 text-sm font-medium transition"
+                  className="w-full rounded-xl border py-2.5 text-sm font-medium transition flex items-center justify-center gap-2 hover:bg-[#b83838]/10 hover:border-[#b83838]/40 hover:text-[#ff6b6b]"
                   style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
                 >
-                  Clear Parameter Inputs
+                  <span>🔄 Reset Form Inputs</span>
                 </button>
               </div>
             </div>
@@ -1198,12 +1290,26 @@ export default function App() {
               {/* Dynamic Parameter Inputs */}
               {placeholders.length > 0 ? (
                 <div className="pt-2 border-t" style={{ borderColor: "var(--field-border)" }}>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
-                    Customer Response Parameters:
-                  </h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+                      Customer Response Parameters:
+                    </h3>
+                    {Object.keys(values).length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setValues({})}
+                        className="text-xs text-[#4cd34c] hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        🔄 Reset Fields
+                      </button>
+                    ) : null}
+                  </div>
                   <div className="space-y-3">
                     {placeholders.map((ph) => {
                       const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
+                      const isDateField = ph === "day" || ph === "month" || ph === "month_number" || ph === "year";
+                      const defaultValue = getDefaultPlaceholderValue(ph, currentAgent);
+
                       return (
                         <div key={ph}>
                           <div className="flex justify-between items-center mb-1">
@@ -1212,10 +1318,12 @@ export default function App() {
                             </span>
                             {isAgentField ? (
                               <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from profile</span>
+                            ) : isDateField ? (
+                              <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled current date</span>
                             ) : null}
                           </div>
                           <input
-                            value={values[ph] ?? (isAgentField ? (ph === "agent_initials" ? currentAgent.agent_initials : currentAgent.agent_name) : "")}
+                            value={values[ph] ?? defaultValue}
                             onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
                             placeholder={`Enter ${ph.replace("_", " ")}`}
                             className="w-full rounded-xl border p-2.5 text-sm placeholder:text-[var(--field-placeholder)]"
@@ -1268,10 +1376,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setValues({})}
-                  className="w-full rounded-xl border py-2 text-sm font-medium transition"
+                  className="w-full rounded-xl border py-2.5 text-sm font-medium transition flex items-center justify-center gap-2 hover:bg-[#b83838]/10 hover:border-[#b83838]/40 hover:text-[#ff6b6b]"
                   style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
                 >
-                  Clear Parameter Inputs
+                  <span>🔄 Reset Form Inputs</span>
                 </button>
               </div>
             </div>
@@ -1381,6 +1489,7 @@ export default function App() {
                   <div className="md:col-span-3">
                     <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Template Body (use placeholders like {"{customer_name}"}):</label>
                     <textarea
+                      ref={editTplBodyRef}
                       value={editTplBody}
                       onChange={(e) => setEditTplBody(e.target.value)}
                       placeholder="Write message template..."
@@ -1391,6 +1500,16 @@ export default function App() {
                 </div>
 
                 <div className="flex gap-2 justify-end">
+                  {(editTplId || editTplName || editTplBody || editTplCat || editTplSubcat) ? (
+                    <button
+                      type="button"
+                      onClick={resetTemplateForm}
+                      className="px-4 py-2 rounded-xl border text-sm font-medium transition hover:bg-[#b83838]/10 hover:border-[#b83838]/40 hover:text-[#ff6b6b]"
+                      style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
+                    >
+                      🔄 Reset Form
+                    </button>
+                  ) : null}
                   <button
                     onClick={() => upsertTemplate(editTplId, editTplName, editTplBody, editTplType, editTplCat, editTplSubcat)}
                     disabled={!editTplName || !editTplBody || saving}
@@ -1398,63 +1517,168 @@ export default function App() {
                   >
                     {saving ? "Saving..." : editTplId ? "Save Changes" : "Add Template"}
                   </button>
-                  {editTplId ? (
-                    <button
-                      onClick={resetTemplateForm}
-                      className="px-4 py-2 rounded-xl border text-sm"
-                      style={{ borderColor: "var(--badge-border)" }}
-                    >
-                      Cancel
-                    </button>
-                  ) : null}
                 </div>
               </div>
 
-              {/* Template List */}
-              <div className="space-y-3">
-                {templates.map((t) => (
-                  <div key={t.id} className="rounded-2xl border p-4 flex items-center justify-between transition hover:border-[#4cd34c]/50" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-base">{t.name}</span>
-                        <span className="text-[10px] rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
-                          {t.category_type === "tech_escalation" ? "⚡ Tech Escalation" : "💬 Customer Reply"}
-                        </span>
-                        {t.category ? (
-                          <span className="text-[10px] rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
-                            {t.category} {t.subcategory ? `> ${t.subcategory}` : ""}
+              {/* Category Cards with Accordion Expansion & Horizontal Subcategory Navigation */}
+              <div className="space-y-4">
+                {groupedAdminCategories.map((catGroup) => {
+                  const isExpanded = expandedAdminCats[catGroup.categoryName] !== false; // Default expanded
+                  const selectedSub = adminSubcatFilter[catGroup.categoryName] ?? "All";
+
+                  const filteredTemplates = catGroup.templates.filter((t) => {
+                    if (selectedSub === "All") return true;
+                    return (t.subcategory ?? "").trim() === selectedSub;
+                  });
+
+                  return (
+                    <div
+                      key={catGroup.categoryName}
+                      className="rounded-2xl border shadow-md backdrop-blur transition-all overflow-hidden"
+                      style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}
+                    >
+                      {/* Accordion Card Header */}
+                      <div
+                        onClick={() =>
+                          setExpandedAdminCats((prev) => ({
+                            ...prev,
+                            [catGroup.categoryName]: !isExpanded,
+                          }))
+                        }
+                        className="p-4 flex items-center justify-between cursor-pointer hover:bg-[var(--neutral-bg)] transition select-none"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl">
+                            {catGroup.categoryType === "tech_escalation" ? "⚡" : "💬"}
                           </span>
-                        ) : null}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-base" style={{ color: "var(--app-text)" }}>
+                                {catGroup.categoryName}
+                              </h4>
+                              <span className="text-[10px] rounded-full border px-2 py-0.5 font-semibold" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                                {catGroup.categoryType === "tech_escalation" ? "Tech Escalation" : "Customer Reply"}
+                              </span>
+                            </div>
+                            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                              {catGroup.totalCount} template{catGroup.totalCount === 1 ? "" : "s"} • {catGroup.subcategories.length - 1} subcategor{catGroup.subcategories.length - 1 === 1 ? "y" : "ies"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-semibold px-2.5 py-1 rounded-full border" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                            {catGroup.totalCount}
+                          </span>
+                          <span className={`transform transition-transform duration-200 text-sm ${isExpanded ? "rotate-180" : ""}`}>
+                            ▼
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                        {t.body}
-                      </div>
+
+                      {/* Vertically Expandable Body */}
+                      {isExpanded ? (
+                        <div className="p-4 border-t space-y-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+                          {/* Horizontal Subcategory Navigation Pills */}
+                          {catGroup.subcategories.length > 1 ? (
+                            <div>
+                              <div className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
+                                Subcategory Filter:
+                              </div>
+                              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                                {catGroup.subcategories.map((sub) => {
+                                  const isSubActive = selectedSub === sub;
+                                  return (
+                                    <button
+                                      key={sub}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setAdminSubcatFilter((prev) => ({
+                                          ...prev,
+                                          [catGroup.categoryName]: sub,
+                                        }));
+                                      }}
+                                      className={`rounded-xl border px-3 py-1 text-xs font-semibold whitespace-nowrap transition ${
+                                        isSubActive
+                                          ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] border-[#4cd34c] shadow-sm"
+                                          : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
+                                      }`}
+                                      style={{ borderColor: isSubActive ? "#4cd34c" : "var(--badge-border)" }}
+                                    >
+                                      {sub}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {/* Template List inside Category */}
+                          <div className="space-y-3">
+                            {filteredTemplates.length === 0 ? (
+                              <div className="text-xs italic p-3 text-center" style={{ color: "var(--text-muted)" }}>
+                                No templates match the selected subcategory.
+                              </div>
+                            ) : (
+                              filteredTemplates.map((t) => (
+                                <div
+                                  key={t.id}
+                                  className="rounded-xl border p-3 flex items-center justify-between transition hover:border-[#4cd34c]/50"
+                                  style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}
+                                >
+                                  <div className="pr-3">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold text-sm" style={{ color: "var(--app-text)" }}>{t.name}</span>
+                                      {t.subcategory ? (
+                                        <span className="text-[10px] rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                                          {t.subcategory}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    <div className="text-xs mt-1 line-clamp-2" style={{ color: "var(--text-muted)" }}>
+                                      {t.body}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex gap-2 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditTplId(t.id);
+                                        setEditTplName(t.name);
+                                        setEditTplBody(t.body);
+                                        setEditTplType(t.category_type ?? "tech_escalation");
+                                        setEditTplCat(t.category ?? "");
+                                        setEditTplSubcat(t.subcategory ?? "");
+                                        setTimeout(() => {
+                                          editTplBodyRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                                          editTplBodyRef.current?.focus();
+                                        }, 50);
+                                      }}
+                                      className="px-3 py-1.5 rounded-xl border text-xs font-semibold hover:border-[#4cd34c] hover:text-[#4cd34c] transition"
+                                      style={{ borderColor: "var(--badge-border)" }}
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteTemplate(t.id)}
+                                      className="px-3 py-1.5 rounded-xl border text-xs font-semibold hover:bg-[#b83838]/10 transition"
+                                      style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
-                    <div className="flex gap-2 shrink-0">
-                      <button
-                        onClick={() => {
-                          setEditTplId(t.id);
-                          setEditTplName(t.name);
-                          setEditTplBody(t.body);
-                          setEditTplType(t.category_type ?? "tech_escalation");
-                          setEditTplCat(t.category ?? "");
-                          setEditTplSubcat(t.subcategory ?? "");
-                        }}
-                        className="px-3 py-1.5 rounded-xl border text-xs font-semibold"
-                        style={{ borderColor: "var(--badge-border)" }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => deleteTemplate(t.id)}
-                        className="px-3 py-1.5 rounded-xl border text-xs font-semibold"
-                        style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -1521,6 +1745,16 @@ export default function App() {
                 </div>
 
                 <div className="flex gap-2 justify-end">
+                  {(editAgentId || editAgentFullName || editAgentName || editAgentInitials) ? (
+                    <button
+                      type="button"
+                      onClick={resetAgentForm}
+                      className="px-4 py-2 rounded-xl border text-sm font-medium transition hover:bg-[#b83838]/10 hover:border-[#b83838]/40 hover:text-[#ff6b6b]"
+                      style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
+                    >
+                      🔄 Reset Form
+                    </button>
+                  ) : null}
                   <button
                     onClick={() => upsertAgent(editAgentId, editAgentFullName || editAgentName, editAgentName, editAgentInitials, editAgentIsAdmin)}
                     disabled={!editAgentName || !editAgentInitials || saving}
@@ -1528,15 +1762,6 @@ export default function App() {
                   >
                     {saving ? "Saving..." : editAgentId ? "Save Agent Changes" : "Create Agent Profile"}
                   </button>
-                  {editAgentId ? (
-                    <button
-                      onClick={resetAgentForm}
-                      className="px-4 py-2 rounded-xl border text-sm"
-                      style={{ borderColor: "var(--badge-border)" }}
-                    >
-                      Cancel
-                    </button>
-                  ) : null}
                 </div>
               </div>
 
