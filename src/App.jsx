@@ -9,92 +9,100 @@ const DEFAULT_TEMPLATES = [
   {
     id: 1,
     name: "Self Exclusion",
-    body: "Account {account_number} is requesting to be removed from self exclusion. ",
+    body: "Account {customer_name} is requesting to be removed from self exclusion.",
     category_type: "tech_escalation",
-    category: "",
-    subcategory: "",
+    category: "Account Escalations",
+    subcategory: "Self Exclusion",
   },
   {
     id: 2,
     name: "Account Verification",
-    body: "Account {account_number} is facing error code 146, kindly assist. ",
+    body: "Account {account_number} is facing error code 146, kindly assist.",
     category_type: "tech_escalation",
-    category: "",
-    subcategory: "",
+    category: "Account Escalations",
+    subcategory: "Verification",
   },
   {
     id: 3,
     name: "Permanent Deactivation",
-    body: "User {account_number} has requested for the permanent deactivation of his account because {reason}. ",
+    body: "User {account_number} has requested for the permanent deactivation of his account because {reason}.",
     category_type: "tech_escalation",
-    category: "",
-    subcategory: "",
+    category: "Account Escalations",
+    subcategory: "Deactivation",
   },
   {
     id: 4,
     name: "Processing Withdrawal",
-    body: "Processing withdrawal of ${amount} from account number {account_number}; on {day}.{month}.{year} time {time}hrs. ",
+    body: "Processing withdrawal of ${amount} from account number {account_number}; on {day}.{month}.2026 time {time}hrs.",
     category_type: "tech_escalation",
-    category: "",
-    subcategory: "",
+    category: "Payment Escalations",
+    subcategory: "Withdrawal",
   },
   // Customer Reply Templates
   {
     id: 5,
-    name: "General Introduction",
-    body: "Hello and welcome to WinBucks. My name is {agent_name}. How may I help you today?",
+    name: "Standard Welcome Greeting",
+    body: "Hi {customer_name}, my name is {agent_name} from Customer Support. How may I assist you today?",
     category_type: "customer_reply",
     category: "Agent Introductions",
-    subcategory: "General",
+    subcategory: "Welcome",
   },
   {
     id: 6,
-    name: "Ecocash Issues 2",
-    body: "We apologize for the inconvenience and appreciate your patience. \nWe are currently experiencing temporary challenges with EcoCash withdrawals. Our team is actively working with the relevant providers to resolve the issue, and pending transactions are expected to be completed within the next 2 hours. \nWhile the issue is being resolved, we kindly recommend using InnBucks or O'mari for faster and instant transactions where possible. Thank you for your patience and understanding.",
+    name: "Follow-up Response Greeting",
+    body: "Hello {customer_name}, thank you for reaching back out. I'm {agent_name} and I'll be glad to continue assisting you.",
     category_type: "customer_reply",
-    category: "Transactions",
-    subcategory: "Follow-Ups",
+    category: "Agent Introductions",
+    subcategory: "Follow-up",
   },
   {
     id: 7,
-    name: "Ecocash",
-    body: "To deposit using EcoCash, kindly follow these steps: \n1.	Click Deposit. \n2.	Select EcoCash as your payment method. \n3.	Enter the amount you wish to deposit. \n4.	Click Deposit again to proceed. \n5.	Confirm the payment request on your phone. \n6.	Once the payment is successful, refresh your WinBucks account. \n7.	Check your balance to confirm the funds have been credited.",
+    name: "Deposit Under Review",
+    body: "Hi {customer_name}, your deposit of ${amount} is currently being processed by our financial partner. Reference: {reference_no}.",
     category_type: "customer_reply",
     category: "Transactions",
     subcategory: "Deposit",
   },
   {
     id: 8,
-    name: "Withdrawal",
-    body: "NB: We use InnBucks, EcoCash, and O'mari only for withdrawals. \n\nTo withdraw, kindly follow these steps: \n1.	Click the Menu button (☰) in the top-right corner of your screen. \n2.	Select Withdraw. \n3.	Choose your preferred withdrawal method. NB: Always double-check the withdrawal method before confirming the withdrawal. \n4.	Enter the amount you wish to withdraw. \n5.	Click Withdraw to submit your request. \n6.	Refresh your account and wait for a notification confirming the transaction. \n\nNB: Always ensure that you open an account with InnBucks, EcoCash, and O’mari using the same number registered with Winbucks for successful withdrawal in future.\n\nNB: Withdrawal requests of $100 or more will be placed under processing. This allows you to contact us so we can review and finalize your transaction in accordance with our policy.",
+    name: "Withdrawal Status Update",
+    body: "Hi {customer_name}, your withdrawal request for ${amount} (Ref: {reference_no}) has been approved and sent to your account.",
     category_type: "customer_reply",
     category: "Transactions",
-    subcategory: "How to Withdraw",
+    subcategory: "Withdrawal",
   },
   {
     id: 9,
-    name: "Password Reset",
-    body: "● Click “Forgot Password” and then follow instructions. \n● If your new Password/Verification is not sent to your phone, kindly remove your Sim Card and insert it in another phone then request for a new code again. \n● To change your Password, click on 3 dots at the Bottom Right corner of your screen and do the following: \n\t○ Select Account \n\t○ Click on change password \n\t○ Follow further instructions.",
+    name: "Password Reset Instructions",
+    body: "Hi {customer_name}, a password reset link has been dispatched to your registered email address. Please follow the instructions to secure your account.",
     category_type: "customer_reply",
-    category: "Registration, login, verification, and account access",
-    subcategory: "How to reset your password?",
+    category: "Security",
+    subcategory: "Password Reset",
   },
   {
     id: 10,
-    name: "Error 146",
-    body: "If you have received Error Code 146, please know that you need to verify your account. \n\nTo verify your account, please do the following: \n● Take 3 pictures \n\t○ First one while holding your national ID next to your face, with both your face and details on the ID very clear.\n\tNB: not a “selfie” but using the back/rear camera. \n\t○ Second one the front of you ID, with details clearly visible \n\t○ Third one the back of your ID, with details clearly visible \n● Send the pictures together with your phone number registered on WinBucks via WhatsApp on, +263713331227  or +263713331227.",
+    name: "KYC Document Request",
+    body: "Hi {customer_name}, to complete your account verification, please upload your proof of ID and address in the portal.",
     category_type: "customer_reply",
-    category: "Registration, login, verification, and account access",
-    subcategory: "Account Verification",
+    category: "Security",
+    subcategory: "Verification",
+  },
+  {
+    id: 11,
+    name: "Game Cache Troubleshooting",
+    body: "Hi {customer_name}, if you're experiencing display issues with {game_title}, please clear your browser cache or switch to Google Chrome.",
+    category_type: "customer_reply",
+    category: "Games",
+    subcategory: "Troubleshooting",
   },
 ];
 
 const DEFAULT_AGENTS = [
-  { id: 1, agent: "Vuyolwenkosi Ndlovu", agent_name: "Vuyo", agent_initials: "VN", is_admin: false },
-  { id: 2, agent: "Kilian D", agent_name: "Kilian", agent_initials: "KD", is_admin: false },
-  { id: 3, agent: "Thembi Sibanda", agent_name: "Thembie", agent_initials: "TS", is_admin: false },
-  { id: 4, agent: "Kudzi Honde", agent_name: "Kudzie", agent_initials: "KH", is_admin: false },
-  { id: 5, agent: "System Admin", agent_name: "Sys_Admin", agent_initials: "SA", is_admin: true },
+  { id: 1, agent: "Vuyolwenkosi Ndlovu", agent_name: "Vuyo", agent_initials: "VN", is_admin: false, pin: "0000" },
+  { id: 2, agent: "Kilian D", agent_name: "Kilian", agent_initials: "KD", is_admin: false, pin: "0000" },
+  { id: 3, agent: "Thembi Sibanda", agent_name: "Thembie", agent_initials: "TS", is_admin: false, pin: "0000" },
+  { id: 4, agent: "Kudzi Honde", agent_name: "Kudzie", agent_initials: "KH", is_admin: false, pin: "0000" },
+  { id: 5, agent: "System Admin", agent_name: "Sys_Admin", agent_initials: "SA", is_admin: true, pin: "0000" },
 ];
 
 const THEMES = {
@@ -202,6 +210,10 @@ export default function App() {
   const [editTplCat, setEditTplCat] = useState("");
   const [editTplSubcat, setEditTplSubcat] = useState("");
 
+  // System Admin Category Accordion Expansion State (CategoryName -> boolean)
+  const [expandedAdminCats, setExpandedAdminCats] = useState({});
+  const [adminSubcatFilter, setAdminSubcatFilter] = useState({});
+
   // Edit agent form states (Admin)
   const [editAgentId, setEditAgentId] = useState(null);
   const [editAgentFullName, setEditAgentFullName] = useState("");
@@ -210,9 +222,18 @@ export default function App() {
   const [editAgentIsAdmin, setEditAgentIsAdmin] = useState(false);
   const [userCustomizedInitials, setUserCustomizedInitials] = useState(false);
 
-  // Admin Dashboard category card states
-  const [expandedAdminCats, setExpandedAdminCats] = useState({});
-  const [adminSubcatFilter, setAdminSubcatFilter] = useState({});
+  // System Admin PIN Security Modal States
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pendingAdminAgent, setPendingAdminAgent] = useState(null);
+  const [pinDigits, setPinDigits] = useState(["", "", "", ""]);
+  const [pinError, setPinError] = useState("");
+
+  // System Admin Dashboard PIN Change States
+  const [adminCurrentPin, setAdminCurrentPin] = useState("");
+  const [adminNewPin, setAdminNewPin] = useState("");
+  const [adminConfirmPin, setAdminConfirmPin] = useState("");
+  const [pinSuccessMsg, setPinSuccessMsg] = useState("");
+  const [pinErrorMsg, setPinErrorMsg] = useState("");
 
   const [values, setValues] = useState({});
   const [loading, setLoading] = useState(true);
@@ -229,7 +250,6 @@ export default function App() {
 
   const theme = THEMES[themeMode] ?? THEMES.night;
   const fileRef = useRef(null);
-  const editTplBodyRef = useRef(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -251,11 +271,6 @@ export default function App() {
       setActiveScreen("tech_escalation");
     }
   }, [currentAgent, activeScreen]);
-
-  // Collapse sidebar when switching screens or agent profiles
-  useEffect(() => {
-    setIsSidebarHovered(false);
-  }, [activeScreen, currentAgent]);
 
   // Initial Data Fetch
   useEffect(() => {
@@ -337,13 +352,40 @@ export default function App() {
     setReplyChannel("signed");
     resetTemplateForm();
     resetAgentForm();
+    setPinSuccessMsg("");
+    setPinErrorMsg("");
   }
 
-  // Update selected agent profile & navigate
+  // Update selected agent profile & navigate (With Security PIN Check for Admin)
   function handleSelectAgent(agent) {
     resetAllSessionStates();
+    if (agent.is_admin) {
+      setPendingAdminAgent(agent);
+      setPinDigits(["", "", "", ""]);
+      setPinError("");
+      setShowPinModal(true);
+      return;
+    }
     setCurrentAgent(agent);
     setActiveScreen("tech_escalation");
+  }
+
+  // Verify Security PIN for Admin Login
+  function handleVerifyPin(e) {
+    if (e) e.preventDefault();
+    const enteredPin = pinDigits.join("");
+    const expectedPin = pendingAdminAgent?.pin || "0000";
+
+    if (enteredPin === expectedPin) {
+      setCurrentAgent(pendingAdminAgent);
+      setShowPinModal(false);
+      setPendingAdminAgent(null);
+      setPinDigits(["", "", "", ""]);
+      setPinError("");
+      setActiveScreen("tech_escalation");
+    } else {
+      setPinError("Incorrect 4-digit Security PIN. Default PIN is 0000.");
+    }
   }
 
   function handleLogout() {
@@ -472,7 +514,7 @@ export default function App() {
   }
 
   // Agent CRUD
-  async function upsertAgent(id, agent, agent_name, agent_initials, is_admin) {
+  async function upsertAgent(id, agent, agent_name, agent_initials, is_admin, pin = "0000") {
     setSaving(true);
     setError("");
     try {
@@ -481,6 +523,7 @@ export default function App() {
         agent_name,
         agent_initials: agent_initials.toUpperCase(),
         is_admin,
+        pin: pin || "0000",
       };
 
       if (apiStatus === "offline") {
@@ -522,6 +565,43 @@ export default function App() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // System Admin PIN Change Handler
+  async function handleChangeAdminPin(e) {
+    if (e) e.preventDefault();
+    setPinSuccessMsg("");
+    setPinErrorMsg("");
+
+    const currentPinInState = currentAgent?.pin || "0000";
+    if (adminCurrentPin !== currentPinInState) {
+      setPinErrorMsg("Current PIN is incorrect.");
+      return;
+    }
+    if (adminNewPin.length !== 4 || !/^\d{4}$/.test(adminNewPin)) {
+      setPinErrorMsg("New PIN must be exactly 4 numeric digits.");
+      return;
+    }
+    if (adminNewPin !== adminConfirmPin) {
+      setPinErrorMsg("New PIN and Confirm PIN do not match.");
+      return;
+    }
+
+    await upsertAgent(
+      currentAgent.id,
+      currentAgent.agent,
+      currentAgent.agent_name,
+      currentAgent.agent_initials,
+      true,
+      adminNewPin
+    );
+
+    const updatedAgent = { ...currentAgent, pin: adminNewPin };
+    setCurrentAgent(updatedAgent);
+    setPinSuccessMsg("System Admin PIN successfully updated!");
+    setAdminCurrentPin("");
+    setAdminNewPin("");
+    setAdminConfirmPin("");
   }
 
   function resetAgentForm() {
@@ -598,33 +678,43 @@ export default function App() {
     reader.readAsText(file);
   }
 
-  // Helper to resolve auto-filled defaults for agent profile fields and real-life date fields ({day}, {month}, {month_number}, {year})
-  function getDefaultPlaceholderValue(ph, agent) {
-    const now = new Date();
-    if (ph === "agent_name" || ph === "agent") return agent?.agent_name ?? "";
-    if (ph === "agent_initials") return agent?.agent_initials ?? "";
-    if (ph === "day") return String(now.getDate()).padStart(2, "0");
-    if (ph === "month" || ph === "month_number") return String(now.getMonth() + 1).padStart(2, "0");
-    if (ph === "year") return String(now.getFullYear());
-    return "";
-  }
-
-  // Categorized template lists (Sorted alphabetically by template title)
+  // Categorized template lists
   const techTemplates = useMemo(
-    () =>
-      templates
-        .filter((t) => t.category_type === "tech_escalation")
-        .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "")),
+    () => templates.filter((t) => t.category_type === "tech_escalation"),
     [templates]
   );
 
   const customerTemplates = useMemo(
-    () =>
-      templates
-        .filter((t) => t.category_type === "customer_reply")
-        .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "")),
+    () => templates.filter((t) => t.category_type === "customer_reply"),
     [templates]
   );
+
+  // Grouped category structure for System Admin template management accordion
+  const groupedAdminCategories = useMemo(() => {
+    const map = new Map();
+    templates.forEach((t) => {
+      const catName = (t.category ?? "General").trim() || "General";
+      if (!map.has(catName)) {
+        map.set(catName, {
+          categoryName: catName,
+          categoryType: t.category_type ?? "customer_reply",
+          subcategories: new Set(["All"]),
+          templates: [],
+        });
+      }
+      const entry = map.get(catName);
+      if (t.subcategory && t.subcategory.trim()) {
+        entry.subcategories.add(t.subcategory.trim());
+      }
+      entry.templates.push(t);
+    });
+
+    return Array.from(map.values()).map((entry) => ({
+      ...entry,
+      subcategories: Array.from(entry.subcategories),
+      totalCount: entry.templates.length,
+    }));
+  }, [templates]);
 
   // Available categories & subcategories for Customer Reply screen
   const customerCategories = useMemo(() => {
@@ -658,42 +748,6 @@ export default function App() {
     });
   }, [customerTemplates, selectedCategory, selectedSubcategory, searchQuery]);
 
-  // Grouped templates by Primary Category for Admin Dashboard
-  const groupedAdminCategories = useMemo(() => {
-    const map = new Map();
-
-    templates.forEach((t) => {
-      const catKey = (t.category ?? "").trim() || "General / Uncategorized";
-      if (!map.has(catKey)) {
-        map.set(catKey, {
-          categoryName: catKey,
-          categoryType: t.category_type,
-          templates: [],
-          subcategoriesSet: new Set(),
-        });
-      }
-      const entry = map.get(catKey);
-      entry.templates.push(t);
-      if (t.subcategory && t.subcategory.trim()) {
-        entry.subcategoriesSet.add(t.subcategory.trim());
-      }
-    });
-
-    const list = Array.from(map.values()).map((entry) => ({
-      categoryName: entry.categoryName,
-      categoryType: entry.categoryType,
-      templates: entry.templates.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "")),
-      subcategories: ["All", ...Array.from(entry.subcategoriesSet).sort((a, b) => a.localeCompare(b))],
-      totalCount: entry.templates.length,
-    }));
-
-    return list.sort((a, b) => {
-      if (a.categoryName === "General / Uncategorized") return 1;
-      if (b.categoryName === "General / Uncategorized") return -1;
-      return a.categoryName.localeCompare(b.categoryName);
-    });
-  }, [templates]);
-
   // Selected template object
   const activeTemplate = useMemo(() => {
     if (activeScreen === "tech_escalation") {
@@ -720,15 +774,10 @@ export default function App() {
     if (!activeTemplate) return "";
     let out = activeTemplate.body;
 
-    const now = new Date();
     const autoMap = {
       agent_name: currentAgent?.agent_name ?? "",
       agent: currentAgent?.agent ?? currentAgent?.agent_name ?? "",
       agent_initials: currentAgent?.agent_initials ?? "",
-      day: String(now.getDate()).padStart(2, "0"),
-      month: String(now.getMonth() + 1).padStart(2, "0"),
-      month_number: String(now.getMonth() + 1).padStart(2, "0"),
-      year: String(now.getFullYear()),
     };
 
     const allKeys = new Set([...Object.keys(autoMap), ...Object.keys(values)]);
@@ -746,14 +795,11 @@ export default function App() {
       }
     }
 
-    // Customer Reply Signed rule: Appends ^{agent_initials} unless template already contains {agent_name}
+    // Customer Reply rule: WhatsApp/Signed appends ^{agent_initials}
     if (activeScreen === "customer_reply" && replyChannel === "signed") {
-      const templateHasAgentName = activeTemplate?.body?.includes("{agent_name}");
-      if (!templateHasAgentName) {
-        const initialsSig = ` ^${currentAgent?.agent_initials ?? ""}`;
-        if (currentAgent?.agent_initials && !out.endsWith(initialsSig)) {
-          out = out.trim() + initialsSig;
-        }
+      const initialsSig = ` ^${currentAgent?.agent_initials ?? ""}`;
+      if (currentAgent?.agent_initials && !out.endsWith(initialsSig)) {
+        out = out.trim() + initialsSig;
       }
     }
 
@@ -784,14 +830,102 @@ export default function App() {
     >
       <div className="absolute inset-0 -z-10" style={{ backgroundImage: theme.overlay }} />
 
+      {/* SYSTEM ADMIN SECURITY PIN MODAL */}
+      {showPinModal && pendingAdminAgent ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fadeIn">
+          <div
+            className="w-full max-w-md rounded-3xl border p-6 shadow-2xl space-y-5 relative overflow-hidden"
+            style={{ borderColor: "var(--panel-border-strong)", backgroundColor: "var(--panel-bg)" }}
+          >
+            <div className="text-center space-y-2">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#f1c84b_0%,#d4a017_100%)] text-2xl font-bold text-[#071007] shadow-lg">
+                🔐
+              </div>
+              <h3 className="text-xl font-extrabold" style={{ color: "var(--app-text)" }}>
+                System Admin PIN Verification
+              </h3>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                Enter the 4-digit security PIN to access the System Admin profile.
+              </p>
+            </div>
+
+            <form onSubmit={handleVerifyPin} className="space-y-5">
+              <div className="flex justify-center gap-3">
+                {[0, 1, 2, 3].map((idx) => (
+                  <input
+                    key={idx}
+                    id={`pin-box-${idx}`}
+                    type="password"
+                    maxLength={1}
+                    value={pinDigits[idx] || ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (/^\d?$/.test(val)) {
+                        const newDigits = [...pinDigits];
+                        newDigits[idx] = val;
+                        setPinDigits(newDigits);
+                        if (val && idx < 3) {
+                          const nextInput = document.getElementById(`pin-box-${idx + 1}`);
+                          if (nextInput) nextInput.focus();
+                        }
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Backspace" && !pinDigits[idx] && idx > 0) {
+                        const prevInput = document.getElementById(`pin-box-${idx - 1}`);
+                        if (prevInput) prevInput.focus();
+                      }
+                    }}
+                    className="h-14 w-12 rounded-2xl border text-center text-xl font-bold transition focus:border-[#4cd34c] focus:outline-none focus:ring-2 focus:ring-[#4cd34c]/40"
+                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                  />
+                ))}
+              </div>
+
+              {pinError ? (
+                <div className="rounded-xl border px-3 py-2 text-center text-xs font-semibold" style={{ borderColor: "var(--error-border)", backgroundColor: "var(--error-bg)", color: "var(--error-text)" }}>
+                  {pinError}
+                </div>
+              ) : (
+                <p className="text-[11px] text-center text-[var(--text-muted)] italic">
+                  Default System Admin PIN is <code className="text-[#4cd34c] font-bold">0000</code>
+                </p>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPinModal(false);
+                    setPendingAdminAgent(null);
+                    setPinDigits(["", "", "", ""]);
+                    setPinError("");
+                  }}
+                  className="w-1/2 rounded-xl border py-2.5 text-sm font-semibold transition"
+                  style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-2.5 text-sm font-semibold text-[#071007] shadow-lg transition"
+                >
+                  Verify & Access →
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
       {/* AUTO-EXPANDING HOVER SIDEBAR NAVIGATION */}
       {currentAgent && activeScreen !== "welcome" ? (
         <aside
           onMouseEnter={() => setIsSidebarHovered(true)}
           onMouseLeave={() => setIsSidebarHovered(false)}
-          onPointerLeave={() => setIsSidebarHovered(false)}
-          className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col justify-between border-r p-3 shadow-2xl backdrop-blur transition-all duration-300 ease-in-out ${isSidebarHovered ? "w-64" : "w-20"
-            }`}
+          className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col justify-between border-r p-3 shadow-2xl backdrop-blur transition-all duration-300 ease-in-out ${
+            isSidebarHovered ? "w-64" : "w-16"
+          }`}
           style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--sidebar-bg)" }}
         >
           <div className="space-y-6">
@@ -812,13 +946,14 @@ export default function App() {
                   setActiveScreen("tech_escalation");
                   setIsSidebarHovered(false);
                 }}
-                className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-3 text-left font-medium transition-all ${activeScreen === "tech_escalation"
-                  ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
-                  : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
-                  }`}
+                className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${
+                  activeScreen === "tech_escalation"
+                    ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
+                    : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+                }`}
                 title="Tech Escalation"
               >
-                <span className="text-xl shrink-0 h-8 w-8 flex items-center justify-center">⚡</span>
+                <span className="text-xl shrink-0">⚡</span>
                 <span className={`whitespace-nowrap transition-opacity duration-200 ${isSidebarHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
                   Tech Escalation
                 </span>
@@ -829,13 +964,14 @@ export default function App() {
                   setActiveScreen("customer_reply");
                   setIsSidebarHovered(false);
                 }}
-                className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-3 text-left font-medium transition-all ${activeScreen === "customer_reply"
-                  ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
-                  : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
-                  }`}
+                className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${
+                  activeScreen === "customer_reply"
+                    ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
+                    : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+                }`}
                 title="Customer Reply"
               >
-                <span className="text-xl shrink-0 h-8 w-8 flex items-center justify-center">💬</span>
+                <span className="text-xl shrink-0">💬</span>
                 <span className={`whitespace-nowrap transition-opacity duration-200 ${isSidebarHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
                   Customer Reply
                 </span>
@@ -847,13 +983,14 @@ export default function App() {
                     setActiveScreen("admin");
                     setIsSidebarHovered(false);
                   }}
-                  className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-3 text-left font-medium transition-all ${activeScreen === "admin"
-                    ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
-                    : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
-                    }`}
+                  className={`flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left font-medium transition-all ${
+                    activeScreen === "admin"
+                      ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
+                      : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+                  }`}
                   title="System Admin"
                 >
-                  <span className="text-xl shrink-0 h-8 w-8 flex items-center justify-center">🛠️</span>
+                  <span className="text-xl shrink-0">🛠️</span>
                   <span className={`whitespace-nowrap transition-opacity duration-200 ${isSidebarHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
                     System Admin
                   </span>
@@ -867,7 +1004,7 @@ export default function App() {
             {/* Theme Toggle */}
             <button
               onClick={() => setThemeMode((c) => (c === "night" ? "day" : "night"))}
-              className="flex w-full items-center gap-3 rounded-2xl p-2 transition hover:bg-[var(--neutral-bg)] text-sm"
+              className="flex w-full items-center gap-4 rounded-2xl p-2 transition hover:bg-[var(--neutral-bg)] text-sm"
               title={`Switch to ${themeMode === "night" ? "Day" : "Night"} mode`}
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-sm" style={{ borderColor: "var(--badge-border)" }}>
@@ -895,7 +1032,7 @@ export default function App() {
       ) : null}
 
       {/* MAIN CONTENT CONTAINER */}
-      <div className={`flex-1 p-6 transition-all duration-300 ${currentAgent && activeScreen !== "welcome" ? "ml-20" : ""}`}>
+      <div className={`flex-1 p-6 transition-all duration-300 ${currentAgent && activeScreen !== "welcome" ? "ml-16" : ""}`}>
         {/* TOP STATUS BAR */}
         <header className="mb-6 flex flex-col gap-4 rounded-3xl border p-4 shadow-[var(--panel-shadow)] backdrop-blur md:flex-row md:items-center md:justify-between" style={{ borderColor: "var(--header-border)", backgroundColor: "var(--header-bg)" }}>
           <div className="flex items-center gap-4">
@@ -907,10 +1044,10 @@ export default function App() {
                 {activeScreen === "welcome"
                   ? "Welcome Portal"
                   : activeScreen === "tech_escalation"
-                    ? "Tech Escalation Builder"
-                    : activeScreen === "customer_reply"
-                      ? "Customer Reply Center"
-                      : "System Admin Dashboard"}
+                  ? "Tech Escalation Builder"
+                  : activeScreen === "customer_reply"
+                  ? "Customer Reply Center"
+                  : "System Admin Dashboard"}
               </h1>
             </div>
           </div>
@@ -951,7 +1088,7 @@ export default function App() {
                 Select Your Agent Profile
               </h2>
               <p className="max-w-xl mx-auto text-base" style={{ color: "var(--text-muted)" }}>
-                Welcome to Response & Escalation Assistant. Please choose your agent profile below to enter the system.
+                Welcome to the Escalation Assistant. Please choose your agent profile below to enter the system.
               </p>
             </div>
 
@@ -973,7 +1110,7 @@ export default function App() {
                       </div>
                       {agent.is_admin ? (
                         <span className="rounded-full border px-2.5 py-0.5 text-[10px] uppercase font-bold tracking-wider text-[#f1c84b] border-[#f1c84b]/40 bg-[#f1c84b]/10">
-                          System Admin
+                          System Admin 🔐
                         </span>
                       ) : (
                         <span className="rounded-full border px-2.5 py-0.5 text-[10px] uppercase tracking-wider text-[var(--text-muted)]" style={{ borderColor: "var(--badge-border)" }}>
@@ -991,7 +1128,7 @@ export default function App() {
                     type="button"
                     className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-2.5 text-center text-sm font-semibold text-[#071007] shadow-lg group-hover:shadow-[0_8px_25px_rgba(15,155,0,0.4)] transition-all"
                   >
-                    Sign In as Profile →
+                    {agent.is_admin ? "Authenticate PIN →" : "Sign In as Profile →"}
                   </button>
                 </div>
               ))}
@@ -1039,20 +1176,9 @@ export default function App() {
 
               {/* Dynamic Parameters */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-                    Escalation Parameters:
-                  </h3>
-                  {Object.keys(values).length > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => setValues({})}
-                      className="text-xs text-[#4cd34c] hover:underline flex items-center gap-1 font-semibold"
-                    >
-                      🔄 Reset Fields
-                    </button>
-                  ) : null}
-                </div>
+                <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
+                  Escalation Parameters:
+                </h3>
 
                 {placeholders.length === 0 ? (
                   <p className="text-xs italic p-3 rounded-xl border" style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}>
@@ -1062,9 +1188,6 @@ export default function App() {
                   <div className="space-y-3">
                     {placeholders.map((ph) => {
                       const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
-                      const isDateField = ph === "day" || ph === "month" || ph === "month_number" || ph === "year";
-                      const defaultValue = getDefaultPlaceholderValue(ph, currentAgent);
-
                       return (
                         <div key={ph}>
                           <div className="flex justify-between items-center mb-1">
@@ -1073,12 +1196,10 @@ export default function App() {
                             </span>
                             {isAgentField ? (
                               <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from profile</span>
-                            ) : isDateField ? (
-                              <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled current date</span>
                             ) : null}
                           </div>
                           <input
-                            value={values[ph] ?? defaultValue}
+                            value={values[ph] ?? (isAgentField ? (ph === "agent_initials" ? currentAgent.agent_initials : currentAgent.agent_name) : "")}
                             onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
                             placeholder={`Enter ${ph.replace("_", " ")}`}
                             className="w-full rounded-xl border p-2.5 text-sm placeholder:text-[var(--field-placeholder)]"
@@ -1131,10 +1252,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setValues({})}
-                  className="w-full rounded-xl border py-2.5 text-sm font-medium transition flex items-center justify-center gap-2 hover:bg-[#b83838]/10 hover:border-[#b83838]/40 hover:text-[#ff6b6b]"
+                  className="w-full rounded-xl border py-2 text-sm font-medium transition"
                   style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
                 >
-                  <span>🔄 Reset Form Inputs</span>
+                  Clear Parameter Inputs
                 </button>
               </div>
             </div>
@@ -1151,37 +1272,39 @@ export default function App() {
                   💬 Customer Reply Center
                 </h2>
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  Browse categorized response templates for signed and unsigned customer replies.
+                  Browse categorized response templates for WhatsApp and Live Chat customer replies.
                 </p>
               </div>
 
               {/* Target Channel Selector */}
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>
-                  Select Response Mode:
+                  Select Response Format:
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setReplyChannel("signed")}
-                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${replyChannel === "signed"
-                      ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
-                      : "hover:bg-[var(--neutral-bg)]"
-                      }`}
+                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
+                      replyChannel === "signed"
+                        ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
+                        : "hover:bg-[var(--neutral-bg)]"
+                    }`}
                     style={{ borderColor: replyChannel === "signed" ? "#4cd34c" : "var(--field-border)" }}
                   >
-                    <span>✍️ Signed (^{currentAgent.agent_initials})</span>
+                    <span>💬 Signed (Appends ^{currentAgent.agent_initials})</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setReplyChannel("unsigned")}
-                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${replyChannel === "unsigned"
-                      ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
-                      : "hover:bg-[var(--neutral-bg)]"
-                      }`}
+                    className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
+                      replyChannel === "unsigned"
+                        ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
+                        : "hover:bg-[var(--neutral-bg)]"
+                    }`}
                     style={{ borderColor: replyChannel === "unsigned" ? "#4cd34c" : "var(--field-border)" }}
                   >
-                    <span>💬 Unsigned (plain text)</span>
+                    <span>🎧 Unsigned (Clean Text)</span>
                   </button>
                 </div>
               </div>
@@ -1213,10 +1336,11 @@ export default function App() {
                           setSelectedCategory(cat);
                           setSelectedSubcategory("All");
                         }}
-                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${selectedCategory === cat
-                          ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] border-[#4cd34c] shadow-sm"
-                          : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
-                          }`}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                          selectedCategory === cat
+                            ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] border-[#4cd34c] shadow-sm"
+                            : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+                        }`}
                         style={{ borderColor: selectedCategory === cat ? "#4cd34c" : "var(--badge-border)" }}
                       >
                         {cat}
@@ -1237,10 +1361,11 @@ export default function App() {
                           key={subcat}
                           type="button"
                           onClick={() => setSelectedSubcategory(subcat)}
-                          className={`rounded-xl border px-2.5 py-0.5 text-[11px] transition ${selectedSubcategory === subcat
-                            ? "border-[#4cd34c] bg-[#4cd34c]/20 text-[#4cd34c] font-bold"
-                            : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
-                            }`}
+                          className={`rounded-xl border px-2.5 py-0.5 text-[11px] transition ${
+                            selectedSubcategory === subcat
+                              ? "border-[#4cd34c] bg-[#4cd34c]/20 text-[#4cd34c] font-bold"
+                              : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
+                          }`}
                           style={{ borderColor: selectedSubcategory === subcat ? "#4cd34c" : "var(--field-border)" }}
                         >
                           {subcat}
@@ -1265,10 +1390,11 @@ export default function App() {
                         <div
                           key={t.id}
                           onClick={() => setSelectedCustId(t.id)}
-                          className={`p-3 rounded-2xl border cursor-pointer transition flex items-center justify-between ${t.id === (activeTemplate?.id)
-                            ? "border-[#4cd34c] ring-1 ring-[#4cd34c]/30 bg-[#4cd34c]/5"
-                            : "hover:border-[#4cd34c]/50"
-                            }`}
+                          className={`p-3 rounded-2xl border cursor-pointer transition flex items-center justify-between ${
+                            t.id === (activeTemplate?.id)
+                              ? "border-[#4cd34c] ring-1 ring-[#4cd34c]/30 bg-[#4cd34c]/5"
+                              : "hover:border-[#4cd34c]/50"
+                          }`}
                           style={{ borderColor: t.id === (activeTemplate?.id) ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
                         >
                           <div>
@@ -1290,26 +1416,12 @@ export default function App() {
               {/* Dynamic Parameter Inputs */}
               {placeholders.length > 0 ? (
                 <div className="pt-2 border-t" style={{ borderColor: "var(--field-border)" }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-                      Customer Response Parameters:
-                    </h3>
-                    {Object.keys(values).length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={() => setValues({})}
-                        className="text-xs text-[#4cd34c] hover:underline flex items-center gap-1 font-semibold"
-                      >
-                        🔄 Reset Fields
-                      </button>
-                    ) : null}
-                  </div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
+                    Customer Response Parameters:
+                  </h3>
                   <div className="space-y-3">
                     {placeholders.map((ph) => {
                       const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
-                      const isDateField = ph === "day" || ph === "month" || ph === "month_number" || ph === "year";
-                      const defaultValue = getDefaultPlaceholderValue(ph, currentAgent);
-
                       return (
                         <div key={ph}>
                           <div className="flex justify-between items-center mb-1">
@@ -1318,12 +1430,10 @@ export default function App() {
                             </span>
                             {isAgentField ? (
                               <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from profile</span>
-                            ) : isDateField ? (
-                              <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled current date</span>
                             ) : null}
                           </div>
                           <input
-                            value={values[ph] ?? defaultValue}
+                            value={values[ph] ?? (isAgentField ? (ph === "agent_initials" ? currentAgent.agent_initials : currentAgent.agent_name) : "")}
                             onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
                             placeholder={`Enter ${ph.replace("_", " ")}`}
                             className="w-full rounded-xl border p-2.5 text-sm placeholder:text-[var(--field-placeholder)]"
@@ -1345,7 +1455,7 @@ export default function App() {
                     Customer Reply Preview
                   </h2>
                   <span className="text-xs uppercase font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-3 py-1 rounded-full">
-                    {replyChannel === "signed" ? "✍️ Signed Mode" : "💬 Unsigned Mode"}
+                    {replyChannel === "signed" ? "💬 Signed" : "🎧 Unsigned"}
                   </span>
                 </div>
 
@@ -1355,11 +1465,11 @@ export default function App() {
 
                 {replyChannel === "signed" ? (
                   <p className="text-xs italic" style={{ color: "var(--text-muted)" }}>
-                    💡 Signed mode appends signature <code className="text-[#4cd34c]">^{currentAgent.agent_initials}</code> (unless <code className="text-[#4cd34c]">{"{agent_name}"}</code> is included in template).
+                    💡 Signed format automatically appends agent initials signature <code className="text-[#4cd34c]">^{currentAgent.agent_initials}</code>.
                   </p>
                 ) : (
                   <p className="text-xs italic" style={{ color: "var(--text-muted)" }}>
-                    💡 Unsigned mode presents clean plain text response without initials signature.
+                    💡 Unsigned format presents clean customer-facing response text without trailing signature.
                   </p>
                 )}
               </div>
@@ -1376,10 +1486,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setValues({})}
-                  className="w-full rounded-xl border py-2.5 text-sm font-medium transition flex items-center justify-center gap-2 hover:bg-[#b83838]/10 hover:border-[#b83838]/40 hover:text-[#ff6b6b]"
+                  className="w-full rounded-xl border py-2 text-sm font-medium transition"
                   style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
                 >
-                  <span>🔄 Reset Form Inputs</span>
+                  Clear Parameter Inputs
                 </button>
               </div>
             </div>
@@ -1395,7 +1505,7 @@ export default function App() {
                   System Admin Control Panel
                 </h2>
                 <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                  Manage global response templates, categories, and agent credentials.
+                  Manage global response templates, categories, agent credentials, and system security PIN.
                 </p>
               </div>
               <span className="rounded-full border px-3 py-1 text-xs uppercase font-bold tracking-wider text-[#f1c84b] border-[#f1c84b]/40 bg-[#f1c84b]/10">
@@ -1453,7 +1563,7 @@ export default function App() {
                       style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                     >
                       <option value="tech_escalation">⚡ Tech Escalation (Telegram)</option>
-                      <option value="customer_reply">💬 Customer Reply (Signed & Unsigned)</option>
+                      <option value="customer_reply">💬 Customer Reply (WhatsApp & Live Chat)</option>
                     </select>
                   </div>
                   <div>
@@ -1471,7 +1581,7 @@ export default function App() {
                     <input
                       value={editTplSubcat}
                       onChange={(e) => setEditTplSubcat(e.target.value)}
-                      placeholder="e.g. Deposit, Follow-Ups"
+                      placeholder="e.g. Deposit, Withdrawal"
                       className="w-full rounded-xl border p-2.5 text-sm"
                       style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                     />
@@ -1481,7 +1591,7 @@ export default function App() {
                     <input
                       value={editTplName}
                       onChange={(e) => setEditTplName(e.target.value)}
-                      placeholder="e.g. Ecocash Issues"
+                      placeholder="e.g. Deposit Under Review"
                       className="w-full rounded-xl border p-2.5 text-sm"
                       style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                     />
@@ -1489,7 +1599,6 @@ export default function App() {
                   <div className="md:col-span-3">
                     <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Template Body (use placeholders like {"{customer_name}"}):</label>
                     <textarea
-                      ref={editTplBodyRef}
                       value={editTplBody}
                       onChange={(e) => setEditTplBody(e.target.value)}
                       placeholder="Write message template..."
@@ -1592,17 +1701,17 @@ export default function App() {
                                     <button
                                       key={sub}
                                       type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
+                                      onClick={() =>
                                         setAdminSubcatFilter((prev) => ({
                                           ...prev,
                                           [catGroup.categoryName]: sub,
-                                        }));
-                                      }}
-                                      className={`rounded-xl border px-3 py-1 text-xs font-semibold whitespace-nowrap transition ${isSubActive
-                                        ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] border-[#4cd34c] shadow-sm"
-                                        : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
-                                        }`}
+                                        }))
+                                      }
+                                      className={`rounded-xl border px-3 py-1 text-xs font-medium shrink-0 transition ${
+                                        isSubActive
+                                          ? "bg-[#4cd34c] text-[#071007] font-bold border-[#4cd34c] shadow-sm"
+                                          : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+                                      }`}
                                       style={{ borderColor: isSubActive ? "#4cd34c" : "var(--badge-border)" }}
                                     >
                                       {sub}
@@ -1613,36 +1722,35 @@ export default function App() {
                             </div>
                           ) : null}
 
-                          {/* Template List inside Category */}
+                          {/* Inner Templates List */}
                           <div className="space-y-3">
                             {filteredTemplates.length === 0 ? (
-                              <div className="text-xs italic p-3 text-center" style={{ color: "var(--text-muted)" }}>
-                                No templates match the selected subcategory.
-                              </div>
+                              <p className="text-xs italic p-3 rounded-xl border text-center" style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}>
+                                No templates found under subcategory "{selectedSub}".
+                              </p>
                             ) : (
                               filteredTemplates.map((t) => (
                                 <div
                                   key={t.id}
-                                  className="rounded-xl border p-3 flex items-center justify-between transition hover:border-[#4cd34c]/50"
+                                  className="rounded-2xl border p-4 flex items-center justify-between transition hover:border-[#4cd34c]/50"
                                   style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}
                                 >
-                                  <div className="pr-3">
+                                  <div>
                                     <div className="flex items-center gap-2">
-                                      <span className="font-bold text-sm" style={{ color: "var(--app-text)" }}>{t.name}</span>
+                                      <span className="font-bold text-base">{t.name}</span>
                                       {t.subcategory ? (
-                                        <span className="text-[10px] rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                                        <span className="text-[10px] rounded-full border px-2 py-0.5 font-semibold" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
                                           {t.subcategory}
                                         </span>
                                       ) : null}
                                     </div>
-                                    <div className="text-xs mt-1 line-clamp-2" style={{ color: "var(--text-muted)" }}>
+                                    <div className="text-xs mt-1 leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text-muted)" }}>
                                       {t.body}
                                     </div>
                                   </div>
 
-                                  <div className="flex gap-2 shrink-0">
+                                  <div className="flex gap-2 shrink-0 ml-4">
                                     <button
-                                      type="button"
                                       onClick={() => {
                                         setEditTplId(t.id);
                                         setEditTplName(t.name);
@@ -1650,20 +1758,15 @@ export default function App() {
                                         setEditTplType(t.category_type ?? "tech_escalation");
                                         setEditTplCat(t.category ?? "");
                                         setEditTplSubcat(t.subcategory ?? "");
-                                        setTimeout(() => {
-                                          editTplBodyRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-                                          editTplBodyRef.current?.focus();
-                                        }, 50);
                                       }}
-                                      className="px-3 py-1.5 rounded-xl border text-xs font-semibold hover:border-[#4cd34c] hover:text-[#4cd34c] transition"
+                                      className="px-3 py-1.5 rounded-xl border text-xs font-semibold transition hover:bg-[var(--neutral-bg)]"
                                       style={{ borderColor: "var(--badge-border)" }}
                                     >
                                       Edit
                                     </button>
                                     <button
-                                      type="button"
                                       onClick={() => deleteTemplate(t.id)}
-                                      className="px-3 py-1.5 rounded-xl border text-xs font-semibold hover:bg-[#b83838]/10 transition"
+                                      className="px-3 py-1.5 rounded-xl border text-xs font-semibold transition hover:bg-[#b83838]/20"
                                       style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
                                     >
                                       Delete
@@ -1698,7 +1801,7 @@ export default function App() {
                     <input
                       value={editAgentFullName}
                       onChange={(e) => handleAgentFullNameChange(e.target.value)}
-                      placeholder="e.g. Vuyolwenkosi Ndlovu"
+                      placeholder="e.g. Vuyo Ndlovu"
                       className="w-full rounded-xl border p-2.5 text-sm"
                       style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                     />
@@ -1806,6 +1909,86 @@ export default function App() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* SECTION 3: SYSTEM ADMIN SECURITY & PIN MANAGEMENT */}
+            <div className="rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold" style={{ color: "var(--app-text)" }}>
+                    3. System Admin Security & PIN Control
+                  </h3>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                    Update the 4-digit security PIN required to sign in as System Admin.
+                  </p>
+                </div>
+                <span className="text-xs uppercase font-bold text-[#f1c84b] bg-[#f1c84b]/10 border border-[#f1c84b]/30 px-3 py-1 rounded-full">
+                  🔐 PIN Protection Active
+                </span>
+              </div>
+
+              <form onSubmit={handleChangeAdminPin} className="rounded-2xl border p-4 space-y-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>Current 4-Digit PIN:</label>
+                    <input
+                      type="password"
+                      maxLength={4}
+                      value={adminCurrentPin}
+                      onChange={(e) => setAdminCurrentPin(e.target.value)}
+                      placeholder="e.g. 0000"
+                      className="w-full rounded-xl border p-2.5 text-sm font-mono tracking-widest text-center"
+                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>New 4-Digit PIN:</label>
+                    <input
+                      type="password"
+                      maxLength={4}
+                      value={adminNewPin}
+                      onChange={(e) => setAdminNewPin(e.target.value)}
+                      placeholder="Enter 4 digits"
+                      className="w-full rounded-xl border p-2.5 text-sm font-mono tracking-widest text-center"
+                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>Confirm New PIN:</label>
+                    <input
+                      type="password"
+                      maxLength={4}
+                      value={adminConfirmPin}
+                      onChange={(e) => setAdminConfirmPin(e.target.value)}
+                      placeholder="Repeat 4 digits"
+                      className="w-full rounded-xl border p-2.5 text-sm font-mono tracking-widest text-center"
+                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                    />
+                  </div>
+                </div>
+
+                {pinSuccessMsg ? (
+                  <div className="rounded-xl border px-3 py-2 text-xs font-semibold text-[#4cd34c] border-[#4cd34c]/40 bg-[#4cd34c]/10">
+                    {pinSuccessMsg}
+                  </div>
+                ) : null}
+
+                {pinErrorMsg ? (
+                  <div className="rounded-xl border px-3 py-2 text-xs font-semibold" style={{ borderColor: "var(--error-border)", backgroundColor: "var(--error-bg)", color: "var(--error-text)" }}>
+                    {pinErrorMsg}
+                  </div>
+                ) : null}
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={!adminCurrentPin || !adminNewPin || !adminConfirmPin || saving}
+                    className="px-5 py-2.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-sm font-semibold shadow-md disabled:opacity-50 transition"
+                  >
+                    {saving ? "Updating..." : "Update System Admin PIN"}
+                  </button>
+                </div>
+              </form>
             </div>
           </section>
         ) : null}

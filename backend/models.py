@@ -42,6 +42,8 @@ class AgentBase(SQLModel):
     agent: Optional[str] = None
     agent_initials: str
     is_admin: bool = False
+    pin: Optional[str] = "0000"
+
 
 
 

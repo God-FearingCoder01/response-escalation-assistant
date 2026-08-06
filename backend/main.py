@@ -117,14 +117,15 @@ class DefaultAgent(TypedDict):
     agent_name: str
     agent_initials: str
     is_admin: bool
+    pin: str
 
 
 DEFAULT_AGENTS: List[DefaultAgent] = [
-   { "agent": "Vuyolwenkosi Ndlovu", "agent_name": "Vuyo", "agent_initials": "VN", "is_admin": False },
-  { "agent": "Kilian D", "agent_name": "Kilian", "agent_initials": "KD", "is_admin": False },
-  { "agent": "Thembi Sibanda", "agent_name": "Thembie", "agent_initials": "TS", "is_admin": False },
-  { "agent": "Kudzi Honde", "agent_name": "Kudzie", "agent_initials": "KH", "is_admin": False },
-  { "agent": "System Admin", "agent_name": "Sys_Admin", "agent_initials": "SA", "is_admin": True },
+   { "agent": "Vuyolwenkosi Ndlovu", "agent_name": "Vuyo", "agent_initials": "VN", "is_admin": False, "pin": "0000" },
+  { "agent": "Kilian D", "agent_name": "Kilian", "agent_initials": "KD", "is_admin": False, "pin": "0000" },
+  { "agent": "Thembi Sibanda", "agent_name": "Thembie", "agent_initials": "TS", "is_admin": False, "pin": "0000" },
+  { "agent": "Kudzi Honde", "agent_name": "Kudzie", "agent_initials": "KH", "is_admin": False, "pin": "0000" },
+  { "agent": "System Admin", "agent_name": "Sys_Admin", "agent_initials": "SA", "is_admin": True, "pin": "0000" },
 ]
 
 
@@ -145,6 +146,8 @@ def sync_default_data_if_needed(session: Session) -> None:
             existing.agent = item["agent"]
             existing.agent_name = item["agent_name"]
             existing.is_admin = item["is_admin"]
+            if not existing.pin:
+                existing.pin = item["pin"]
             existing.updated_at = now
             session.add(existing)
         else:
@@ -154,6 +157,7 @@ def sync_default_data_if_needed(session: Session) -> None:
                     agent_name=item["agent_name"],
                     agent_initials=item["agent_initials"],
                     is_admin=item["is_admin"],
+                    pin=item["pin"],
                     created_at=now,
                     updated_at=now,
                 )
@@ -320,6 +324,7 @@ def create_agent(agent: AgentCreate):
             agent_name=agent.agent_name,
             agent_initials=agent.agent_initials.upper(),
             is_admin=agent.is_admin,
+            pin=agent.pin or "0000",
             created_at=now,
             updated_at=now,
         )
@@ -339,6 +344,8 @@ def update_agent(agent_id: int, incoming: AgentUpdate):
         existing.agent_name = incoming.agent_name
         existing.agent_initials = incoming.agent_initials.upper()
         existing.is_admin = incoming.is_admin
+        if incoming.pin:
+            existing.pin = incoming.pin
         existing.updated_at = datetime.now(timezone.utc)
         session.add(existing)
         session.commit()
