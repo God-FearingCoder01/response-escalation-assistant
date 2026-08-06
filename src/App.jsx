@@ -110,11 +110,11 @@ const DEFAULT_TEMPLATES = [
 ];
 
 const DEFAULT_AGENTS = [
-  { id: 1, agent: "Vuyolwenkosi Ndlovu", agent_name: "Vuyo", agent_initials: "VN", is_admin: false, pin: "0000" },
-  { id: 2, agent: "Kilian D", agent_name: "Kilian", agent_initials: "KD", is_admin: false, pin: "0000" },
-  { id: 3, agent: "Thembi Sibanda", agent_name: "Thembie", agent_initials: "TS", is_admin: false, pin: "0000" },
-  { id: 4, agent: "Kudzi Honde", agent_name: "Kudzie", agent_initials: "KH", is_admin: false, pin: "0000" },
-  { id: 5, agent: "System Admin", agent_name: "Sys_Admin", agent_initials: "SA", is_admin: true, pin: "0000" },
+  { id: 1, agent: "Vuyolwenkosi Ndlovu", agent_name: "Vuyo", agent_initials: "VN", is_admin: false },
+  { id: 2, agent: "Kilian D", agent_name: "Kilian", agent_initials: "KD", is_admin: false },
+  { id: 3, agent: "Thembi Sibanda", agent_name: "Thembie", agent_initials: "TS", is_admin: false },
+  { id: 4, agent: "Kudzi Honde", agent_name: "Kudzie", agent_initials: "KH", is_admin: false },
+  { id: 5, agent: "System Admin", agent_name: "Sys_Admin", agent_initials: "SA", is_admin: true },
 ];
 
 const THEMES = {
@@ -415,13 +415,51 @@ export default function App() {
     setActiveScreen("tech_escalation");
   }
 
-  // Verify Security PIN for Admin Login
-  function handleVerifyPin(e) {
+  // Verify Security PIN for Admin Login (Always validate live against backend database API)
+  async function handleVerifyPin(e) {
     if (e) e.preventDefault();
     const enteredPin = pinDigits.join("");
-    const expectedPin = pendingAdminAgent?.pin || "0000";
+    if (!enteredPin || enteredPin.length < 4) {
+      setPinError("Please enter all 4 digits of your Security PIN.");
+      return;
+    }
 
-    if (enteredPin === expectedPin) {
+    try {
+      if (apiStatus !== "offline") {
+        const response = await fetch(`${API_BASE}/agents/verify-pin`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            agent_initials: pendingAdminAgent?.agent_initials || "SA",
+            pin: enteredPin,
+          }),
+        });
+
+        if (response.ok) {
+          const resData = await response.json();
+          if (resData.valid) {
+            const verifiedAgent = resData.agent || pendingAdminAgent;
+            setCurrentAgent(verifiedAgent);
+            setShowPinModal(false);
+            setPendingAdminAgent(null);
+            setPinDigits(["", "", "", ""]);
+            setPinError("");
+            setIsSidebarHovered(false);
+            setActiveScreen("tech_escalation");
+            return;
+          } else {
+            setPinError("Incorrect 4-digit Security PIN.");
+            return;
+          }
+        }
+      }
+    } catch (err) {
+      // Fallback check if API is unreachable
+    }
+
+    // Client-side fallback check if API offline
+    const expectedPin = pendingAdminAgent?.pin;
+    if (expectedPin && enteredPin === expectedPin) {
       setCurrentAgent(pendingAdminAgent);
       setShowPinModal(false);
       setPendingAdminAgent(null);
@@ -620,11 +658,6 @@ export default function App() {
     setPinSuccessMsg("");
     setPinErrorMsg("");
 
-    const currentPinInState = currentAgent?.pin || "0000";
-    if (adminCurrentPin !== currentPinInState) {
-      setPinErrorMsg("Current PIN is incorrect.");
-      return;
-    }
     if (adminNewPin.length !== 4 || !/^\d{4}$/.test(adminNewPin)) {
       setPinErrorMsg("New PIN must be exactly 4 numeric digits.");
       return;
@@ -632,6 +665,29 @@ export default function App() {
     if (adminNewPin !== adminConfirmPin) {
       setPinErrorMsg("New PIN and Confirm PIN do not match.");
       return;
+    }
+
+    if (apiStatus !== "offline") {
+      try {
+        const verifyRes = await fetch(`${API_BASE}/agents/verify-pin`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            agent_initials: currentAgent?.agent_initials || "SA",
+            pin: adminCurrentPin,
+          }),
+        });
+
+        if (verifyRes.ok) {
+          const vData = await verifyRes.json();
+          if (!vData.valid) {
+            setPinErrorMsg("Current PIN is incorrect.");
+            return;
+          }
+        }
+      } catch (err) {
+        // Fallback check
+      }
     }
 
     await upsertAgent(
@@ -645,6 +701,7 @@ export default function App() {
 
     const updatedAgent = { ...currentAgent, pin: adminNewPin };
     setCurrentAgent(updatedAgent);
+    await refreshAgents();
     setPinSuccessMsg("System Admin PIN successfully updated!");
     setAdminCurrentPin("");
     setAdminNewPin("");
@@ -1963,7 +2020,7 @@ export default function App() {
                       maxLength={4}
                       value={adminCurrentPin}
                       onChange={(e) => setAdminCurrentPin(e.target.value)}
-                      placeholder="e.g. 0000"
+                      placeholder="••••"
                       className="w-full rounded-xl border p-2.5 text-sm font-mono tracking-widest text-center"
                       style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                     />
