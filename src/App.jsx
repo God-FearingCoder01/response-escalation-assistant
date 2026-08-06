@@ -1765,7 +1765,7 @@ export default function App() {
               </div>
 
               {/* Agent List */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {agents.map((agent) => (
                   <div key={agent.id} className="rounded-2xl border p-4 flex items-center justify-between" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
                     <div className="flex items-center gap-3">
