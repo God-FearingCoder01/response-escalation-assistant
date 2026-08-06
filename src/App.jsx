@@ -9,7 +9,7 @@ const DEFAULT_TEMPLATES = [
   {
     id: 1,
     name: "Self Exclusion",
-    body: "Account {account_number} is requesting to be removed from self exclusion. #{agent_name}",
+    body: "Account {account_number} is requesting to be removed from self exclusion. ",
     category_type: "tech_escalation",
     category: "",
     subcategory: "",
@@ -17,7 +17,7 @@ const DEFAULT_TEMPLATES = [
   {
     id: 2,
     name: "Account Verification",
-    body: "Account {account_number} is facing error code 146, kindly assist. #{agent_name}",
+    body: "Account {account_number} is facing error code 146, kindly assist. ",
     category_type: "tech_escalation",
     category: "",
     subcategory: "",
@@ -25,7 +25,7 @@ const DEFAULT_TEMPLATES = [
   {
     id: 3,
     name: "Permanent Deactivation",
-    body: "User {account_number} has requested for the permanent deactivation of his account because {reason}. #{agent_name}",
+    body: "User {account_number} has requested for the permanent deactivation of his account because {reason}. ",
     category_type: "tech_escalation",
     category: "",
     subcategory: "",
@@ -33,7 +33,7 @@ const DEFAULT_TEMPLATES = [
   {
     id: 4,
     name: "Processing Withdrawal",
-    body: "Processing withdrawal of ${amount} from account number {account_number}; on {day}.{month}.2026 time {time}hrs. #{agent_name}",
+    body: "Processing withdrawal of ${amount} from account number {account_number}; on {day}.{month}.{year} time {time}hrs. ",
     category_type: "tech_escalation",
     category: "",
     subcategory: "",
@@ -74,7 +74,7 @@ const DEFAULT_TEMPLATES = [
   {
     id: 9,
     name: "Password Reset",
-    body: "●	Click “Forgot Password” and then follow instructions. \n●	If your new Password/Verification is not sent to your phone, kindly remove your Sim Card and insert it in another phone then request for a new code again. \n●	To change your Password, click on 3 dots at the Bottom Right corner of your screen and do the following: \n○	Select Account \n○	Click on change password \n○	Follow further instructions.",
+    body: "● Click “Forgot Password” and then follow instructions. \n● If your new Password/Verification is not sent to your phone, kindly remove your Sim Card and insert it in another phone then request for a new code again. \n● To change your Password, click on 3 dots at the Bottom Right corner of your screen and do the following: \n\t○ Select Account \n\t○ Click on change password \n\t○ Follow further instructions.",
     category_type: "customer_reply",
     category: "Registration, login, verification, and account access",
     subcategory: "How to reset your password?",
@@ -82,7 +82,7 @@ const DEFAULT_TEMPLATES = [
   {
     id: 10,
     name: "Error 146",
-    body: "If you have received Error Code 146, please know that you need to verify your account. \nTo verify your account, please do the following: \n●	Take 3 pictures \n○	First one while holding your national ID next to your face, with both your face and details on the ID very clear.\nNB: not a “selfie” but using the back/rear camera. \n○	Second one the front of you ID, with details clearly visible \n○	Third one the back of your ID, with details clearly visible \n●	Send the pictures together with your phone number registered on WinBucks via WhatsApp on, +263713331227  or +263713331227.",
+    body: "If you have received Error Code 146, please know that you need to verify your account. \n\nTo verify your account, please do the following: \n● Take 3 pictures \n\t○ First one while holding your national ID next to your face, with both your face and details on the ID very clear.\n\tNB: not a “selfie” but using the back/rear camera. \n\t○ Second one the front of you ID, with details clearly visible \n\t○ Third one the back of your ID, with details clearly visible \n● Send the pictures together with your phone number registered on WinBucks via WhatsApp on, +263713331227  or +263713331227.",
     category_type: "customer_reply",
     category: "Registration, login, verification, and account access",
     subcategory: "Account Verification",
@@ -90,7 +90,7 @@ const DEFAULT_TEMPLATES = [
 ];
 
 const DEFAULT_AGENTS = [
-  { id: 1, agent: "Vuyo Ndlovu", agent_name: "Vuyo", agent_initials: "VN", is_admin: false },
+  { id: 1, agent: "Vuyolwenkosi Ndlovu", agent_name: "Vuyo", agent_initials: "VN", is_admin: false },
   { id: 2, agent: "Kilian D", agent_name: "Kilian", agent_initials: "KD", is_admin: false },
   { id: 3, agent: "Thembi Sibanda", agent_name: "Thembie", agent_initials: "TS", is_admin: false },
   { id: 4, agent: "Kudzi Honde", agent_name: "Kudzie", agent_initials: "KH", is_admin: false },
@@ -1471,7 +1471,7 @@ export default function App() {
                     <input
                       value={editTplSubcat}
                       onChange={(e) => setEditTplSubcat(e.target.value)}
-                      placeholder="e.g. Deposit, Withdrawal"
+                      placeholder="e.g. Deposit, Follow-Ups"
                       className="w-full rounded-xl border p-2.5 text-sm"
                       style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                     />
@@ -1481,7 +1481,7 @@ export default function App() {
                     <input
                       value={editTplName}
                       onChange={(e) => setEditTplName(e.target.value)}
-                      placeholder="e.g. Deposit Under Review"
+                      placeholder="e.g. Ecocash Issues"
                       className="w-full rounded-xl border p-2.5 text-sm"
                       style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                     />
@@ -1599,11 +1599,10 @@ export default function App() {
                                           [catGroup.categoryName]: sub,
                                         }));
                                       }}
-                                      className={`rounded-xl border px-3 py-1 text-xs font-semibold whitespace-nowrap transition ${
-                                        isSubActive
-                                          ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] border-[#4cd34c] shadow-sm"
-                                          : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
-                                      }`}
+                                      className={`rounded-xl border px-3 py-1 text-xs font-semibold whitespace-nowrap transition ${isSubActive
+                                        ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] border-[#4cd34c] shadow-sm"
+                                        : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
+                                        }`}
                                       style={{ borderColor: isSubActive ? "#4cd34c" : "var(--badge-border)" }}
                                     >
                                       {sub}
@@ -1699,7 +1698,7 @@ export default function App() {
                     <input
                       value={editAgentFullName}
                       onChange={(e) => handleAgentFullNameChange(e.target.value)}
-                      placeholder="e.g. Vuyo Ndlovu"
+                      placeholder="e.g. Vuyolwenkosi Ndlovu"
                       className="w-full rounded-xl border p-2.5 text-sm"
                       style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                     />

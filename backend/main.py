@@ -1,3 +1,4 @@
+from sqlalchemy import false
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import List, TypedDict
@@ -39,83 +40,76 @@ except ImportError:
 DEFAULT_TEMPLATES = [
     # Tech Escalation Templates
     {
-        "name": "Self Exclusion Request",
-        "body": "Account {account_number} is requesting to be removed from self exclusion. #{agent_name}",
-        "category_type": "tech_escalation",
-        "category": "Account Escalations",
-        "subcategory": "Self Exclusion",
-    },
-    {
-        "name": "Account Verification Error 146",
-        "body": "Account {account_number} is facing error code 146, kindly assist. #{agent_name}",
-        "category_type": "tech_escalation",
-        "category": "Account Escalations",
-        "subcategory": "Verification",
-    },
-    {
-        "name": "Permanent Deactivation Request",
-        "body": "User {account_number} has requested for the permanent deactivation of his account because {reason}. #{agent_name}",
-        "category_type": "tech_escalation",
-        "category": "Account Escalations",
-        "subcategory": "Deactivation",
-    },
-    {
-        "name": "Withdrawal Processing Escalation",
-        "body": "Processing withdrawal of ${amount} from account number {account_number}; on {day}.{month}.2026 time {time}hrs. #{agent_name}",
-        "category_type": "tech_escalation",
-        "category": "Payment Escalations",
-        "subcategory": "Withdrawal",
-    },
-    # Customer Reply Templates
-    {
-        "name": "Standard Welcome Greeting",
-        "body": "Hi {customer_name}, my name is {agent_name} from Customer Support. How may I assist you today?",
-        "category_type": "customer_reply",
-        "category": "Agent Introductions",
-        "subcategory": "Welcome",
-    },
-    {
-        "name": "Follow-up Response Greeting",
-        "body": "Hello {customer_name}, thank you for reaching back out. I'm {agent_name} and I'll be glad to continue assisting you.",
-        "category_type": "customer_reply",
-        "category": "Agent Introductions",
-        "subcategory": "Follow-up",
-    },
-    {
-        "name": "Deposit Under Review",
-        "body": "Hi {customer_name}, your deposit of ${amount} is currently being processed by our financial partner. Reference: {reference_no}.",
-        "category_type": "customer_reply",
-        "category": "Transactions",
-        "subcategory": "Deposit",
-    },
-    {
-        "name": "Withdrawal Status Update",
-        "body": "Hi {customer_name}, your withdrawal request for ${amount} (Ref: {reference_no}) has been approved and sent to your account.",
-        "category_type": "customer_reply",
-        "category": "Transactions",
-        "subcategory": "Withdrawal",
-    },
-    {
-        "name": "Password Reset Instructions",
-        "body": "Hi {customer_name}, a password reset link has been dispatched to your registered email address. Please follow the instructions to secure your account.",
-        "category_type": "customer_reply",
-        "category": "Security",
-        "subcategory": "Password Reset",
-    },
-    {
-        "name": "KYC Document Request",
-        "body": "Hi {customer_name}, to complete your account verification, please upload your proof of ID and address in the portal.",
-        "category_type": "customer_reply",
-        "category": "Security",
-        "subcategory": "Verification",
-    },
-    {
-        "name": "Game Cache Troubleshooting",
-        "body": "Hi {customer_name}, if you're experiencing display issues with {game_title}, please clear your browser cache or switch to Google Chrome.",
-        "category_type": "customer_reply",
-        "category": "Games",
-        "subcategory": "Troubleshooting",
-    },
+    "name": "Self Exclusion",
+    "body": "Account {account_number} is requesting to be removed from self exclusion. ",
+    "category_type": "tech_escalation",
+    "category": "",
+    "subcategory": "",
+  },
+  {
+    "name": "Account Verification",
+    "body": "Account {account_number} is facing error code 146, kindly assist. ",
+    "category_type": "tech_escalation",
+    "category": "",
+    "subcategory": "",
+  },
+  {
+    "name": "Permanent Deactivation",
+    "body": "User {account_number} has requested for the permanent deactivation of his account because {reason}. ",
+    "category_type": "tech_escalation",
+    "category": "",
+    "subcategory": "",
+  },
+  {
+    "name": "Processing Withdrawal",
+    "body": "Processing withdrawal of ${amount} from account number {account_number}; on {day}.{month}.{year} time {time}hrs. ",
+    "category_type": "tech_escalation",
+    "category": "",
+    "subcategory": "",
+  },
+  # Customer Reply Templates
+  {
+    "name": "General Introduction",
+    "body": "Hello and welcome to WinBucks. My name is {agent_name}. How may I help you today?",
+    "category_type": "customer_reply",
+    "category": "Agent Introductions",
+    "subcategory": "General",
+  },
+  {
+    "name": "Ecocash Issues 2",
+    "body": "We apologize for the inconvenience and appreciate your patience. \nWe are currently experiencing temporary challenges with EcoCash withdrawals. Our team is actively working with the relevant providers to resolve the issue, and pending transactions are expected to be completed within the next 2 hours. \nWhile the issue is being resolved, we kindly recommend using InnBucks or O'mari for faster and instant transactions where possible. Thank you for your patience and understanding.",
+    "category_type": "customer_reply",
+    "category": "Transactions",
+    "subcategory": "Follow-Ups",
+  },
+  {
+    "name": "Ecocash",
+    "body": "To deposit using EcoCash, kindly follow these steps: \n1.	Click Deposit. \n2.	Select EcoCash as your payment method. \n3.	Enter the amount you wish to deposit. \n4.	Click Deposit again to proceed. \n5.	Confirm the payment request on your phone. \n6.	Once the payment is successful, refresh your WinBucks account. \n7.	Check your balance to confirm the funds have been credited.",
+    "category_type": "customer_reply",
+    "category": "Transactions",
+    "subcategory": "Deposit",
+  },
+  {
+    "name": "Withdrawal",
+    "body": "NB: We use InnBucks, EcoCash, and O'mari only for withdrawals. \n\nTo withdraw, kindly follow these steps: \n1.	Click the Menu button (☰) in the top-right corner of your screen. \n2.	Select Withdraw. \n3.	Choose your preferred withdrawal method. NB: Always double-check the withdrawal method before confirming the withdrawal. \n4.	Enter the amount you wish to withdraw. \n5.	Click Withdraw to submit your request. \n6.	Refresh your account and wait for a notification confirming the transaction. \n\nNB: Always ensure that you open an account with InnBucks, EcoCash, and O’mari using the same number registered with Winbucks for successful withdrawal in future.\n\nNB: Withdrawal requests of $100 or more will be placed under processing. This allows you to contact us so we can review and finalize your transaction in accordance with our policy.",
+    "category_type": "customer_reply",
+    "category": "Transactions",
+    "subcategory": "How to Withdraw",
+  },
+  {
+    "name": "Password Reset",
+    "body": "● Click “Forgot Password” and then follow instructions. \n● If your new Password/Verification is not sent to your phone, kindly remove your Sim Card and insert it in another phone then request for a new code again. \n● To change your Password, click on 3 dots at the Bottom Right corner of your screen and do the following: \n\t○ Select Account \n\t○ Click on change password \n\t○ Follow further instructions.",
+    "category_type": "customer_reply",
+    "category": "Registration, login, verification, and account access",
+    "subcategory": "How to reset your password?",
+  },
+  {
+    "name": "Error 146",
+    "body": "If you have received Error Code 146, please know that you need to verify your account. \n\nTo verify your account, please do the following: \n● Take 3 pictures \n\t○ First one while holding your national ID next to your face, with both your face and details on the ID very clear.\n\tNB: not a “selfie” but using the back/rear camera. \n\t○ Second one the front of you ID, with details clearly visible \n\t○ Third one the back of your ID, with details clearly visible \n● Send the pictures together with your phone number registered on WinBucks via WhatsApp on, +263713331227  or +263713331227.",
+    "category_type": "customer_reply",
+    "category": "Registration, login, verification, and account access",
+    "subcategory": "Account Verification",
+  },
 ]
 
 class DefaultAgent(TypedDict):
@@ -126,11 +120,11 @@ class DefaultAgent(TypedDict):
 
 
 DEFAULT_AGENTS: List[DefaultAgent] = [
-    {"agent": "Vuyo Ndlovu", "agent_name": "Vuyo", "agent_initials": "VN", "is_admin": False},
-    {"agent": "Kilian D", "agent_name": "Kilian", "agent_initials": "KD", "is_admin": False},
-    {"agent": "Thembi Sibanda", "agent_name": "Thembie", "agent_initials": "TS", "is_admin": False},
-    {"agent": "Kudzi Honde", "agent_name": "Kudzie", "agent_initials": "KH", "is_admin": False},
-    {"agent": "System Admin", "agent_name": "Sys_Admin", "agent_initials": "SA", "is_admin": True},
+   { "agent": "Vuyolwenkosi Ndlovu", "agent_name": "Vuyo", "agent_initials": "VN", "is_admin": False },
+  { "agent": "Kilian D", "agent_name": "Kilian", "agent_initials": "KD", "is_admin": False },
+  { "agent": "Thembi Sibanda", "agent_name": "Thembie", "agent_initials": "TS", "is_admin": False },
+  { "agent": "Kudzi Honde", "agent_name": "Kudzie", "agent_initials": "KH", "is_admin": False },
+  { "agent": "System Admin", "agent_name": "Sys_Admin", "agent_initials": "SA", "is_admin": True },
 ]
 
 
