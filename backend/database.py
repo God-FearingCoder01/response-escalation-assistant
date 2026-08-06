@@ -1,9 +1,14 @@
+import os
 from pathlib import Path
 
 from sqlmodel import create_engine, SQLModel, Session
 
-BASE_DIR = Path(__file__).resolve().parent
-DATABASE_FILE = BASE_DIR / "backend_data.db"
+if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+    DATABASE_FILE = Path("/tmp/backend_data.db")
+else:
+    BASE_DIR = Path(__file__).resolve().parent
+    DATABASE_FILE = BASE_DIR / "backend_data.db"
+
 DATABASE_URL = f"sqlite:///{DATABASE_FILE}"
 
 # For SQLite we need check_same_thread False
