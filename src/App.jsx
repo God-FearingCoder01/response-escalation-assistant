@@ -1253,6 +1253,12 @@ export default function App() {
           </div>
         </header>
 
+        {statusMessage && apiStatus !== "offline" && activeScreen !== "welcome" ? (
+          <div className="mb-4 rounded-2xl border px-4 py-2.5 text-sm backdrop-blur" style={{ borderColor: "var(--status-border)", backgroundColor: "var(--status-bg)", color: "var(--app-text)" }}>
+            {statusMessage}
+          </div>
+        ) : null}
+
         {error ? (
           <div className="mb-4 rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: "var(--error-border)", backgroundColor: "var(--error-bg)", color: "var(--error-text)" }}>
             {error}
