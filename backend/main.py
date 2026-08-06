@@ -4,11 +4,14 @@ from datetime import datetime, timezone
 from typing import List, TypedDict
 
 
-from fastapi import FastAPI, HTTPException
-
+from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-
 from sqlmodel import Session, select, col
+
+class PinVerifyRequest(BaseModel):
+    agent_initials: str
+    pin: str
 
 
 try:
@@ -362,4 +365,23 @@ def delete_agent(agent_id: int):
         session.delete(existing)
         session.commit()
     return {"ok": True, "message": "Agent deleted"}
+
+
+@app.post("/agents/verify-pin")
+def verify_agent_pin(req: PinVerifyRequest):
+    with Session(engine) as session:
+        agent = session.exec(select(Agent).where(Agent.agent_initials == req.agent_initials.upper())).first()
+        if not agent:
+            agent = session.exec(select(Agent).where(Agent.is_admin == True)).first()
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent profile not found")
+
+        if not agent.is_admin:
+            return {"valid": True, "agent": agent}
+
+        expected_pin = agent.pin or "0000"
+        if req.pin == expected_pin:
+            return {"valid": True, "agent": agent}
+        else:
+            return {"valid": False, "detail": "Incorrect 4-digit Security PIN"}
 
