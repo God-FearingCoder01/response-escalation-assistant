@@ -65,7 +65,7 @@ DEFAULT_TEMPLATES = [
   },
   {
     "name": "Processing Withdrawal",
-    "body": "Processing withdrawal of ${amount} from account number {account_number}; on {day}.{month}.{year} time {time}hrs. ",
+    "body": "Processing withdrawal of ${amount} from account number {account_number}; on {day}.{month_number}.{year} time {time}hrs. ",
     "category_type": "tech_escalation",
     "category": "",
     "subcategory": "",

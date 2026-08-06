@@ -816,14 +816,21 @@ export default function App() {
   function getDateAutoValues() {
     const now = new Date();
     const day = String(now.getDate()).padStart(2, "0");
-    const month = now.toLocaleString("en-US", { month: "long" });
+    const monthNum = String(now.getMonth() + 1).padStart(2, "0");
+    const monthName = now.toLocaleString("en-US", { month: "long" });
     const year = String(now.getFullYear());
-    const date = `${day} ${month} ${year}`;
+    const date = `${day}.${monthNum}.${year}`;
     return {
       day,
       Day: day,
-      month,
-      Month: month,
+      month_number: monthNum,
+      Month_number: monthNum,
+      month_num: monthNum,
+      Month_num: monthNum,
+      month: monthNum,
+      Month: monthNum,
+      month_name: monthName,
+      Month_name: monthName,
       year,
       Year: year,
       date,
@@ -1370,7 +1377,7 @@ export default function App() {
                   <div className="space-y-3">
                     {placeholders.map((ph) => {
                       const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
-                      const isDateField = ph === "day" || ph === "Day" || ph === "month" || ph === "Month" || ph === "year" || ph === "Year" || ph === "date" || ph === "Date";
+                      const isDateField = /^(day|month|year|date)/i.test(ph);
                       const dateAuto = getDateAutoValues();
                       const autoVal = isAgentField
                         ? (ph === "agent_initials" ? currentAgent?.agent_initials : currentAgent?.agent_name)
@@ -1615,7 +1622,7 @@ export default function App() {
                     <div className="space-y-3">
                       {placeholders.map((ph) => {
                         const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
-                        const isDateField = ph === "day" || ph === "Day" || ph === "month" || ph === "Month" || ph === "year" || ph === "Year" || ph === "date" || ph === "Date";
+                        const isDateField = /^(day|month|year|date)/i.test(ph);
                         const dateAuto = getDateAutoValues();
                         const autoVal = isAgentField
                           ? (ph === "agent_initials" ? currentAgent?.agent_initials : currentAgent?.agent_name)
