@@ -949,7 +949,7 @@ export default function App() {
           >
             <div className="text-center space-y-2">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#f1c84b_0%,#d4a017_100%)] text-2xl font-bold text-[#071007] shadow-lg">
-                🔐
+                <img src="/lock.png" alt="Lock" className="h-8 w-8 shrink-0 object-contain" />
               </div>
               <h3 className="text-xl font-extrabold" style={{ color: "var(--app-text)" }}>
                 System Admin PIN Verification
@@ -1126,7 +1126,11 @@ export default function App() {
               title={`Switch to ${themeMode === "night" ? "Day" : "Night"} mode`}
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-sm" style={{ borderColor: "var(--badge-border)" }}>
-                {themeMode === "night" ? "🌙" : "☀️"}
+                <img
+                  src={themeMode === "night" ? "/moon.png" : "/sun.png"}
+                  alt={themeMode === "night" ? "Night Mode" : "Day Mode"}
+                  className="h-4 w-4 shrink-0 object-contain"
+                />
               </span>
               {isSidebarHovered ? (
                 <span className="ml-3 text-sm font-medium whitespace-nowrap">
@@ -1233,8 +1237,9 @@ export default function App() {
                         {agent.agent_initials}
                       </div>
                       {agent.is_admin ? (
-                        <span className="rounded-full border px-2.5 py-0.5 text-[10px] uppercase font-bold tracking-wider text-[#f1c84b] border-[#f1c84b]/40 bg-[#f1c84b]/10">
-                          System Admin 🔐
+                        <span className="rounded-full border px-2.5 py-0.5 text-[10px] uppercase font-bold tracking-wider text-[#f1c84b] border-[#f1c84b]/40 bg-[#f1c84b]/10 flex items-center gap-1">
+                          System Admin
+                          <img src="/lock.png" alt="Lock" className="h-3 w-3 shrink-0 object-contain" />
                         </span>
                       ) : (
                         <span className="rounded-full border px-2.5 py-0.5 text-[10px] uppercase tracking-wider text-[var(--text-muted)]" style={{ borderColor: "var(--badge-border)" }}>
@@ -2036,8 +2041,9 @@ export default function App() {
                     Update the 4-digit security PIN required to sign in as System Admin.
                   </p>
                 </div>
-                <span className="text-xs uppercase font-bold text-[#f1c84b] bg-[#f1c84b]/10 border border-[#f1c84b]/30 px-3 py-1 rounded-full">
-                  🔐 PIN Protection Active
+                <span className="text-xs uppercase font-bold text-[#f1c84b] bg-[#f1c84b]/10 border border-[#f1c84b]/30 px-3 py-1 rounded-full flex items-center gap-1.5">
+                  <img src="/lock.png" alt="Lock" className="h-3.5 w-3.5 shrink-0 object-contain" />
+                  PIN Protection Active
                 </span>
               </div>
 
