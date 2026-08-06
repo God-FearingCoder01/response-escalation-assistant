@@ -1668,8 +1668,8 @@ export default function App() {
                       className="w-full rounded-xl border p-2.5 text-sm"
                       style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                     >
-                      <option value="tech_escalation">⚡ Tech Escalation (Telegram)</option>
-                      <option value="customer_reply">💬 Customer Reply (Signed & Unsigned)</option>
+                      <option value="tech_escalation">Tech Escalation (Telegram)</option>
+                      <option value="customer_reply">Customer Reply (Signed & Unsigned)</option>
                     </select>
                   </div>
                   <div>
@@ -1767,9 +1767,13 @@ export default function App() {
                         className="p-4 flex items-center justify-between cursor-pointer hover:bg-[var(--neutral-bg)] transition select-none"
                       >
                         <div className="flex items-center gap-3">
-                          <span className="text-xl">
-                            {catGroup.categoryType === "tech_escalation" ? "⚡" : "💬"}
-                          </span>
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center">
+                            {catGroup.categoryType === "tech_escalation" ? (
+                              <img src="/Lightning.png" alt="Tech Escalation" className="h-5 w-5 object-contain" />
+                            ) : (
+                              <img src="/chat.png" alt="Customer Reply" className="h-5 w-5 object-contain" />
+                            )}
+                          </div>
                           <div>
                             <div className="flex items-center gap-2">
                               <h4 className="font-bold text-base" style={{ color: "var(--app-text)" }}>
