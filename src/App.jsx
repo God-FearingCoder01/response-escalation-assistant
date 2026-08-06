@@ -1453,7 +1453,7 @@ export default function App() {
                       style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                     >
                       <option value="tech_escalation">⚡ Tech Escalation (Telegram)</option>
-                      <option value="customer_reply">💬 Customer Reply (WhatsApp & Live Chat)</option>
+                      <option value="customer_reply">💬 Customer Reply (Signed & Unsigned)</option>
                     </select>
                   </div>
                   <div>
@@ -1523,7 +1523,7 @@ export default function App() {
               {/* Category Cards with Accordion Expansion & Horizontal Subcategory Navigation */}
               <div className="space-y-4">
                 {groupedAdminCategories.map((catGroup) => {
-                  const isExpanded = expandedAdminCats[catGroup.categoryName] !== false; // Default expanded
+                  const isExpanded = Boolean(expandedAdminCats[catGroup.categoryName]); // Default collapsed
                   const selectedSub = adminSubcatFilter[catGroup.categoryName] ?? "All";
 
                   const filteredTemplates = catGroup.templates.filter((t) => {
