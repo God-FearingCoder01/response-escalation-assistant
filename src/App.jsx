@@ -1040,7 +1040,7 @@ export default function App() {
           <div className="space-y-6">
             {/* Logo / Header */}
             <div className="flex items-center gap-3 overflow-hidden px-1">
-              <img src="/REA.png" alt="REA Logo" className="h-10 w-10 shrink-0 object-contain rounded-2xl shadow-lg border border-[#4cd34c]/30" />
+              <img src="/REA.png" alt="REA Logo" className="h-10 w-10 shrink-0 object-contain shadow-lg" />
               {isSidebarHovered ? (
                 <span className="font-bold text-lg whitespace-nowrap">
                   Assistant
@@ -1268,8 +1268,9 @@ export default function App() {
                     Escalation requests targeted exclusively for Telegram resolution.
                   </p>
                 </div>
-                <span className="text-xs uppercase font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-3 py-1 rounded-full">
-                  ✈️ Telegram Exclusive
+                <span className="text-xs uppercase font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-3 py-1 rounded-full flex items-center gap-1.5">
+                  <img src="/telegram.png" alt="Telegram Logo" className="h-4 w-4 shrink-0 object-contain" />
+                  Telegram Exclusive
                 </span>
               </div>
 
