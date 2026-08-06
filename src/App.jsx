@@ -782,6 +782,55 @@ export default function App() {
     reader.readAsText(file);
   }
 
+  async function handleDeduplicateTemplates() {
+    setError("");
+    if (apiStatus === "offline") {
+      const seen = new Set();
+      const unique = [];
+      let removed = 0;
+      for (const t of templates) {
+        const key = `${(t.category_type || "").trim().toLowerCase()}|${(t.category || "").trim().toLowerCase()}|${(t.name || "").trim().toLowerCase()}|${(t.body || "").trim()}`;
+        if (seen.has(key)) {
+          removed++;
+        } else {
+          seen.add(key);
+          unique.push(t);
+        }
+      }
+      setTemplates(unique);
+      setStatusMessage(removed > 0 ? `Removed ${removed} duplicate template(s)` : "No duplicate templates found.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/templates/deduplicate`, { method: "POST" });
+      if (!res.ok) throw new Error(`Deduplication failed (${res.status})`);
+      const data = await res.json();
+      setStatusMessage(data.message ?? "Templates deduplicated");
+      await refreshTemplates();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to deduplicate templates");
+    }
+  }
+
+  function getDateAutoValues() {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = now.toLocaleString("en-US", { month: "long" });
+    const year = String(now.getFullYear());
+    const date = `${day} ${month} ${year}`;
+    return {
+      day,
+      Day: day,
+      month,
+      Month: month,
+      year,
+      Year: year,
+      date,
+      Date: date,
+    };
+  }
+
   // Categorized template lists (Tech Escalation templates sorted alphabetically ascending)
   const techTemplates = useMemo(
     () =>
@@ -881,10 +930,12 @@ export default function App() {
     if (!activeTemplate) return "";
     let out = activeTemplate.body;
 
+    const dateAuto = getDateAutoValues();
     const autoMap = {
       agent_name: currentAgent?.agent_name ?? "",
       agent: currentAgent?.agent ?? currentAgent?.agent_name ?? "",
       agent_initials: currentAgent?.agent_initials ?? "",
+      ...dateAuto,
     };
 
     const allKeys = new Set([...Object.keys(autoMap), ...Object.keys(values)]);
@@ -1319,6 +1370,13 @@ export default function App() {
                   <div className="space-y-3">
                     {placeholders.map((ph) => {
                       const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
+                      const isDateField = ph === "day" || ph === "Day" || ph === "month" || ph === "Month" || ph === "year" || ph === "Year" || ph === "date" || ph === "Date";
+                      const dateAuto = getDateAutoValues();
+                      const autoVal = isAgentField
+                        ? (ph === "agent_initials" ? currentAgent?.agent_initials : currentAgent?.agent_name)
+                        : isDateField
+                          ? dateAuto[ph]
+                          : "";
                       return (
                         <div key={ph}>
                           <div className="flex justify-between items-center mb-1">
@@ -1327,10 +1385,12 @@ export default function App() {
                             </span>
                             {isAgentField ? (
                               <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from profile</span>
+                            ) : isDateField ? (
+                              <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from date</span>
                             ) : null}
                           </div>
                           <input
-                            value={values[ph] ?? (isAgentField ? (ph === "agent_initials" ? currentAgent.agent_initials : currentAgent.agent_name) : "")}
+                            value={values[ph] ?? autoVal}
                             onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
                             placeholder={`Enter ${ph.replace("_", " ")}`}
                             className="w-full rounded-xl border p-2.5 text-sm placeholder:text-[var(--field-placeholder)]"
@@ -1392,6 +1452,7 @@ export default function App() {
             </div>
           </section>
         ) : null}
+
         {/* SCREEN 3: CUSTOMER REPLY SCREEN (WhatsApp & Live Chat with Categorized Browser) */}
         {currentAgent && activeScreen === "customer_reply" ? (
           <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto">
@@ -1544,6 +1605,48 @@ export default function App() {
                     )}
                   </div>
                 </div>
+
+                {/* Dynamic Parameters for Customer Reply */}
+                {placeholders.length > 0 ? (
+                  <div className="pt-3 border-t space-y-3" style={{ borderColor: "var(--field-border)" }}>
+                    <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+                      Response Parameters:
+                    </h3>
+                    <div className="space-y-3">
+                      {placeholders.map((ph) => {
+                        const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
+                        const isDateField = ph === "day" || ph === "Day" || ph === "month" || ph === "Month" || ph === "year" || ph === "Year" || ph === "date" || ph === "Date";
+                        const dateAuto = getDateAutoValues();
+                        const autoVal = isAgentField
+                          ? (ph === "agent_initials" ? currentAgent?.agent_initials : currentAgent?.agent_name)
+                          : isDateField
+                            ? dateAuto[ph]
+                            : "";
+                        return (
+                          <div key={ph}>
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs capitalize" style={{ color: "var(--text-muted)" }}>
+                                {ph.replace("_", " ")}:
+                              </span>
+                              {isAgentField ? (
+                                <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from profile</span>
+                              ) : isDateField ? (
+                                <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from date</span>
+                              ) : null}
+                            </div>
+                            <input
+                              value={values[ph] ?? autoVal}
+                              onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                              placeholder={`Enter ${ph.replace("_", " ")}`}
+                              className="w-full rounded-xl border p-2.5 text-sm placeholder:text-[var(--field-placeholder)]"
+                              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -1644,6 +1747,14 @@ export default function App() {
                     style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
                   >
                     Import JSON
+                  </button>
+                  <button
+                    onClick={handleDeduplicateTemplates}
+                    className="px-3 py-1.5 rounded-xl border text-xs font-semibold hover:bg-[#4cd34c]/10 hover:border-[#4cd34c]/50 transition"
+                    style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
+                    title="Remove duplicate templates"
+                  >
+                    Clean Duplicates 🧹
                   </button>
                   <input
                     ref={fileRef}

@@ -229,6 +229,18 @@ def list_templates():
 @app.post("/templates", response_model=TemplateRead)
 def create_template(template: TemplateCreate):
     with Session(engine) as session:
+        existing = session.exec(
+            select(Template).where(
+                col(Template.category_type) == template.category_type,
+                col(Template.name) == template.name,
+                col(Template.category) == template.category,
+            )
+        ).first()
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Template '{template.name}' already exists in this category.",
+            )
         now = datetime.now(timezone.utc)
         db_template = Template(
             name=template.name,
@@ -292,9 +304,30 @@ def export_templates():
 @app.post("/import")
 def import_templates(items: List[TemplateCreate]):
     with Session(engine) as session:
+        existing_templates = session.exec(select(Template)).all()
+        seen = set(
+            (
+                (t.category_type or "").strip().lower(),
+                (t.category or "").strip().lower(),
+                (t.name or "").strip().lower(),
+                (t.body or "").strip(),
+            )
+            for t in existing_templates
+        )
         count = 0
+        skipped = 0
         now = datetime.now(timezone.utc)
         for item in items:
+            key = (
+                (item.category_type or "").strip().lower(),
+                (item.category or "").strip().lower(),
+                (item.name or "").strip().lower(),
+                (item.body or "").strip(),
+            )
+            if key in seen:
+                skipped += 1
+                continue
+            seen.add(key)
             session.add(
                 Template(
                     name=item.name,
@@ -308,7 +341,41 @@ def import_templates(items: List[TemplateCreate]):
             )
             count += 1
         session.commit()
-    return {"imported": count, "message": f"Imported {count} template(s)"}
+    return {
+        "imported": count,
+        "skipped": skipped,
+        "message": f"Imported {count} unique template(s) ({skipped} duplicate(s) skipped)",
+    }
+
+
+@app.post("/templates/deduplicate")
+def deduplicate_templates():
+    with Session(engine) as session:
+        all_templates = session.exec(select(Template).order_by(col(Template.id).asc())).all()
+        seen = set()
+        to_delete = []
+        for t in all_templates:
+            key = (
+                (t.category_type or "").strip().lower(),
+                (t.category or "").strip().lower(),
+                (t.name or "").strip().lower(),
+                (t.body or "").strip(),
+            )
+            if key in seen:
+                to_delete.append(t)
+            else:
+                seen.add(key)
+
+        for dup in to_delete:
+            session.delete(dup)
+        session.commit()
+
+        return {
+            "status": "success",
+            "removed_count": len(to_delete),
+            "remaining_count": len(seen),
+            "message": f"Cleaned duplicates: Removed {len(to_delete)} duplicate template(s)",
+        }
 
 
 # Agent endpoints
