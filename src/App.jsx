@@ -1220,12 +1220,38 @@ export default function App() {
 
       {/* MAIN CONTENT CONTAINER */}
       <div className={`flex-1 p-6 transition-all duration-300 ${currentAgent && activeScreen !== "welcome" ? "ml-16" : ""}`}>
-
-        {statusMessage && apiStatus !== "offline" ? (
-          <div className="mb-4 rounded-2xl border px-4 py-2.5 text-sm backdrop-blur" style={{ borderColor: "var(--status-border)", backgroundColor: "var(--status-bg)", color: "var(--app-text)" }}>
-            {statusMessage}
+        {/* TOP STATUS BAR */}
+        <header className="mb-6 flex flex-col gap-4 rounded-3xl border p-4 shadow-[var(--panel-shadow)] backdrop-blur md:flex-row md:items-center md:justify-between" style={{ borderColor: "var(--header-border)", backgroundColor: "var(--header-bg)" }}>
+          <div className="flex items-center gap-4">
+            <img src="/REA.png" alt="REA Logo" className="h-12 w-12 shrink-0 object-contain rounded-2xl shadow-md border border-[#4cd34c]/30" />
+            <div>
+              <div className="mb-1 inline-flex rounded-full border px-3 py-1 text-xs uppercase tracking-[0.2em]" style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--badge-bg)", color: "var(--badge-text)" }}>
+                RESPONSE & ESCALATION ASSISTANT
+              </div>
+              <h1 className="text-2xl font-bold md:text-3xl" style={{ color: "var(--header-text)" }}>
+                {activeScreen === "welcome"
+                  ? "Welcome Portal"
+                  : activeScreen === "tech_escalation"
+                    ? "Tech Escalation Builder"
+                    : activeScreen === "customer_reply"
+                      ? "Customer Reply Center"
+                      : "System Admin Dashboard"}
+              </h1>
+            </div>
           </div>
-        ) : null}
+
+          <div className="flex items-center gap-3 text-sm" style={{ color: "var(--header-muted)" }}>
+            <span className={`h-2.5 w-2.5 rounded-full ${apiStatus === "checking" ? "bg-[#f1c84b]" : apiStatus === "offline" ? "bg-[#b83838]" : "bg-[#4cd34c]"}`} />
+            <span>{loading ? "Connecting..." : apiStatus === "offline" ? "Offline Mode" : "Backend Connected"}</span>
+
+            {currentAgent ? (
+              <div className="ml-3 flex items-center gap-2 rounded-full border px-3 py-1 text-xs" style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--badge-bg)" }}>
+                <span>Signed in:</span>
+                <strong className="text-[#4cd34c]">{currentAgent.agent_name} ({currentAgent.agent_initials})</strong>
+              </div>
+            ) : null}
+          </div>
+        </header>
 
         {error ? (
           <div className="mb-4 rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: "var(--error-border)", backgroundColor: "var(--error-bg)", color: "var(--error-text)" }}>
@@ -1420,7 +1446,7 @@ export default function App() {
               <div className="space-y-2 mt-6">
                 <button
                   type="button"
-                  onClick={() => copyText(escapeForTelegramMarkdownV2(generatedMsg))}
+                  onClick={() => copyText(generatedMsg)}
                   disabled={!generatedMsg}
                   className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3 font-semibold text-[#071007] shadow-lg disabled:opacity-50 transition"
                 >
