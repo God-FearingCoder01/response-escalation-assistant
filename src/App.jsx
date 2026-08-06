@@ -8,92 +8,84 @@ const DEFAULT_TEMPLATES = [
   // Tech Escalation Templates
   {
     id: 1,
-    name: "Self Exclusion Request",
+    name: "Self Exclusion",
     body: "Account {account_number} is requesting to be removed from self exclusion. #{agent_name}",
     category_type: "tech_escalation",
-    category: "Account Escalations",
-    subcategory: "Self Exclusion",
+    category: "",
+    subcategory: "",
   },
   {
     id: 2,
-    name: "Account Verification Error 146",
+    name: "Account Verification",
     body: "Account {account_number} is facing error code 146, kindly assist. #{agent_name}",
     category_type: "tech_escalation",
-    category: "Account Escalations",
-    subcategory: "Verification",
+    category: "",
+    subcategory: "",
   },
   {
     id: 3,
-    name: "Permanent Deactivation Request",
+    name: "Permanent Deactivation",
     body: "User {account_number} has requested for the permanent deactivation of his account because {reason}. #{agent_name}",
     category_type: "tech_escalation",
-    category: "Account Escalations",
-    subcategory: "Deactivation",
+    category: "",
+    subcategory: "",
   },
   {
     id: 4,
-    name: "Withdrawal Processing Escalation",
+    name: "Processing Withdrawal",
     body: "Processing withdrawal of ${amount} from account number {account_number}; on {day}.{month}.2026 time {time}hrs. #{agent_name}",
     category_type: "tech_escalation",
-    category: "Payment Escalations",
-    subcategory: "Withdrawal",
+    category: "",
+    subcategory: "",
   },
   // Customer Reply Templates
   {
     id: 5,
-    name: "Standard Welcome Greeting",
-    body: "Hi {customer_name}, my name is {agent_name} from Customer Support. How may I assist you today?",
+    name: "General Introduction",
+    body: "Hello and welcome to WinBucks. My name is {agent_name}. How may I help you today?",
     category_type: "customer_reply",
     category: "Agent Introductions",
-    subcategory: "Welcome",
+    subcategory: "General",
   },
   {
     id: 6,
-    name: "Follow-up Response Greeting",
-    body: "Hello {customer_name}, thank you for reaching back out. I'm {agent_name} and I'll be glad to continue assisting you.",
+    name: "Ecocash Issues 2",
+    body: "We apologize for the inconvenience and appreciate your patience. \nWe are currently experiencing temporary challenges with EcoCash withdrawals. Our team is actively working with the relevant providers to resolve the issue, and pending transactions are expected to be completed within the next 2 hours. \nWhile the issue is being resolved, we kindly recommend using InnBucks or O'mari for faster and instant transactions where possible. Thank you for your patience and understanding.",
     category_type: "customer_reply",
-    category: "Agent Introductions",
-    subcategory: "Follow-up",
+    category: "Transactions",
+    subcategory: "Follow-Ups",
   },
   {
     id: 7,
-    name: "Deposit Under Review",
-    body: "Hi {customer_name}, your deposit of ${amount} is currently being processed by our financial partner. Reference: {reference_no}.",
+    name: "Ecocash",
+    body: "To deposit using EcoCash, kindly follow these steps: \n1.	Click Deposit. \n2.	Select EcoCash as your payment method. \n3.	Enter the amount you wish to deposit. \n4.	Click Deposit again to proceed. \n5.	Confirm the payment request on your phone. \n6.	Once the payment is successful, refresh your WinBucks account. \n7.	Check your balance to confirm the funds have been credited.",
     category_type: "customer_reply",
     category: "Transactions",
     subcategory: "Deposit",
   },
   {
     id: 8,
-    name: "Withdrawal Status Update",
-    body: "Hi {customer_name}, your withdrawal request for ${amount} (Ref: {reference_no}) has been approved and sent to your account.",
+    name: "Withdrawal",
+    body: "NB: We use InnBucks, EcoCash, and O'mari only for withdrawals. \n\nTo withdraw, kindly follow these steps: \n1.	Click the Menu button (☰) in the top-right corner of your screen. \n2.	Select Withdraw. \n3.	Choose your preferred withdrawal method. NB: Always double-check the withdrawal method before confirming the withdrawal. \n4.	Enter the amount you wish to withdraw. \n5.	Click Withdraw to submit your request. \n6.	Refresh your account and wait for a notification confirming the transaction. \n\nNB: Always ensure that you open an account with InnBucks, EcoCash, and O’mari using the same number registered with Winbucks for successful withdrawal in future.\n\nNB: Withdrawal requests of $100 or more will be placed under processing. This allows you to contact us so we can review and finalize your transaction in accordance with our policy.",
     category_type: "customer_reply",
     category: "Transactions",
-    subcategory: "Withdrawal",
+    subcategory: "How to Withdraw",
   },
   {
     id: 9,
-    name: "Password Reset Instructions",
-    body: "Hi {customer_name}, a password reset link has been dispatched to your registered email address. Please follow the instructions to secure your account.",
+    name: "Password Reset",
+    body: "●	Click “Forgot Password” and then follow instructions. \n●	If your new Password/Verification is not sent to your phone, kindly remove your Sim Card and insert it in another phone then request for a new code again. \n●	To change your Password, click on 3 dots at the Bottom Right corner of your screen and do the following: \n○	Select Account \n○	Click on change password \n○	Follow further instructions.",
     category_type: "customer_reply",
-    category: "Security",
-    subcategory: "Password Reset",
+    category: "Registration, login, verification, and account access",
+    subcategory: "How to reset your password?",
   },
   {
     id: 10,
-    name: "KYC Document Request",
-    body: "Hi {customer_name}, to complete your account verification, please upload your proof of ID and address in the portal.",
+    name: "Error 146",
+    body: "If you have received Error Code 146, please know that you need to verify your account. \nTo verify your account, please do the following: \n●	Take 3 pictures \n○	First one while holding your national ID next to your face, with both your face and details on the ID very clear.\nNB: not a “selfie” but using the back/rear camera. \n○	Second one the front of you ID, with details clearly visible \n○	Third one the back of your ID, with details clearly visible \n●	Send the pictures together with your phone number registered on WinBucks via WhatsApp on, +263713331227  or +263713331227.",
     category_type: "customer_reply",
-    category: "Security",
-    subcategory: "Verification",
-  },
-  {
-    id: 11,
-    name: "Game Cache Troubleshooting",
-    body: "Hi {customer_name}, if you're experiencing display issues with {game_title}, please clear your browser cache or switch to Google Chrome.",
-    category_type: "customer_reply",
-    category: "Games",
-    subcategory: "Troubleshooting",
+    category: "Registration, login, verification, and account access",
+    subcategory: "Account Verification",
   },
 ];
 
@@ -745,8 +737,8 @@ export default function App() {
                   setIsSidebarHovered(false);
                 }}
                 className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-3 text-left font-medium transition-all ${activeScreen === "tech_escalation"
-                    ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
-                    : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+                  ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
+                  : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
                   }`}
                 title="Tech Escalation"
               >
@@ -762,8 +754,8 @@ export default function App() {
                   setIsSidebarHovered(false);
                 }}
                 className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-3 text-left font-medium transition-all ${activeScreen === "customer_reply"
-                    ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
-                    : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+                  ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
+                  : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
                   }`}
                 title="Customer Reply"
               >
@@ -780,8 +772,8 @@ export default function App() {
                     setIsSidebarHovered(false);
                   }}
                   className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-3 text-left font-medium transition-all ${activeScreen === "admin"
-                      ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
-                      : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+                    ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
+                    : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
                     }`}
                   title="System Admin"
                 >
@@ -883,7 +875,7 @@ export default function App() {
                 Select Your Agent Profile
               </h2>
               <p className="max-w-xl mx-auto text-base" style={{ color: "var(--text-muted)" }}>
-                Welcome to the Escalation Assistant. Please choose your agent profile below to enter the system.
+                Welcome to Response & Escalation Assistant. Please choose your agent profile below to enter the system.
               </p>
             </div>
 
@@ -1081,8 +1073,8 @@ export default function App() {
                     type="button"
                     onClick={() => setReplyChannel("signed")}
                     className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${replyChannel === "signed"
-                        ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
-                        : "hover:bg-[var(--neutral-bg)]"
+                      ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
+                      : "hover:bg-[var(--neutral-bg)]"
                       }`}
                     style={{ borderColor: replyChannel === "signed" ? "#4cd34c" : "var(--field-border)" }}
                   >
@@ -1092,8 +1084,8 @@ export default function App() {
                     type="button"
                     onClick={() => setReplyChannel("unsigned")}
                     className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${replyChannel === "unsigned"
-                        ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
-                        : "hover:bg-[var(--neutral-bg)]"
+                      ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
+                      : "hover:bg-[var(--neutral-bg)]"
                       }`}
                     style={{ borderColor: replyChannel === "unsigned" ? "#4cd34c" : "var(--field-border)" }}
                   >
@@ -1130,8 +1122,8 @@ export default function App() {
                           setSelectedSubcategory("All");
                         }}
                         className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${selectedCategory === cat
-                            ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] border-[#4cd34c] shadow-sm"
-                            : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+                          ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] border-[#4cd34c] shadow-sm"
+                          : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
                           }`}
                         style={{ borderColor: selectedCategory === cat ? "#4cd34c" : "var(--badge-border)" }}
                       >
@@ -1154,8 +1146,8 @@ export default function App() {
                           type="button"
                           onClick={() => setSelectedSubcategory(subcat)}
                           className={`rounded-xl border px-2.5 py-0.5 text-[11px] transition ${selectedSubcategory === subcat
-                              ? "border-[#4cd34c] bg-[#4cd34c]/20 text-[#4cd34c] font-bold"
-                              : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
+                            ? "border-[#4cd34c] bg-[#4cd34c]/20 text-[#4cd34c] font-bold"
+                            : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
                             }`}
                           style={{ borderColor: selectedSubcategory === subcat ? "#4cd34c" : "var(--field-border)" }}
                         >
@@ -1182,8 +1174,8 @@ export default function App() {
                           key={t.id}
                           onClick={() => setSelectedCustId(t.id)}
                           className={`p-3 rounded-2xl border cursor-pointer transition flex items-center justify-between ${t.id === (activeTemplate?.id)
-                              ? "border-[#4cd34c] ring-1 ring-[#4cd34c]/30 bg-[#4cd34c]/5"
-                              : "hover:border-[#4cd34c]/50"
+                            ? "border-[#4cd34c] ring-1 ring-[#4cd34c]/30 bg-[#4cd34c]/5"
+                            : "hover:border-[#4cd34c]/50"
                             }`}
                           style={{ borderColor: t.id === (activeTemplate?.id) ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
                         >
