@@ -193,8 +193,8 @@ function generateInitials(name) {
 }
 
 export default function App() {
-  const [templates, setTemplates] = useState([]);
-  const [agents, setAgents] = useState([]);
+  const [templates, setTemplates] = useState(DEFAULT_TEMPLATES);
+  const [agents, setAgents] = useState(DEFAULT_AGENTS);
   const [currentAgent, setCurrentAgent] = useState(() => {
     if (typeof window === "undefined") return null;
     const stored = window.localStorage.getItem(AGENT_KEY);
@@ -205,10 +205,10 @@ export default function App() {
   const [activeScreen, setActiveScreen] = useState(() => (currentAgent ? "tech_escalation" : "welcome"));
 
   // Tech Escalation selections
-  const [selectedTechId, setSelectedTechId] = useState(null);
+  const [selectedTechId, setSelectedTechId] = useState(() => DEFAULT_TEMPLATES.find((t) => t.category_type === "tech_escalation")?.id ?? 1);
 
   // Customer Reply selections & filters
-  const [selectedCustId, setSelectedCustId] = useState(null);
+  const [selectedCustId, setSelectedCustId] = useState(() => DEFAULT_TEMPLATES.find((t) => t.category_type === "customer_reply")?.id ?? 5);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedSubcategory, setSelectedSubcategory] = useState("All");
   const [replyChannel, setReplyChannel] = useState("signed"); // "signed" | "unsigned"
@@ -323,6 +323,18 @@ export default function App() {
     }
   }, [currentAgent, activeScreen]);
 
+  // Fetch with timeout helper (prevents network hangs)
+  async function fetchWithTimeout(url, options = {}, timeoutMs = 3500) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      return res;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   // Initial Data Fetch
   useEffect(() => {
     let mounted = true;
@@ -332,7 +344,7 @@ export default function App() {
       setApiStatus("checking");
       setStatusMessage("");
       try {
-        const healthResponse = await fetch(`${API_BASE}/health`);
+        const healthResponse = await fetchWithTimeout(`${API_BASE}/health`, {}, 3500);
         if (!healthResponse.ok) throw new Error(`API health check failed (${healthResponse.status})`);
         const healthData = await healthResponse.json();
         if (!mounted) return;
@@ -341,8 +353,8 @@ export default function App() {
 
         // Fetch templates & agents
         const [tplRes, agentRes] = await Promise.all([
-          fetch(`${API_BASE}/templates`),
-          fetch(`${API_BASE}/agents`),
+          fetchWithTimeout(`${API_BASE}/templates`, {}, 3500),
+          fetchWithTimeout(`${API_BASE}/agents`, {}, 3500),
         ]);
 
         if (!tplRes.ok) throw new Error(`Failed to load templates (${tplRes.status})`);
