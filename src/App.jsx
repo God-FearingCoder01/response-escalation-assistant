@@ -193,8 +193,8 @@ function generateInitials(name) {
 }
 
 export default function App() {
-  const [templates, setTemplates] = useState(DEFAULT_TEMPLATES);
-  const [agents, setAgents] = useState(DEFAULT_AGENTS);
+  const [templates, setTemplates] = useState([]);
+  const [agents, setAgents] = useState([]);
   const [currentAgent, setCurrentAgent] = useState(() => {
     if (typeof window === "undefined") return null;
     const stored = window.localStorage.getItem(AGENT_KEY);
@@ -205,10 +205,10 @@ export default function App() {
   const [activeScreen, setActiveScreen] = useState(() => (currentAgent ? "tech_escalation" : "welcome"));
 
   // Tech Escalation selections
-  const [selectedTechId, setSelectedTechId] = useState(() => DEFAULT_TEMPLATES.find((t) => t.category_type === "tech_escalation")?.id ?? 1);
+  const [selectedTechId, setSelectedTechId] = useState(null);
 
   // Customer Reply selections & filters
-  const [selectedCustId, setSelectedCustId] = useState(() => DEFAULT_TEMPLATES.find((t) => t.category_type === "customer_reply")?.id ?? 5);
+  const [selectedCustId, setSelectedCustId] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedSubcategory, setSelectedSubcategory] = useState("All");
   const [replyChannel, setReplyChannel] = useState("signed"); // "signed" | "unsigned"
@@ -252,20 +252,16 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [apiStatus, setApiStatus] = useState("checking");
-  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [toast, setToast] = useState({ show: false, message: "" });
 
-  const [toastMessage, setToastMessage] = useState("");
-  const [toastVisible, setToastVisible] = useState(false);
-  const toastTimeoutRef = useRef(null);
-
-  const triggerToast = (msg = "Copied to clipboard! 📋") => {
-    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    setToastMessage(msg);
-    setToastVisible(true);
-    toastTimeoutRef.current = setTimeout(() => {
-      setToastVisible(false);
+  function showToast(message = "Copied to clipboard!") {
+    setToast({ show: true, message });
+    setTimeout(() => {
+      setToast({ show: false, message: "" });
     }, 2500);
-  };
+  }
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
 
   const [themeMode, setThemeMode] = useState(() => {
     if (typeof window === "undefined") return "night";
@@ -323,18 +319,6 @@ export default function App() {
     }
   }, [currentAgent, activeScreen]);
 
-  // Fetch with timeout helper (prevents network hangs)
-  async function fetchWithTimeout(url, options = {}, timeoutMs = 3500) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const res = await fetch(url, { ...options, signal: controller.signal });
-      return res;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
   // Initial Data Fetch
   useEffect(() => {
     let mounted = true;
@@ -344,7 +328,7 @@ export default function App() {
       setApiStatus("checking");
       setStatusMessage("");
       try {
-        const healthResponse = await fetchWithTimeout(`${API_BASE}/health`, {}, 3500);
+        const healthResponse = await fetch(`${API_BASE}/health`);
         if (!healthResponse.ok) throw new Error(`API health check failed (${healthResponse.status})`);
         const healthData = await healthResponse.json();
         if (!mounted) return;
@@ -353,8 +337,8 @@ export default function App() {
 
         // Fetch templates & agents
         const [tplRes, agentRes] = await Promise.all([
-          fetchWithTimeout(`${API_BASE}/templates`, {}, 3500),
-          fetchWithTimeout(`${API_BASE}/agents`, {}, 3500),
+          fetch(`${API_BASE}/templates`),
+          fetch(`${API_BASE}/agents`),
         ]);
 
         if (!tplRes.ok) throw new Error(`Failed to load templates (${tplRes.status})`);
@@ -1001,7 +985,7 @@ export default function App() {
     return out;
   }
 
-  async function copyText(text, label) {
+  async function copyText(text, customMessage = "Message copied to clipboard! 📋") {
     if (!text) return;
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1014,9 +998,9 @@ export default function App() {
         document.execCommand("copy");
         ta.remove();
       }
-      triggerToast(label ? `Copied ${label}!` : "Copied message to clipboard! 📋");
+      showToast(customMessage);
     } catch (err) {
-      console.error("Failed to copy text: ", err);
+      setError("Failed to copy text to clipboard");
     }
   }
 
@@ -1484,7 +1468,7 @@ export default function App() {
               <div className="space-y-2 mt-6">
                 <button
                   type="button"
-                  onClick={() => copyText(generatedMsg, "Telegram Escalation")}
+                  onClick={() => copyText(generatedMsg, "Telegram escalation copied! 📋")}
                   disabled={!generatedMsg}
                   className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3 font-semibold text-[#071007] shadow-lg disabled:opacity-50 transition"
                 >
@@ -1492,7 +1476,7 @@ export default function App() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => copyText(generatedMsg.replace(new RegExp(`\\s*#${currentAgent?.agent_name}$`), ""), "Plain Text Escalation")}
+                  onClick={() => copyText(generatedMsg.replace(new RegExp(`\\s*#${currentAgent?.agent_name}$`), ""), "Plain text escalation copied! 📋")}
                   disabled={!generatedMsg}
                   className="w-full rounded-xl border py-2 text-sm font-medium transition"
                   style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
@@ -1766,7 +1750,7 @@ export default function App() {
               <div className="space-y-2 mt-6">
                 <button
                   type="button"
-                  onClick={() => copyText(generatedMsg, "Customer Reply")}
+                  onClick={() => copyText(generatedMsg, "Customer reply message copied! 📋")}
                   disabled={!generatedMsg}
                   className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3 font-semibold text-[#071007] shadow-lg disabled:opacity-50 transition"
                 >
@@ -2301,23 +2285,23 @@ export default function App() {
         ) : null}
       </div>
 
-      {/* Floating Toast Notification for Copy Actions */}
+      {/* FLOATING TOAST CONFIRMATION NOTIFICATION */}
       <div
-        className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-2xl backdrop-blur-md transition-all duration-300 pointer-events-none ${
-          toastVisible ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-4 scale-95"
+        className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur-xl transition-all duration-300 ${
+          toast.show ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-4 scale-95 pointer-events-none"
         }`}
         style={{
           borderColor: "#4cd34c",
-          backgroundColor: "var(--panel-bg)",
-          color: "var(--app-text)",
-          boxShadow: "0 10px 30px rgba(76, 211, 76, 0.25)",
+          backgroundColor: themeMode === "night" ? "rgba(10, 20, 10, 0.94)" : "rgba(240, 253, 240, 0.96)",
+          color: themeMode === "night" ? "#ffffff" : "#071007",
+          boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
         }}
       >
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#4cd34c]/20 text-[#4cd34c] font-bold text-sm">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#4cd34c]/20 text-[#4cd34c] font-bold text-sm">
           ✓
         </div>
-        <div className="font-semibold text-sm tracking-wide">
-          {toastMessage}
+        <div className="text-xs font-semibold tracking-wide flex items-center gap-1.5">
+          {toast.message}
         </div>
       </div>
     </div>
