@@ -252,8 +252,20 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [apiStatus, setApiStatus] = useState("checking");
-  const [statusMessage, setStatusMessage] = useState("");
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
+
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastVisible, setToastVisible] = useState(false);
+  const toastTimeoutRef = useRef(null);
+
+  const triggerToast = (msg = "Copied to clipboard! 📋") => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToastMessage(msg);
+    setToastVisible(true);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastVisible(false);
+    }, 2500);
+  };
 
   const [themeMode, setThemeMode] = useState(() => {
     if (typeof window === "undefined") return "night";
@@ -977,15 +989,23 @@ export default function App() {
     return out;
   }
 
-  function copyText(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    ta.remove();
-    return Promise.resolve();
+  async function copyText(text, label) {
+    if (!text) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+      }
+      triggerToast(label ? `Copied ${label}!` : "Copied message to clipboard! 📋");
+    } catch (err) {
+      console.error("Failed to copy text: ", err);
+    }
   }
 
   function escapeForTelegramMarkdownV2(s) {
@@ -1452,7 +1472,7 @@ export default function App() {
               <div className="space-y-2 mt-6">
                 <button
                   type="button"
-                  onClick={() => copyText(generatedMsg)}
+                  onClick={() => copyText(generatedMsg, "Telegram Escalation")}
                   disabled={!generatedMsg}
                   className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3 font-semibold text-[#071007] shadow-lg disabled:opacity-50 transition"
                 >
@@ -1460,7 +1480,7 @@ export default function App() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => copyText(generatedMsg.replace(new RegExp(`\\s*#${currentAgent?.agent_name}$`), ""))}
+                  onClick={() => copyText(generatedMsg.replace(new RegExp(`\\s*#${currentAgent?.agent_name}$`), ""), "Plain Text Escalation")}
                   disabled={!generatedMsg}
                   className="w-full rounded-xl border py-2 text-sm font-medium transition"
                   style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
@@ -1734,7 +1754,7 @@ export default function App() {
               <div className="space-y-2 mt-6">
                 <button
                   type="button"
-                  onClick={() => copyText(generatedMsg)}
+                  onClick={() => copyText(generatedMsg, "Customer Reply")}
                   disabled={!generatedMsg}
                   className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3 font-semibold text-[#071007] shadow-lg disabled:opacity-50 transition"
                 >
@@ -2267,6 +2287,26 @@ export default function App() {
             </div>
           </section>
         ) : null}
+      </div>
+
+      {/* Floating Toast Notification for Copy Actions */}
+      <div
+        className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-2xl backdrop-blur-md transition-all duration-300 pointer-events-none ${
+          toastVisible ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-4 scale-95"
+        }`}
+        style={{
+          borderColor: "#4cd34c",
+          backgroundColor: "var(--panel-bg)",
+          color: "var(--app-text)",
+          boxShadow: "0 10px 30px rgba(76, 211, 76, 0.25)",
+        }}
+      >
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#4cd34c]/20 text-[#4cd34c] font-bold text-sm">
+          ✓
+        </div>
+        <div className="font-semibold text-sm tracking-wide">
+          {toastMessage}
+        </div>
       </div>
     </div>
   );
