@@ -1128,6 +1128,118 @@ export default function App() {
     showToast(isFav ? "Removed from Favorites ⭐" : "Added to Favorites ⭐");
   }
 
+  async function refreshSuggestions() {
+    if (apiStatus === "offline") return;
+    try {
+      const res = await fetch(`${API_BASE}/suggestions`);
+      if (res.ok) {
+        const data = await res.json();
+        setSuggestions(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      // Offline fallback
+    }
+  }
+
+  // Refresh suggestions whenever entering suggestions screen
+  useEffect(() => {
+    if (activeScreen === "suggestions") {
+      refreshSuggestions();
+    }
+  }, [activeScreen, apiStatus]);
+
+  async function handleSubmitSuggestion(e) {
+    if (e) e.preventDefault();
+    if (!sugName.trim() || !sugBody.trim()) {
+      setError("Please enter a template name and body text");
+      return;
+    }
+    setSugSubmitting(true);
+    setError("");
+    try {
+      const payload = {
+        name: sugName.trim(),
+        body: sugBody.trim(),
+        category_type: sugType,
+        category: sugCat.trim() || null,
+        subcategory: sugSubcat.trim() || null,
+        suggested_by_name: currentAgent?.agent_name || "Support Agent",
+        suggested_by_initials: currentAgent?.agent_initials || "SA",
+        status: "pending",
+      };
+
+      if (apiStatus === "offline") {
+        const next = { id: Date.now(), ...payload, created_at: new Date().toISOString() };
+        setSuggestions((curr) => [next, ...curr]);
+        showToast("Suggestion recorded locally! 💡");
+      } else {
+        const res = await fetch(`${API_BASE}/suggestions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error("Failed to submit suggestion");
+        await refreshSuggestions();
+        showToast("Template suggestion submitted for review! 💡");
+      }
+      setSugName("");
+      setSugBody("");
+      setSugCat("");
+      setSugSubcat("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to submit suggestion");
+    } finally {
+      setSugSubmitting(false);
+    }
+  }
+
+  async function handleApproveSuggestion(sugId) {
+    setError("");
+    try {
+      if (apiStatus === "offline") {
+        const sug = suggestions.find((s) => s.id === sugId);
+        if (sug) {
+          const newTpl = {
+            id: Date.now(),
+            name: sug.name,
+            body: sug.body,
+            category_type: sug.category_type,
+            category: sug.category,
+            subcategory: sug.subcategory,
+          };
+          setTemplates((curr) => [newTpl, ...curr]);
+          setSuggestions((curr) => curr.map((s) => (s.id === sugId ? { ...s, status: "approved" } : s)));
+          showToast("Suggestion approved & added to template library! 🎉");
+        }
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/suggestions/${sugId}/approve`, { method: "POST" });
+      if (!res.ok) throw new Error("Approval failed");
+      await Promise.all([refreshTemplates(), refreshSuggestions()]);
+      showToast("Suggestion approved & added to template library! 🎉");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to approve suggestion");
+    }
+  }
+
+  async function handleRejectSuggestion(sugId) {
+    setError("");
+    try {
+      if (apiStatus === "offline") {
+        setSuggestions((curr) => curr.filter((s) => s.id !== sugId));
+        showToast("Suggestion removed");
+        return;
+      }
+      const res = await fetch(`${API_BASE}/suggestions/${sugId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Rejection failed");
+      await refreshSuggestions();
+      showToast("Suggestion rejected");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reject suggestion");
+    }
+  }
+
   async function copyText(text, customMessage = "Message copied to clipboard! 📋", templateId = null) {
     if (!text) return;
     try {
