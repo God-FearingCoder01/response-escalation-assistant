@@ -25,6 +25,10 @@ try:
         TemplateCreate,
         TemplateRead,
         TemplateUpdate,
+        Suggestion,
+        SuggestionCreate,
+        SuggestionRead,
+        SuggestionUpdate,
     )
 except ImportError:
     from backend.database import create_db_and_tables, engine
@@ -37,6 +41,10 @@ except ImportError:
         TemplateCreate,
         TemplateRead,
         TemplateUpdate,
+        Suggestion,
+        SuggestionCreate,
+        SuggestionRead,
+        SuggestionUpdate,
     )
 
 
@@ -451,4 +459,62 @@ def verify_agent_pin(req: PinVerifyRequest):
             return {"valid": True, "agent": agent}
         else:
             return {"valid": False, "detail": "Incorrect 4-digit Security PIN"}
+
+
+# --- SUGGESTION ENDPOINTS ---
+
+@app.get("/suggestions", response_model=List[SuggestionRead])
+def get_suggestions():
+    with Session(engine) as session:
+        statement = select(Suggestion).order_by(col(Suggestion.created_at).desc())
+        results = session.exec(statement).all()
+        return results
+
+
+@app.post("/suggestions", response_model=SuggestionRead)
+def create_suggestion(payload: SuggestionCreate):
+    with Session(engine) as session:
+        suggestion = Suggestion.model_validate(payload)
+        session.add(suggestion)
+        session.commit()
+        session.refresh(suggestion)
+        return suggestion
+
+
+@app.post("/suggestions/{suggestion_id}/approve", response_model=TemplateRead)
+def approve_suggestion(suggestion_id: int):
+    with Session(engine) as session:
+        sug = session.get(Suggestion, suggestion_id)
+        if not sug:
+            raise HTTPException(status_code=404, detail="Suggestion not found")
+
+        new_tpl = Template(
+            name=sug.name,
+            body=sug.body,
+            category_type=sug.category_type,
+            category=sug.category,
+            subcategory=sug.subcategory,
+        )
+        session.add(new_tpl)
+
+        sug.status = "approved"
+        sug.updated_at = datetime.now(timezone.utc)
+        session.add(sug)
+
+        session.commit()
+        session.refresh(new_tpl)
+        return new_tpl
+
+
+@app.delete("/suggestions/{suggestion_id}")
+def delete_suggestion(suggestion_id: int):
+    with Session(engine) as session:
+        sug = session.get(Suggestion, suggestion_id)
+        if not sug:
+            raise HTTPException(status_code=404, detail="Suggestion not found")
+        sug.status = "rejected"
+        session.delete(sug)
+        session.commit()
+    return {"ok": True, "message": "Suggestion removed"}
+
 

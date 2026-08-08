@@ -261,6 +261,51 @@ export default function App() {
       setToast({ show: false, message: "" });
     }, 2500);
   }
+
+  // Favorites & Usage Tracking States
+  const [favoriteIds, setFavoriteIds] = useState(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = localStorage.getItem(`REA_FAVORITES_${currentAgent?.agent_initials || "DEFAULT"}`);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [usageCounts, setUsageCounts] = useState(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const stored = localStorage.getItem("REA_USAGE_COUNTS");
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [recentlyUsed, setRecentlyUsed] = useState(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = localStorage.getItem("REA_RECENTLY_USED");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Suggestions state
+  const [suggestions, setSuggestions] = useState([]);
+  const [sugName, setSugName] = useState("");
+  const [sugBody, setSugBody] = useState("");
+  const [sugType, setSugType] = useState("customer_reply");
+  const [sugCat, setSugCat] = useState("");
+  const [sugSubcat, setSugSubcat] = useState("");
+  const [sugSubmitting, setSugSubmitting] = useState(false);
+  const [sugFilterStatus, setSugFilterStatus] = useState("All");
+
+  // Quick Access Screen Sub-Tab: "favorites" | "most_used" | "recently_used"
+  const [quickTab, setQuickTab] = useState("favorites");
+  const [selectedQuickId, setSelectedQuickId] = useState(null);
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
 
   const [themeMode, setThemeMode] = useState(() => {
@@ -335,10 +380,11 @@ export default function App() {
         setApiStatus("online");
         setStatusMessage(healthData.message ?? "Backend is ready");
 
-        // Fetch templates & agents
-        const [tplRes, agentRes] = await Promise.all([
+        // Fetch templates, agents & suggestions
+        const [tplRes, agentRes, sugRes] = await Promise.all([
           fetch(`${API_BASE}/templates`),
           fetch(`${API_BASE}/agents`),
+          fetch(`${API_BASE}/suggestions`),
         ]);
 
         if (!tplRes.ok) throw new Error(`Failed to load templates (${tplRes.status})`);
@@ -347,6 +393,11 @@ export default function App() {
         let agentData = [];
         if (agentRes.ok) {
           agentData = await agentRes.json();
+        }
+
+        if (sugRes.ok) {
+          const sugData = await sugRes.json();
+          if (Array.isArray(sugData)) setSuggestions(sugData);
         }
 
         if (!mounted) return;
@@ -973,7 +1024,7 @@ export default function App() {
 
     // Customer Reply rule: WhatsApp/Signed appends ^{agent_initials} only if template body does NOT already include an agent signature placeholder
     if (activeScreen === "customer_reply" && replyChannel === "signed") {
-      const hasAgentPlaceholder = activeTemplate?.body && /\{agent(_name|_initials)?\}/.test(activeTemplate.body);
+            const hasAgentPlaceholder = activeTemplate?.body && /\{agent(_name|_initials)?\}/.test(activeTemplate.body);
       if (!hasAgentPlaceholder && currentAgent?.agent_initials) {
         const initialsSig = ` ^${currentAgent.agent_initials}`;
         if (!out.endsWith(initialsSig)) {
@@ -985,7 +1036,125 @@ export default function App() {
     return out;
   }
 
-  async function copyText(text, customMessage = "Message copied to clipboard! 📋") {
+  function toggleFavorite(id) {
+    if (!id) return;
+    setFavoriteIds((prev) => {
+      const isFav = prev.includes(id);
+      const next = isFav ? prev.filter((item) => item !== id) : [...prev, id];
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`REA_FAVORITES_${currentAgent?.agent_initials || "DEFAULT"}`, JSON.stringify(next));
+      }
+      showToast(isFav ? "Removed from Favorites ⭐" : "Added to Favorites ⭐");
+      return next;
+    });
+  }
+
+  async function refreshSuggestions() {
+    if (apiStatus === "offline") return;
+    try {
+      const res = await fetch(`${API_BASE}/suggestions`);
+      if (res.ok) {
+        const data = await res.json();
+        setSuggestions(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      // Offline mode
+    }
+  }
+
+  async function handleSubmitSuggestion(e) {
+    if (e) e.preventDefault();
+    if (!sugName.trim() || !sugBody.trim()) {
+      setError("Please enter a template name and body text");
+      return;
+    }
+    setSugSubmitting(true);
+    setError("");
+    try {
+      const payload = {
+        name: sugName.trim(),
+        body: sugBody.trim(),
+        category_type: sugType,
+        category: sugCat.trim() || null,
+        subcategory: sugSubcat.trim() || null,
+        suggested_by_name: currentAgent?.agent_name || "Support Agent",
+        suggested_by_initials: currentAgent?.agent_initials || "SA",
+        status: "pending",
+      };
+
+      if (apiStatus === "offline") {
+        const next = { id: Date.now(), ...payload, created_at: new Date().toISOString() };
+        setSuggestions((curr) => [next, ...curr]);
+        showToast("Suggestion recorded locally! 💡");
+      } else {
+        const res = await fetch(`${API_BASE}/suggestions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error("Failed to submit suggestion");
+        await refreshSuggestions();
+        showToast("Template suggestion submitted for review! 💡");
+      }
+      setSugName("");
+      setSugBody("");
+      setSugCat("");
+      setSugSubcat("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to submit suggestion");
+    } finally {
+      setSugSubmitting(false);
+    }
+  }
+
+  async function handleApproveSuggestion(sugId) {
+    setError("");
+    try {
+      if (apiStatus === "offline") {
+        const sug = suggestions.find((s) => s.id === sugId);
+        if (sug) {
+          const newTpl = {
+            id: Date.now(),
+            name: sug.name,
+            body: sug.body,
+            category_type: sug.category_type,
+            category: sug.category,
+            subcategory: sug.subcategory,
+          };
+          setTemplates((curr) => [newTpl, ...curr]);
+          setSuggestions((curr) => curr.map((s) => (s.id === sugId ? { ...s, status: "approved" } : s)));
+          showToast("Suggestion approved & added to template library! 🎉");
+        }
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/suggestions/${sugId}/approve`, { method: "POST" });
+      if (!res.ok) throw new Error("Approval failed");
+      await Promise.all([refreshTemplates(), refreshSuggestions()]);
+      showToast("Suggestion approved & added to template library! 🎉");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to approve suggestion");
+    }
+  }
+
+  async function handleRejectSuggestion(sugId) {
+    setError("");
+    try {
+      if (apiStatus === "offline") {
+        setSuggestions((curr) => curr.filter((s) => s.id !== sugId));
+        showToast("Suggestion removed");
+        return;
+      }
+      const res = await fetch(`${API_BASE}/suggestions/${sugId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Rejection failed");
+      await refreshSuggestions();
+      showToast("Suggestion rejected");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reject suggestion");
+    }
+  }
+
+  async function copyText(text, customMessage = "Message copied to clipboard! 📋", templateId = null) {
     if (!text) return;
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -997,6 +1166,20 @@ export default function App() {
         ta.select();
         document.execCommand("copy");
         ta.remove();
+      }
+      const targetId = templateId ?? activeTemplate?.id;
+      if (targetId) {
+        setUsageCounts((prev) => {
+          const next = { ...prev, [targetId]: (prev[targetId] || 0) + 1 };
+          if (typeof window !== "undefined") localStorage.setItem("REA_USAGE_COUNTS", JSON.stringify(next));
+          return next;
+        });
+        setRecentlyUsed((prev) => {
+          const filtered = prev.filter((r) => r.templateId !== targetId);
+          const next = [{ templateId: targetId, timestamp: Date.now() }, ...filtered].slice(0, 30);
+          if (typeof window !== "undefined") localStorage.setItem("REA_RECENTLY_USED", JSON.stringify(next));
+          return next;
+        });
       }
       showToast(customMessage);
     } catch (err) {
@@ -1169,6 +1352,48 @@ export default function App() {
                 ) : null}
               </button>
 
+              <button
+                onClick={() => {
+                  setActiveScreen("quick_access");
+                  setIsSidebarHovered(false);
+                }}
+                className={`flex w-full items-center justify-start rounded-2xl p-2.5 font-medium transition-all ${activeScreen === "quick_access"
+                  ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
+                  : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+                  }`}
+                title="Quick Access & Favorites"
+              >
+                <span className="flex h-6 w-6 items-center justify-center shrink-0 text-base">
+                  ⭐
+                </span>
+                {isSidebarHovered ? (
+                  <span className="ml-3 font-semibold text-sm whitespace-nowrap">
+                    Favorites & Recents
+                  </span>
+                ) : null}
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveScreen("suggestions");
+                  setIsSidebarHovered(false);
+                }}
+                className={`flex w-full items-center justify-start rounded-2xl p-2.5 font-medium transition-all ${activeScreen === "suggestions"
+                  ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
+                  : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+                  }`}
+                title="Template Suggestions Hub"
+              >
+                <span className="flex h-6 w-6 items-center justify-center shrink-0 text-base">
+                  💡
+                </span>
+                {isSidebarHovered ? (
+                  <span className="ml-3 font-semibold text-sm whitespace-nowrap">
+                    Suggestions Hub
+                  </span>
+                ) : null}
+              </button>
+
               {currentAgent?.is_admin ? (
                 <button
                   onClick={() => {
@@ -1251,7 +1476,11 @@ export default function App() {
                     ? "Tech Escalation Builder"
                     : activeScreen === "customer_reply"
                       ? "Customer Reply Center"
-                      : "System Admin Dashboard"}
+                      : activeScreen === "quick_access"
+                        ? "Quick Access & Favorites"
+                        : activeScreen === "suggestions"
+                          ? "Template Suggestions Hub"
+                          : "System Admin Dashboard"}
               </h1>
             </div>
           </div>
@@ -1365,9 +1594,24 @@ export default function App() {
 
               {/* Template Picker */}
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>
-                  Select Escalation Template:
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+                    Select Escalation Template:
+                  </label>
+                  {activeTemplate ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleFavorite(activeTemplate.id)}
+                      className={`text-xs font-medium px-2.5 py-1 rounded-xl border flex items-center gap-1 transition ${favoriteIds.includes(activeTemplate.id)
+                        ? "border-[#f1c84b] bg-[#f1c84b]/10 text-[#f1c84b]"
+                        : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
+                        }`}
+                      style={{ borderColor: favoriteIds.includes(activeTemplate.id) ? "#f1c84b" : "var(--field-border)" }}
+                    >
+                      {favoriteIds.includes(activeTemplate.id) ? "⭐ Favorited" : "☆ Add to Favorites"}
+                    </button>
+                  ) : null}
+                </div>
                 <select
                   value={selectedTechId ?? ""}
                   onChange={(e) => setSelectedTechId(Number(e.target.value))}
@@ -1376,7 +1620,7 @@ export default function App() {
                 >
                   {techTemplates.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.name}
+                      {favoriteIds.includes(t.id) ? "⭐ " : ""}{t.name}
                     </option>
                   ))}
                 </select>
@@ -1640,9 +1884,22 @@ export default function App() {
                               {t.body}
                             </div>
                           </div>
-                          <span className="text-[10px] rounded-full border px-2 py-0.5 shrink-0 ml-2" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
-                            {t.category ?? "General"}
-                          </span>
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            <span className="text-[10px] rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                              {t.category ?? "General"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleFavorite(t.id);
+                              }}
+                              className="p-1 text-sm hover:scale-125 transition"
+                              title={favoriteIds.includes(t.id) ? "Remove from Favorites" : "Add to Favorites"}
+                            >
+                              {favoriteIds.includes(t.id) ? "⭐" : "☆"}
+                            </button>
+                          </div>
                         </div>
                       ))
                     )}
@@ -2280,6 +2537,439 @@ export default function App() {
                   </button>
                 </div>
               </form>
+            </div>
+          </section>
+        ) : null}
+
+        {/* SCREEN 5: TEMPLATE SUGGESTIONS HUB */}
+        {currentAgent && activeScreen === "suggestions" ? (
+          <section className="max-w-7xl mx-auto space-y-8">
+            <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: "var(--app-text)" }}>
+                  <span className="text-2xl">💡</span>
+                  Template Suggestions Hub
+                </h2>
+                <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
+                  Submit & review standardized communication templates for team-wide approval across support shifts.
+                </p>
+              </div>
+              <span className="rounded-full border px-3 py-1 text-xs uppercase font-bold tracking-wider text-[#4cd34c] border-[#4cd34c]/40 bg-[#4cd34c]/10">
+                Standardization Center
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              {/* Submission Form */}
+              <div className="lg:col-span-5 rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-5" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+                <div>
+                  <h3 className="text-lg font-bold" style={{ color: "var(--app-text)" }}>
+                    Submit a New Template Suggestion
+                  </h3>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                    Suggest a response template you found effective for manager/team lead approval.
+                  </p>
+                </div>
+
+                <form onSubmit={handleSubmitSuggestion} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "var(--text-muted)" }}>
+                      Suggested Template Name *
+                    </label>
+                    <input
+                      value={sugName}
+                      onChange={(e) => setSugName(e.target.value)}
+                      placeholder="e.g. Verification Delay Notice"
+                      className="w-full rounded-xl border p-2.5 text-sm"
+                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "var(--text-muted)" }}>
+                        Target Center *
+                      </label>
+                      <select
+                        value={sugType}
+                        onChange={(e) => setSugType(e.target.value)}
+                        className="w-full rounded-xl border p-2.5 text-sm font-medium"
+                        style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                      >
+                        <option value="customer_reply">Customer Reply</option>
+                        <option value="tech_escalation">Tech Escalation</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "var(--text-muted)" }}>
+                        Category
+                      </label>
+                      <input
+                        value={sugCat}
+                        onChange={(e) => setSugCat(e.target.value)}
+                        placeholder="e.g. Transactions"
+                        className="w-full rounded-xl border p-2.5 text-sm"
+                        style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "var(--text-muted)" }}>
+                      Subcategory (Optional)
+                    </label>
+                    <input
+                      value={sugSubcat}
+                      onChange={(e) => setSugSubcat(e.target.value)}
+                      placeholder="e.g. Verification"
+                      className="w-full rounded-xl border p-2.5 text-sm"
+                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "var(--text-muted)" }}>
+                      Suggested Message Body *
+                    </label>
+                    <textarea
+                      rows={5}
+                      value={sugBody}
+                      onChange={(e) => setSugBody(e.target.value)}
+                      placeholder="Enter the template body text with placeholders like {customer_name}, {day}, {time_units}..."
+                      className="w-full rounded-xl border p-3 text-sm font-mono leading-relaxed"
+                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={sugSubmitting || !sugName.trim() || !sugBody.trim()}
+                    className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3 font-semibold text-[#071007] shadow-lg disabled:opacity-50 transition"
+                  >
+                    {sugSubmitting ? "Submitting..." : "Submit Template Suggestion 💡"}
+                  </button>
+                </form>
+              </div>
+
+              {/* Suggestions List & Approval Portal */}
+              <div className="lg:col-span-7 rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-5" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold" style={{ color: "var(--app-text)" }}>
+                      Team Template Suggestions ({suggestions.length})
+                    </h3>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                      {currentAgent?.is_admin ? "Review pending team suggestions to approve into live templates." : "Track status of submitted team template suggestions."}
+                    </p>
+                  </div>
+
+                  {/* Status Filter */}
+                  <div className="flex gap-1.5">
+                    {["All", "pending", "approved", "rejected"].map((st) => (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => setSugFilterStatus(st)}
+                        className={`px-2.5 py-1 rounded-xl text-xs capitalize font-semibold border transition ${sugFilterStatus === st
+                          ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c]"
+                          : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
+                          }`}
+                        style={{ borderColor: sugFilterStatus === st ? "#4cd34c" : "var(--field-border)" }}
+                      >
+                        {st}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3 max-h-[38rem] overflow-y-auto pr-1">
+                  {suggestions.filter((s) => sugFilterStatus === "All" || s.status === sugFilterStatus).length === 0 ? (
+                    <div className="p-8 text-center rounded-2xl border italic text-xs" style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}>
+                      No template suggestions found for this status filter.
+                    </div>
+                  ) : (
+                    suggestions
+                      .filter((s) => sugFilterStatus === "All" || s.status === sugFilterStatus)
+                      .map((sug) => (
+                        <div
+                          key={sug.id}
+                          className="p-4 rounded-2xl border space-y-3 transition backdrop-blur"
+                          style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="font-bold text-base flex items-center gap-2">
+                                {sug.name}
+                                <span className="text-[10px] rounded-full border px-2 py-0.5 uppercase font-bold" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                                  {sug.category_type === "tech_escalation" ? "Tech Escalation" : "Customer Reply"}
+                                </span>
+                              </div>
+                              <div className="text-xs text-[var(--text-muted)] mt-0.5">
+                                Category: <strong className="text-[var(--app-text)]">{sug.category || "General"}</strong>
+                                {sug.subcategory ? ` › ${sug.subcategory}` : ""}
+                              </div>
+                            </div>
+
+                            {/* Status Badge */}
+                            <span className={`text-[10px] rounded-full border px-2.5 py-0.5 uppercase font-bold ${sug.status === "approved"
+                              ? "text-[#4cd34c] border-[#4cd34c]/40 bg-[#4cd34c]/10"
+                              : sug.status === "rejected"
+                                ? "text-[var(--error-text)] border-[var(--error-border)] bg-[var(--error-bg)]"
+                                : "text-[#f1c84b] border-[#f1c84b]/40 bg-[#f1c84b]/10"
+                              }`}>
+                              {sug.status === "approved" ? "Approved ✅" : sug.status === "rejected" ? "Rejected ❌" : "Pending Review ⏳"}
+                            </span>
+                          </div>
+
+                          <div className="rounded-xl border p-3 font-mono text-xs whitespace-pre-wrap leading-relaxed" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}>
+                            {sug.body}
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1 text-xs">
+                            <span className="text-[11px] text-[var(--text-muted)] italic flex items-center gap-1">
+                              Suggested by <strong className="text-[#4cd34c] font-semibold">{sug.suggested_by_name} ({sug.suggested_by_initials})</strong>
+                            </span>
+
+                            {currentAgent?.is_admin && sug.status === "pending" ? (
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleApproveSuggestion(sug.id)}
+                                  className="px-3 py-1.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-semibold shadow transition"
+                                >
+                                  Approve & Add to Templates Library
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRejectSuggestion(sug.id)}
+                                  className="px-3 py-1.5 rounded-xl border text-xs font-semibold"
+                                  style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {/* SCREEN 6: FAVORITES & QUICK ACCESS HUB */}
+        {currentAgent && activeScreen === "quick_access" ? (
+          <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto">
+            {/* Left Panel: Favorites & Recents Selector */}
+            <div className="lg:col-span-7 rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-5" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+              <div>
+                <h2 className="text-xl font-bold mb-1 flex items-center gap-2" style={{ color: "var(--app-text)" }}>
+                  <span className="text-xl">⭐</span>
+                  Quick Access & Favorites Center
+                </h2>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Instant access to your starred, most used, and recently copied response templates.
+                </p>
+              </div>
+
+              {/* Sub-Tab Navigation */}
+              <div className="grid grid-cols-3 gap-2 border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
+                <button
+                  type="button"
+                  onClick={() => setQuickTab("favorites")}
+                  className={`rounded-xl border py-2 px-3 text-xs font-semibold transition flex items-center justify-center gap-1.5 ${quickTab === "favorites"
+                    ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] shadow-sm"
+                    : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
+                    }`}
+                  style={{ borderColor: quickTab === "favorites" ? "#4cd34c" : "var(--field-border)" }}
+                >
+                  <span>⭐ Favorites</span>
+                  <span className="text-[10px] rounded-full px-1.5 py-0.2 bg-[#4cd34c]/20 font-bold">{favoriteTemplates.length}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setQuickTab("most_used")}
+                  className={`rounded-xl border py-2 px-3 text-xs font-semibold transition flex items-center justify-center gap-1.5 ${quickTab === "most_used"
+                    ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] shadow-sm"
+                    : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
+                    }`}
+                  style={{ borderColor: quickTab === "most_used" ? "#4cd34c" : "var(--field-border)" }}
+                >
+                  <span>🔥 Most Used</span>
+                  <span className="text-[10px] rounded-full px-1.5 py-0.2 bg-[#4cd34c]/20 font-bold">{mostUsedTemplates.length}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setQuickTab("recently_used")}
+                  className={`rounded-xl border py-2 px-3 text-xs font-semibold transition flex items-center justify-center gap-1.5 ${quickTab === "recently_used"
+                    ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] shadow-sm"
+                    : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
+                    }`}
+                  style={{ borderColor: quickTab === "recently_used" ? "#4cd34c" : "var(--field-border)" }}
+                >
+                  <span>🕒 Recents</span>
+                  <span className="text-[10px] rounded-full px-1.5 py-0.2 bg-[#4cd34c]/20 font-bold">{recentlyUsedTemplates.length}</span>
+                </button>
+              </div>
+
+              {/* Template List Cards */}
+              <div className="space-y-3 max-h-[32rem] overflow-y-auto pr-1">
+                {(quickTab === "favorites"
+                  ? favoriteTemplates
+                  : quickTab === "most_used"
+                    ? mostUsedTemplates
+                    : recentlyUsedTemplates
+                ).length === 0 ? (
+                  <div className="p-8 text-center rounded-2xl border italic text-xs space-y-2" style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}>
+                    <p>No templates found in this category.</p>
+                    <p className="text-[11px]">Click the ⭐ Star icon on any template in Tech Escalation or Customer Reply to add it to your Favorites!</p>
+                  </div>
+                ) : (
+                  (quickTab === "favorites"
+                    ? favoriteTemplates
+                    : quickTab === "most_used"
+                      ? mostUsedTemplates
+                      : recentlyUsedTemplates
+                  ).map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() => setSelectedQuickId(t.id)}
+                      className={`p-3.5 rounded-2xl border cursor-pointer transition flex items-center justify-between ${t.id === activeTemplate?.id
+                        ? "border-[#4cd34c] ring-1 ring-[#4cd34c]/30 bg-[#4cd34c]/5"
+                        : "hover:border-[#4cd34c]/50"
+                        }`}
+                      style={{ borderColor: t.id === activeTemplate?.id ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
+                    >
+                      <div className="space-y-1 max-w-md">
+                        <div className="font-bold text-sm flex items-center gap-2">
+                          {t.name}
+                          <span className="text-[10px] rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                            {t.category_type === "tech_escalation" ? "Tech Escalation" : "Customer Reply"}
+                          </span>
+                        </div>
+                        <div className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
+                          {t.body}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {usageCounts[t.id] ? (
+                          <span className="text-[10px] font-semibold rounded-full bg-[#4cd34c]/10 text-[#4cd34c] border border-[#4cd34c]/30 px-2 py-0.5">
+                            {usageCounts[t.id]} copies
+                          </span>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(t.id);
+                          }}
+                          className="p-1 rounded-lg text-sm hover:scale-125 transition"
+                          title={favoriteIds.includes(t.id) ? "Remove from Favorites" : "Add to Favorites"}
+                        >
+                          {favoriteIds.includes(t.id) ? "⭐" : "☆"}
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Right Panel: Live Message Preview & Instant Parameters */}
+            <div className="lg:col-span-5 rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur flex flex-col justify-between" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold" style={{ color: "var(--app-text)" }}>
+                    Quick Message Preview
+                  </h2>
+                  {activeTemplate ? (
+                    <span className="text-xs font-semibold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2.5 py-0.5 rounded-full">
+                      {activeTemplate.name}
+                    </span>
+                  ) : null}
+                </div>
+
+                {/* Parameters inputs for Quick Access */}
+                {placeholders.length > 0 ? (
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1 border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
+                    <label className="text-[11px] font-semibold uppercase tracking-wider block" style={{ color: "var(--text-muted)" }}>
+                      Fill Template Parameters:
+                    </label>
+                    {placeholders.map((ph) => {
+                      const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
+                      const isDateField = /^(day|month|year|date)/i.test(ph);
+                      const isTimeUnitField = /^time_unit/i.test(ph);
+                      const dateAuto = getDateAutoValues();
+                      const autoVal = isAgentField
+                        ? (ph === "agent_initials" ? currentAgent?.agent_initials : currentAgent?.agent_name)
+                        : isDateField
+                          ? dateAuto[ph]
+                          : isTimeUnitField
+                            ? "hour(s)"
+                            : "";
+                      return (
+                        <div key={ph}>
+                          <div className="flex justify-between items-center mb-0.5">
+                            <span className="text-xs capitalize" style={{ color: "var(--text-muted)" }}>
+                              {ph.replace("_", " ")}:
+                            </span>
+                          </div>
+                          {isTimeUnitField ? (
+                            <select
+                              value={values[ph] ?? "hour(s)"}
+                              onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                              className="w-full rounded-xl border p-2 text-xs font-medium"
+                              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                            >
+                              <option value="hour(s)">hour(s)</option>
+                              <option value="minutes">minutes</option>
+                            </select>
+                          ) : (
+                            <input
+                              value={values[ph] ?? autoVal}
+                              onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                              placeholder={`Enter ${ph.replace("_", " ")}`}
+                              className="w-full rounded-xl border p-2 text-xs placeholder:text-[var(--field-placeholder)]"
+                              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+
+                <div className="rounded-2xl border p-4 min-h-[10rem] whitespace-pre-wrap font-mono text-sm leading-relaxed" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}>
+                  {generatedMsg || <span style={{ color: "var(--field-placeholder)" }}>Select a template from Quick Access...</span>}
+                </div>
+              </div>
+
+              <div className="space-y-2 mt-6">
+                <button
+                  type="button"
+                  onClick={() => copyText(generatedMsg, "Quick message copied to clipboard! 📋", activeTemplate?.id)}
+                  disabled={!generatedMsg}
+                  className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3 font-semibold text-[#071007] shadow-lg disabled:opacity-50 transition"
+                >
+                  Copy Message Text 📋
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setValues({})}
+                  className="w-full rounded-xl border py-2 text-sm font-medium transition"
+                  style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
+                >
+                  Clear Parameter Inputs
+                </button>
+              </div>
             </div>
           </section>
         ) : null}
