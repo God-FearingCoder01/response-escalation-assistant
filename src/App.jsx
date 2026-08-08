@@ -970,7 +970,43 @@ export default function App() {
     });
   }, [customerTemplates, selectedCategory, selectedSubcategory, searchQuery]);
 
-  // Selected template object
+  // Favorites templates list
+  const favoriteTemplates = useMemo(() => {
+    return templates.filter((t) => favoriteIds.includes(t.id));
+  }, [templates, favoriteIds]);
+
+  // Most used templates list
+  const mostUsedTemplates = useMemo(() => {
+    return [...templates]
+      .filter((t) => (usageCounts[t.id] || 0) > 0)
+      .sort((a, b) => (usageCounts[b.id] || 0) - (usageCounts[a.id] || 0));
+  }, [templates, usageCounts]);
+
+  // Recently used templates list
+  const recentlyUsedTemplates = useMemo(() => {
+    const map = new Map(templates.map((t) => [t.id, t]));
+    const list = [];
+    recentlyUsed.forEach((item) => {
+      const t = map.get(item.templateId);
+      if (t && !list.some((existing) => existing.id === t.id)) {
+        list.push(t);
+      }
+    });
+    return list;
+  }, [templates, recentlyUsed]);
+
+  // Active template for Quick Access screen
+  const quickAccessActiveTemplate = useMemo(() => {
+    const activeList =
+      quickTab === "favorites"
+        ? (favoriteTemplates.length > 0 ? favoriteTemplates : templates)
+        : quickTab === "most_used"
+          ? (mostUsedTemplates.length > 0 ? mostUsedTemplates : templates)
+          : (recentlyUsedTemplates.length > 0 ? recentlyUsedTemplates : templates);
+    return activeList.find((t) => t.id === selectedQuickId) ?? activeList[0] ?? templates[0] ?? null;
+  }, [quickTab, favoriteTemplates, mostUsedTemplates, recentlyUsedTemplates, selectedQuickId, templates]);
+
+  // Selected template object for current activeScreen
   const activeTemplate = useMemo(() => {
     if (activeScreen === "tech_escalation") {
       return techTemplates.find((t) => t.id === selectedTechId) ?? techTemplates[0];
@@ -978,8 +1014,11 @@ export default function App() {
     if (activeScreen === "customer_reply") {
       return templates.find((t) => t.id === selectedCustId) ?? filteredCustomerTemplates[0] ?? customerTemplates[0];
     }
+    if (activeScreen === "quick_access") {
+      return quickAccessActiveTemplate;
+    }
     return null;
-  }, [activeScreen, selectedTechId, selectedCustId, techTemplates, templates, filteredCustomerTemplates, customerTemplates]);
+  }, [activeScreen, selectedTechId, selectedCustId, techTemplates, templates, filteredCustomerTemplates, customerTemplates, quickAccessActiveTemplate]);
 
   // Placeholders calculation
   const placeholders = useMemo(() => {
@@ -1036,122 +1075,57 @@ export default function App() {
     return out;
   }
 
-  function toggleFavorite(id) {
-    if (!id) return;
-    setFavoriteIds((prev) => {
-      const isFav = prev.includes(id);
-      const next = isFav ? prev.filter((item) => item !== id) : [...prev, id];
-      if (typeof window !== "undefined") {
-        localStorage.setItem(`REA_FAVORITES_${currentAgent?.agent_initials || "DEFAULT"}`, JSON.stringify(next));
-      }
-      showToast(isFav ? "Removed from Favorites ⭐" : "Added to Favorites ⭐");
-      return next;
-    });
-  }
+  // Sync favorites & copy history from FastAPI backend database when active agent profile changes
+  useEffect(() => {
+    if (!currentAgent?.agent_initials || apiStatus === "offline") return;
+    let mounted = true;
 
-  async function refreshSuggestions() {
-    if (apiStatus === "offline") return;
-    try {
-      const res = await fetch(`${API_BASE}/suggestions`);
-      if (res.ok) {
-        const data = await res.json();
-        setSuggestions(Array.isArray(data) ? data : []);
-      }
-    } catch (err) {
-      // Offline mode
-    }
-  }
+    async function syncAgentUserData() {
+      try {
+        const [favRes, histRes] = await Promise.all([
+          fetch(`${API_BASE}/favorites/${currentAgent.agent_initials}`),
+          fetch(`${API_BASE}/history/${currentAgent.agent_initials}`),
+        ]);
 
-  async function handleSubmitSuggestion(e) {
-    if (e) e.preventDefault();
-    if (!sugName.trim() || !sugBody.trim()) {
-      setError("Please enter a template name and body text");
-      return;
-    }
-    setSugSubmitting(true);
-    setError("");
-    try {
-      const payload = {
-        name: sugName.trim(),
-        body: sugBody.trim(),
-        category_type: sugType,
-        category: sugCat.trim() || null,
-        subcategory: sugSubcat.trim() || null,
-        suggested_by_name: currentAgent?.agent_name || "Support Agent",
-        suggested_by_initials: currentAgent?.agent_initials || "SA",
-        status: "pending",
-      };
-
-      if (apiStatus === "offline") {
-        const next = { id: Date.now(), ...payload, created_at: new Date().toISOString() };
-        setSuggestions((curr) => [next, ...curr]);
-        showToast("Suggestion recorded locally! 💡");
-      } else {
-        const res = await fetch(`${API_BASE}/suggestions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) throw new Error("Failed to submit suggestion");
-        await refreshSuggestions();
-        showToast("Template suggestion submitted for review! 💡");
-      }
-      setSugName("");
-      setSugBody("");
-      setSugCat("");
-      setSugSubcat("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit suggestion");
-    } finally {
-      setSugSubmitting(false);
-    }
-  }
-
-  async function handleApproveSuggestion(sugId) {
-    setError("");
-    try {
-      if (apiStatus === "offline") {
-        const sug = suggestions.find((s) => s.id === sugId);
-        if (sug) {
-          const newTpl = {
-            id: Date.now(),
-            name: sug.name,
-            body: sug.body,
-            category_type: sug.category_type,
-            category: sug.category,
-            subcategory: sug.subcategory,
-          };
-          setTemplates((curr) => [newTpl, ...curr]);
-          setSuggestions((curr) => curr.map((s) => (s.id === sugId ? { ...s, status: "approved" } : s)));
-          showToast("Suggestion approved & added to template library! 🎉");
+        if (favRes.ok && mounted) {
+          const favData = await favRes.json();
+          if (Array.isArray(favData)) setFavoriteIds(favData);
         }
-        return;
-      }
 
-      const res = await fetch(`${API_BASE}/suggestions/${sugId}/approve`, { method: "POST" });
-      if (!res.ok) throw new Error("Approval failed");
-      await Promise.all([refreshTemplates(), refreshSuggestions()]);
-      showToast("Suggestion approved & added to template library! 🎉");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to approve suggestion");
-    }
-  }
-
-  async function handleRejectSuggestion(sugId) {
-    setError("");
-    try {
-      if (apiStatus === "offline") {
-        setSuggestions((curr) => curr.filter((s) => s.id !== sugId));
-        showToast("Suggestion removed");
-        return;
+        if (histRes.ok && mounted) {
+          const histData = await histRes.json();
+          if (histData.counts) setUsageCounts(histData.counts);
+          if (Array.isArray(histData.recents)) setRecentlyUsed(histData.recents);
+        }
+      } catch (err) {
+        // Fallback to local state if offline
       }
-      const res = await fetch(`${API_BASE}/suggestions/${sugId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Rejection failed");
-      await refreshSuggestions();
-      showToast("Suggestion rejected");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to reject suggestion");
     }
+
+    syncAgentUserData();
+    return () => {
+      mounted = false;
+    };
+  }, [currentAgent, apiStatus]);
+
+  async function toggleFavorite(id) {
+    if (!id) return;
+    const isFav = favoriteIds.includes(id);
+    const next = isFav ? favoriteIds.filter((item) => item !== id) : [...favoriteIds, id];
+    setFavoriteIds(next);
+
+    if (currentAgent?.agent_initials && apiStatus !== "offline") {
+      try {
+        const res = await fetch(`${API_BASE}/favorites/${currentAgent.agent_initials}/${id}`, { method: "POST" });
+        if (res.ok) {
+          const updatedFavs = await res.json();
+          if (Array.isArray(updatedFavs)) setFavoriteIds(updatedFavs);
+        }
+      } catch (err) {
+        // DB sync fallback
+      }
+    }
+    showToast(isFav ? "Removed from Favorites ⭐" : "Added to Favorites ⭐");
   }
 
   async function copyText(text, customMessage = "Message copied to clipboard! 📋", templateId = null) {
@@ -1169,17 +1143,15 @@ export default function App() {
       }
       const targetId = templateId ?? activeTemplate?.id;
       if (targetId) {
-        setUsageCounts((prev) => {
-          const next = { ...prev, [targetId]: (prev[targetId] || 0) + 1 };
-          if (typeof window !== "undefined") localStorage.setItem("REA_USAGE_COUNTS", JSON.stringify(next));
-          return next;
-        });
+        setUsageCounts((prev) => ({ ...prev, [targetId]: (prev[targetId] || 0) + 1 }));
         setRecentlyUsed((prev) => {
           const filtered = prev.filter((r) => r.templateId !== targetId);
-          const next = [{ templateId: targetId, timestamp: Date.now() }, ...filtered].slice(0, 30);
-          if (typeof window !== "undefined") localStorage.setItem("REA_RECENTLY_USED", JSON.stringify(next));
-          return next;
+          return [{ templateId: targetId, timestamp: Date.now() }, ...filtered].slice(0, 30);
         });
+
+        if (currentAgent?.agent_initials && apiStatus !== "offline") {
+          fetch(`${API_BASE}/history/${currentAgent.agent_initials}/${targetId}`, { method: "POST" }).catch(() => {});
+        }
       }
       showToast(customMessage);
     } catch (err) {
@@ -2827,9 +2799,61 @@ export default function App() {
                     ? mostUsedTemplates
                     : recentlyUsedTemplates
                 ).length === 0 ? (
-                  <div className="p-8 text-center rounded-2xl border italic text-xs space-y-2" style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}>
-                    <p>No templates found in this category.</p>
-                    <p className="text-[11px]">Click the ⭐ Star icon on any template in Tech Escalation or Customer Reply to add it to your Favorites!</p>
+                  <div className="space-y-4">
+                    <div className="p-6 text-center rounded-2xl border backdrop-blur space-y-2" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--text-muted)" }}>
+                      <div className="text-2xl">⭐</div>
+                      <div className="font-bold text-sm text-[var(--app-text)]">
+                        {quickTab === "favorites"
+                          ? "No Starred Favorites Yet"
+                          : quickTab === "most_used"
+                            ? "No Copy Statistics Recorded Yet"
+                            : "No Recently Used Templates"}
+                      </div>
+                      <p className="text-xs max-w-sm mx-auto">
+                        Click the ⭐ Star icon on any template below or across Tech Escalation and Customer Reply to add it to your Favorites list!
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-semibold uppercase tracking-wider block" style={{ color: "var(--text-muted)" }}>
+                        All Templates Library (Click ⭐ to add to Favorites):
+                      </label>
+                      {templates.map((t) => (
+                        <div
+                          key={t.id}
+                          onClick={() => setSelectedQuickId(t.id)}
+                          className={`p-3 rounded-2xl border cursor-pointer transition flex items-center justify-between ${t.id === activeTemplate?.id
+                            ? "border-[#4cd34c] ring-1 ring-[#4cd34c]/30 bg-[#4cd34c]/5"
+                            : "hover:border-[#4cd34c]/50"
+                            }`}
+                          style={{ borderColor: t.id === activeTemplate?.id ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
+                        >
+                          <div className="space-y-0.5 max-w-md">
+                            <div className="font-bold text-sm flex items-center gap-2">
+                              {t.name}
+                              <span className="text-[10px] rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                                {t.category_type === "tech_escalation" ? "Tech Escalation" : "Customer Reply"}
+                              </span>
+                            </div>
+                            <div className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
+                              {t.body}
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleFavorite(t.id);
+                            }}
+                            className="p-1 rounded-lg text-sm hover:scale-125 transition shrink-0 ml-2"
+                            title={favoriteIds.includes(t.id) ? "Remove from Favorites" : "Add to Favorites"}
+                          >
+                            {favoriteIds.includes(t.id) ? "⭐" : "☆"}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   (quickTab === "favorites"

@@ -29,6 +29,8 @@ try:
         SuggestionCreate,
         SuggestionRead,
         SuggestionUpdate,
+        Favorite,
+        UsageHistory,
     )
 except ImportError:
     from backend.database import create_db_and_tables, engine
@@ -45,6 +47,8 @@ except ImportError:
         SuggestionCreate,
         SuggestionRead,
         SuggestionUpdate,
+        Favorite,
+        UsageHistory,
     )
 
 
@@ -516,5 +520,75 @@ def delete_suggestion(suggestion_id: int):
         session.delete(sug)
         session.commit()
     return {"ok": True, "message": "Suggestion removed"}
+
+
+# --- FAVORITES & HISTORY ENDPOINTS ---
+
+@app.get("/favorites/{agent_initials}")
+def get_agent_favorites(agent_initials: str):
+    with Session(engine) as session:
+        initials = agent_initials.upper()
+        favs = session.exec(select(Favorite).where(Favorite.agent_initials == initials)).all()
+        return [f.template_id for f in favs]
+
+
+@app.post("/favorites/{agent_initials}/{template_id}")
+def toggle_agent_favorite(agent_initials: str, template_id: int):
+    with Session(engine) as session:
+        initials = agent_initials.upper()
+        existing = session.exec(
+            select(Favorite).where(
+                Favorite.agent_initials == initials,
+                Favorite.template_id == template_id
+            )
+        ).first()
+
+        if existing:
+            session.delete(existing)
+        else:
+            new_fav = Favorite(agent_initials=initials, template_id=template_id)
+            session.add(new_fav)
+
+        session.commit()
+
+        all_favs = session.exec(select(Favorite).where(Favorite.agent_initials == initials)).all()
+        return [f.template_id for f in all_favs]
+
+
+@app.get("/history/{agent_initials}")
+def get_agent_history(agent_initials: str):
+    with Session(engine) as session:
+        initials = agent_initials.upper()
+        history = session.exec(
+            select(UsageHistory)
+            .where(UsageHistory.agent_initials == initials)
+            .order_by(col(UsageHistory.copied_at).desc())
+        ).all()
+
+        counts = {}
+        recents = []
+        seen = set()
+
+        for h in history:
+            counts[h.template_id] = counts.get(h.template_id, 0) + 1
+            if h.template_id not in seen:
+                seen.add(h.template_id)
+                recents.append({
+                    "templateId": h.template_id,
+                    "timestamp": int(h.copied_at.timestamp() * 1000)
+                })
+
+        return {"counts": counts, "recents": recents}
+
+
+@app.post("/history/{agent_initials}/{template_id}")
+def record_agent_copy_history(agent_initials: str, template_id: int):
+    with Session(engine) as session:
+        initials = agent_initials.upper()
+        entry = UsageHistory(agent_initials=initials, template_id=template_id)
+        session.add(entry)
+        session.commit()
+    return {"ok": True}
+
 
 

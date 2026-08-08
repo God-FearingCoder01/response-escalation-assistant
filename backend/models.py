@@ -103,4 +103,19 @@ class SuggestionRead(SuggestionBase):
     updated_at: datetime
 
 
+class Favorite(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    agent_initials: str = Field(index=True)
+    template_id: int = Field(index=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+
+
+class UsageHistory(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    agent_initials: str = Field(index=True)
+    template_id: int = Field(index=True)
+    copied_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+
+
+
 
