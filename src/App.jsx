@@ -1171,14 +1171,16 @@ export default function App() {
   }
 
   async function refreshSuggestions() {
-    if (apiStatus === "offline") return;
     try {
       const res = await fetch(`${API_BASE}/suggestions`);
-      if (res.ok && res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setSuggestions(data);
-          try { localStorage.setItem("REA_SUGGESTIONS", JSON.stringify(data)); } catch (e) {}
+      if (res.ok) {
+        const ct = res.headers.get("content-type");
+        if (ct && ct.includes("application/json")) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setSuggestions(data);
+            try { localStorage.setItem("REA_SUGGESTIONS", JSON.stringify(data)); } catch (e) {}
+          }
         }
       }
     } catch (err) {
@@ -1186,10 +1188,14 @@ export default function App() {
     }
   }
 
-  // Refresh suggestions whenever entering suggestions screen
+  // Auto-refresh suggestions with 5-second polling interval whenever on suggestions screen
   useEffect(() => {
     if (activeScreen === "suggestions") {
       refreshSuggestions();
+      const timer = setInterval(() => {
+        refreshSuggestions();
+      }, 5000);
+      return () => clearInterval(timer);
     }
   }, [activeScreen, apiStatus]);
 
@@ -1244,7 +1250,7 @@ export default function App() {
           try { localStorage.setItem("REA_SUGGESTIONS", JSON.stringify(list)); } catch (e) {}
           return list;
         });
-        showToast("Template suggestion submitted for review! 💡");
+        showToast("Template suggestion saved locally (Offline Mode) 💡");
       }
 
       setSugName("");
