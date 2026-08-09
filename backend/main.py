@@ -145,15 +145,7 @@ DEFAULT_AGENTS: List[DefaultAgent] = [
 
 
 def sync_default_data_if_needed(session: Session) -> None:
-    # 1. Purge old sample agents if they exist
-    old_agents = session.exec(
-        select(Agent).where(col(Agent.agent_name).in_(["Vuyo Ndlovu", "Kilian D", "Thembi Sibanda", "Kudzi Honde", "Sys_Admin"]))
-    ).all()
-    for a in old_agents:
-        session.delete(a)
-    session.commit()
-
-    # 2. Seed or update user's default agents
+    # Seed or update default agents while preserving customized PINs
     now = datetime.now(timezone.utc)
     for item in DEFAULT_AGENTS:
         existing = session.exec(select(Agent).where(Agent.agent_initials == item["agent_initials"])).first()
@@ -510,6 +502,20 @@ def approve_suggestion(suggestion_id: int):
         return new_tpl
 
 
+@app.post("/suggestions/{suggestion_id}/reject", response_model=SuggestionRead)
+def reject_suggestion(suggestion_id: int):
+    with Session(engine) as session:
+        sug = session.get(Suggestion, suggestion_id)
+        if not sug:
+            raise HTTPException(status_code=404, detail="Suggestion not found")
+        sug.status = "rejected"
+        sug.updated_at = datetime.now(timezone.utc)
+        session.add(sug)
+        session.commit()
+        session.refresh(sug)
+        return sug
+
+
 @app.delete("/suggestions/{suggestion_id}")
 def delete_suggestion(suggestion_id: int):
     with Session(engine) as session:
@@ -517,9 +523,10 @@ def delete_suggestion(suggestion_id: int):
         if not sug:
             raise HTTPException(status_code=404, detail="Suggestion not found")
         sug.status = "rejected"
-        session.delete(sug)
+        sug.updated_at = datetime.now(timezone.utc)
+        session.add(sug)
         session.commit()
-    return {"ok": True, "message": "Suggestion removed"}
+    return {"ok": True, "message": "Suggestion status updated to rejected"}
 
 
 # --- FAVORITES & HISTORY ENDPOINTS ---

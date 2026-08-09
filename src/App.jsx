@@ -760,6 +760,9 @@ export default function App() {
 
     const updatedAgent = { ...currentAgent, pin: adminNewPin };
     setCurrentAgent(updatedAgent);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(AGENT_KEY, JSON.stringify(updatedAgent));
+    }
     await refreshAgents();
     setPinSuccessMsg("System Admin PIN successfully updated!");
     setAdminCurrentPin("");
@@ -1253,11 +1256,11 @@ export default function App() {
       let rejectedOnBackend = false;
       if (apiStatus !== "offline") {
         try {
-          const res = await fetch(`${API_BASE}/suggestions/${sugId}`, { method: "DELETE" });
+          const res = await fetch(`${API_BASE}/suggestions/${sugId}/reject`, { method: "POST" });
           if (res.ok) {
             rejectedOnBackend = true;
             await refreshSuggestions();
-            showToast("Suggestion rejected");
+            showToast("Suggestion rejected ❌");
           }
         } catch (err) {
           // Fallback to local rejection
@@ -1265,8 +1268,8 @@ export default function App() {
       }
 
       if (!rejectedOnBackend) {
-        setSuggestions((curr) => curr.filter((s) => s.id !== sugId));
-        showToast("Suggestion rejected");
+        setSuggestions((curr) => curr.map((s) => (s.id === sugId ? { ...s, status: "rejected" } : s)));
+        showToast("Suggestion rejected ❌");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to reject suggestion");
@@ -2850,23 +2853,27 @@ export default function App() {
                               Suggested by <strong className="text-[#4cd34c] font-semibold">{sug.suggested_by_name} ({sug.suggested_by_initials})</strong>
                             </span>
 
-                            {currentAgent?.is_admin && sug.status === "pending" ? (
+                            {currentAgent?.is_admin ? (
                               <div className="flex gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleApproveSuggestion(sug.id)}
-                                  className="px-3 py-1.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-semibold shadow transition"
-                                >
-                                  Approve & Add to Templates Library
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRejectSuggestion(sug.id)}
-                                  className="px-3 py-1.5 rounded-xl border text-xs font-semibold"
-                                  style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
-                                >
-                                  Reject
-                                </button>
+                                {sug.status !== "approved" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleApproveSuggestion(sug.id)}
+                                    className="px-3 py-1.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-semibold shadow transition"
+                                  >
+                                    Approve & Add to Templates Library
+                                  </button>
+                                ) : null}
+                                {sug.status !== "rejected" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRejectSuggestion(sug.id)}
+                                    className="px-3 py-1.5 rounded-xl border text-xs font-semibold"
+                                    style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
+                                  >
+                                    Reject
+                                  </button>
+                                ) : null}
                               </div>
                             ) : null}
                           </div>
