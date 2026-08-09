@@ -262,7 +262,7 @@ export default function App() {
     }, 2500);
   }
 
-  // Favorites & Usage Tracking States
+  // Favorites & Usage Tracking States (Agent-Scoped & Persistent)
   const [favoriteIds, setFavoriteIds] = useState(() => {
     if (typeof window === "undefined") return [];
     try {
@@ -276,7 +276,7 @@ export default function App() {
   const [usageCounts, setUsageCounts] = useState(() => {
     if (typeof window === "undefined") return {};
     try {
-      const stored = localStorage.getItem("REA_USAGE_COUNTS");
+      const stored = localStorage.getItem(`REA_USAGE_COUNTS_${currentAgent?.agent_initials || "DEFAULT"}`);
       return stored ? JSON.parse(stored) : {};
     } catch {
       return {};
@@ -286,15 +286,23 @@ export default function App() {
   const [recentlyUsed, setRecentlyUsed] = useState(() => {
     if (typeof window === "undefined") return [];
     try {
-      const stored = localStorage.getItem("REA_RECENTLY_USED");
+      const stored = localStorage.getItem(`REA_RECENTLY_USED_${currentAgent?.agent_initials || "DEFAULT"}`);
       return stored ? JSON.parse(stored) : [];
     } catch {
       return [];
     }
   });
 
-  // Suggestions state
-  const [suggestions, setSuggestions] = useState([]);
+  // Suggestions state (Persistent in localStorage)
+  const [suggestions, setSuggestions] = useState(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = localStorage.getItem("REA_SUGGESTIONS");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
   const [sugName, setSugName] = useState("");
   const [sugBody, setSugBody] = useState("");
   const [sugType, setSugType] = useState("customer_reply");
@@ -1080,28 +1088,52 @@ export default function App() {
 
   // Sync favorites & copy history from FastAPI backend database when active agent profile changes
   useEffect(() => {
-    if (!currentAgent?.agent_initials || apiStatus === "offline") return;
+    if (!currentAgent?.agent_initials) return;
+    const initials = currentAgent.agent_initials;
+
+    // Load local agent-scoped data immediately to prevent state bleeding between agents
+    try {
+      const favStored = localStorage.getItem(`REA_FAVORITES_${initials}`);
+      setFavoriteIds(favStored ? JSON.parse(favStored) : []);
+
+      const countsStored = localStorage.getItem(`REA_USAGE_COUNTS_${initials}`);
+      setUsageCounts(countsStored ? JSON.parse(countsStored) : {});
+
+      const recentsStored = localStorage.getItem(`REA_RECENTLY_USED_${initials}`);
+      setRecentlyUsed(recentsStored ? JSON.parse(recentsStored) : []);
+    } catch (e) {}
+
+    if (apiStatus === "offline") return;
     let mounted = true;
 
     async function syncAgentUserData() {
       try {
         const [favRes, histRes] = await Promise.all([
-          fetch(`${API_BASE}/favorites/${currentAgent.agent_initials}`),
-          fetch(`${API_BASE}/history/${currentAgent.agent_initials}`),
+          fetch(`${API_BASE}/favorites/${initials}`),
+          fetch(`${API_BASE}/history/${initials}`),
         ]);
 
-        if (favRes.ok && mounted) {
+        if (favRes.ok && mounted && favRes.headers.get("content-type")?.includes("application/json")) {
           const favData = await favRes.json();
-          if (Array.isArray(favData)) setFavoriteIds(favData);
+          if (Array.isArray(favData)) {
+            setFavoriteIds(favData);
+            try { localStorage.setItem(`REA_FAVORITES_${initials}`, JSON.stringify(favData)); } catch (e) {}
+          }
         }
 
-        if (histRes.ok && mounted) {
+        if (histRes.ok && mounted && histRes.headers.get("content-type")?.includes("application/json")) {
           const histData = await histRes.json();
-          if (histData.counts) setUsageCounts(histData.counts);
-          if (Array.isArray(histData.recents)) setRecentlyUsed(histData.recents);
+          if (histData.counts) {
+            setUsageCounts(histData.counts);
+            try { localStorage.setItem(`REA_USAGE_COUNTS_${initials}`, JSON.stringify(histData.counts)); } catch (e) {}
+          }
+          if (Array.isArray(histData.recents)) {
+            setRecentlyUsed(histData.recents);
+            try { localStorage.setItem(`REA_RECENTLY_USED_${initials}`, JSON.stringify(histData.recents)); } catch (e) {}
+          }
         }
       } catch (err) {
-        // Fallback to local state if offline
+        // Keeps loaded localStorage data intact
       }
     }
 
@@ -1113,16 +1145,23 @@ export default function App() {
 
   async function toggleFavorite(id) {
     if (!id) return;
+    const initials = currentAgent?.agent_initials || "DEFAULT";
     const isFav = favoriteIds.includes(id);
     const next = isFav ? favoriteIds.filter((item) => item !== id) : [...favoriteIds, id];
     setFavoriteIds(next);
+    try {
+      localStorage.setItem(`REA_FAVORITES_${initials}`, JSON.stringify(next));
+    } catch (e) {}
 
     if (currentAgent?.agent_initials && apiStatus !== "offline") {
       try {
-        const res = await fetch(`${API_BASE}/favorites/${currentAgent.agent_initials}/${id}`, { method: "POST" });
-        if (res.ok) {
+        const res = await fetch(`${API_BASE}/favorites/${initials}/${id}`, { method: "POST" });
+        if (res.ok && res.headers.get("content-type")?.includes("application/json")) {
           const updatedFavs = await res.json();
-          if (Array.isArray(updatedFavs)) setFavoriteIds(updatedFavs);
+          if (Array.isArray(updatedFavs)) {
+            setFavoriteIds(updatedFavs);
+            try { localStorage.setItem(`REA_FAVORITES_${initials}`, JSON.stringify(updatedFavs)); } catch (e) {}
+          }
         }
       } catch (err) {
         // DB sync fallback
@@ -1135,9 +1174,12 @@ export default function App() {
     if (apiStatus === "offline") return;
     try {
       const res = await fetch(`${API_BASE}/suggestions`);
-      if (res.ok) {
+      if (res.ok && res.headers.get("content-type")?.includes("application/json")) {
         const data = await res.json();
-        setSuggestions(Array.isArray(data) ? data : []);
+        if (Array.isArray(data)) {
+          setSuggestions(data);
+          try { localStorage.setItem("REA_SUGGESTIONS", JSON.stringify(data)); } catch (e) {}
+        }
       }
     } catch (err) {
       // Offline fallback
@@ -1197,7 +1239,11 @@ export default function App() {
 
       if (!success) {
         const next = { id: Date.now(), ...payload, created_at: new Date().toISOString() };
-        setSuggestions((curr) => [next, ...curr]);
+        setSuggestions((curr) => {
+          const list = [next, ...curr];
+          try { localStorage.setItem("REA_SUGGESTIONS", JSON.stringify(list)); } catch (e) {}
+          return list;
+        });
         showToast("Template suggestion submitted for review! 💡");
       }
 
@@ -1241,7 +1287,11 @@ export default function App() {
             subcategory: sug.subcategory,
           };
           setTemplates((curr) => [newTpl, ...curr]);
-          setSuggestions((curr) => curr.map((s) => (s.id === sugId ? { ...s, status: "approved" } : s)));
+          setSuggestions((curr) => {
+            const list = curr.map((s) => (s.id === sugId ? { ...s, status: "approved" } : s));
+            try { localStorage.setItem("REA_SUGGESTIONS", JSON.stringify(list)); } catch (e) {}
+            return list;
+          });
           showToast("Suggestion approved & added to template library! 🎉");
         }
       }
@@ -1268,7 +1318,11 @@ export default function App() {
       }
 
       if (!rejectedOnBackend) {
-        setSuggestions((curr) => curr.map((s) => (s.id === sugId ? { ...s, status: "rejected" } : s)));
+        setSuggestions((curr) => {
+          const list = curr.map((s) => (s.id === sugId ? { ...s, status: "rejected" } : s));
+          try { localStorage.setItem("REA_SUGGESTIONS", JSON.stringify(list)); } catch (e) {}
+          return list;
+        });
         showToast("Suggestion rejected ❌");
       }
     } catch (err) {
@@ -1291,14 +1345,21 @@ export default function App() {
       }
       const targetId = templateId ?? activeTemplate?.id;
       if (targetId) {
-        setUsageCounts((prev) => ({ ...prev, [targetId]: (prev[targetId] || 0) + 1 }));
+        const initials = currentAgent?.agent_initials || "DEFAULT";
+        setUsageCounts((prev) => {
+          const next = { ...prev, [targetId]: (prev[targetId] || 0) + 1 };
+          try { localStorage.setItem(`REA_USAGE_COUNTS_${initials}`, JSON.stringify(next)); } catch (e) {}
+          return next;
+        });
         setRecentlyUsed((prev) => {
           const filtered = prev.filter((r) => r.templateId !== targetId);
-          return [{ templateId: targetId, timestamp: Date.now() }, ...filtered].slice(0, 30);
+          const next = [{ templateId: targetId, timestamp: Date.now() }, ...filtered].slice(0, 30);
+          try { localStorage.setItem(`REA_RECENTLY_USED_${initials}`, JSON.stringify(next)); } catch (e) {}
+          return next;
         });
 
         if (currentAgent?.agent_initials && apiStatus !== "offline") {
-          fetch(`${API_BASE}/history/${currentAgent.agent_initials}/${targetId}`, { method: "POST" }).catch(() => {});
+          fetch(`${API_BASE}/history/${initials}/${targetId}`, { method: "POST" }).catch(() => {});
         }
       }
       showToast(customMessage);
