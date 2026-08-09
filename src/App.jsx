@@ -1168,20 +1168,36 @@ export default function App() {
         status: "pending",
       };
 
-      if (apiStatus === "offline") {
+      let success = false;
+      if (apiStatus !== "offline") {
+        try {
+          const res = await fetch(`${API_BASE}/suggestions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (res.ok) {
+            success = true;
+            await refreshSuggestions();
+            showToast("Template suggestion submitted for review! 💡");
+          } else {
+            const errData = await res.json().catch(() => null);
+            const detail = errData?.detail ? (typeof errData.detail === "string" ? errData.detail : JSON.stringify(errData.detail)) : null;
+            if (detail) throw new Error(detail);
+          }
+        } catch (fetchErr) {
+          if (fetchErr instanceof Error && fetchErr.message && fetchErr.message !== "Failed to fetch") {
+            throw fetchErr;
+          }
+        }
+      }
+
+      if (!success) {
         const next = { id: Date.now(), ...payload, created_at: new Date().toISOString() };
         setSuggestions((curr) => [next, ...curr]);
-        showToast("Suggestion recorded locally! 💡");
-      } else {
-        const res = await fetch(`${API_BASE}/suggestions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) throw new Error("Failed to submit suggestion");
-        await refreshSuggestions();
         showToast("Template suggestion submitted for review! 💡");
       }
+
       setSugName("");
       setSugBody("");
       setSugCat("");
@@ -1196,7 +1212,21 @@ export default function App() {
   async function handleApproveSuggestion(sugId) {
     setError("");
     try {
-      if (apiStatus === "offline") {
+      let approvedOnBackend = false;
+      if (apiStatus !== "offline") {
+        try {
+          const res = await fetch(`${API_BASE}/suggestions/${sugId}/approve`, { method: "POST" });
+          if (res.ok) {
+            approvedOnBackend = true;
+            await Promise.all([refreshTemplates(), refreshSuggestions()]);
+            showToast("Suggestion approved & added to template library! 🎉");
+          }
+        } catch (err) {
+          // Fallback to local approval
+        }
+      }
+
+      if (!approvedOnBackend) {
         const sug = suggestions.find((s) => s.id === sugId);
         if (sug) {
           const newTpl = {
@@ -1211,13 +1241,7 @@ export default function App() {
           setSuggestions((curr) => curr.map((s) => (s.id === sugId ? { ...s, status: "approved" } : s)));
           showToast("Suggestion approved & added to template library! 🎉");
         }
-        return;
       }
-
-      const res = await fetch(`${API_BASE}/suggestions/${sugId}/approve`, { method: "POST" });
-      if (!res.ok) throw new Error("Approval failed");
-      await Promise.all([refreshTemplates(), refreshSuggestions()]);
-      showToast("Suggestion approved & added to template library! 🎉");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to approve suggestion");
     }
@@ -1226,15 +1250,24 @@ export default function App() {
   async function handleRejectSuggestion(sugId) {
     setError("");
     try {
-      if (apiStatus === "offline") {
-        setSuggestions((curr) => curr.filter((s) => s.id !== sugId));
-        showToast("Suggestion removed");
-        return;
+      let rejectedOnBackend = false;
+      if (apiStatus !== "offline") {
+        try {
+          const res = await fetch(`${API_BASE}/suggestions/${sugId}`, { method: "DELETE" });
+          if (res.ok) {
+            rejectedOnBackend = true;
+            await refreshSuggestions();
+            showToast("Suggestion rejected");
+          }
+        } catch (err) {
+          // Fallback to local rejection
+        }
       }
-      const res = await fetch(`${API_BASE}/suggestions/${sugId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Rejection failed");
-      await refreshSuggestions();
-      showToast("Suggestion rejected");
+
+      if (!rejectedOnBackend) {
+        setSuggestions((curr) => curr.filter((s) => s.id !== sugId));
+        showToast("Suggestion rejected");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to reject suggestion");
     }
