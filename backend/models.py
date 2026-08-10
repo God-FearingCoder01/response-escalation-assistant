@@ -42,23 +42,25 @@ class AgentBase(SQLModel):
     agent: Optional[str] = None
     agent_initials: str
     is_admin: bool = False
-    pin: Optional[str] = "0000"
-
-
 
 
 class Agent(AgentBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    pin: Optional[str] = Field(default=None, nullable=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
 
 
 class AgentCreate(AgentBase):
-    pass
+    pin: Optional[str] = "0000"
 
 
-class AgentUpdate(AgentBase):
-    pass
+class AgentUpdate(SQLModel):
+    agent_name: Optional[str] = None
+    agent: Optional[str] = None
+    agent_initials: Optional[str] = None
+    is_admin: Optional[bool] = None
+    pin: Optional[str] = None
 
 
 class AgentRead(AgentBase):

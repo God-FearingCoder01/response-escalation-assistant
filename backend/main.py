@@ -1,12 +1,32 @@
 import json
 import ssl
 import urllib.request
+import hashlib
 from sqlalchemy import false
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import List, TypedDict
 
 CLOUD_BLOB_URL = "https://jsonblob.com/api/jsonBlob/019fea6b-fb22-75ae-81fc-afcedcb15781"
+
+
+def hash_pin(pin: str) -> str:
+    if not pin:
+        pin = "0000"
+    clean_pin = str(pin).strip()
+    salt = "rea_admin_pin_salt_v1"
+    return hashlib.sha256(f"{salt}:{clean_pin}".encode("utf-8")).hexdigest()
+
+
+def verify_pin_hash(pin: str, stored_hash: str | None) -> bool:
+    if not pin:
+        return False
+    clean_pin = str(pin).strip()
+    if not stored_hash or stored_hash == "0000":
+        return clean_pin == "0000" or hash_pin(clean_pin) == hash_pin("0000")
+    if len(stored_hash) == 64:
+        return hash_pin(clean_pin) == stored_hash
+    return clean_pin == stored_hash
 
 
 def get_cloud_store() -> dict:
@@ -461,7 +481,7 @@ def sync_agents_to_cloud(session: Session):
                 "agent_name": a.agent_name,
                 "agent_initials": a.agent_initials,
                 "is_admin": a.is_admin,
-                "pin": a.pin,
+                "pin": a.pin if (a.pin and len(a.pin) == 64) else hash_pin(a.pin or "0000"),
             }
             for a in all_agents
         ]
@@ -511,7 +531,7 @@ def create_agent(agent: AgentCreate):
             agent_name=agent.agent_name,
             agent_initials=agent.agent_initials.upper(),
             is_admin=agent.is_admin,
-            pin=agent.pin or "0000",
+            pin=hash_pin(agent.pin or "0000"),
             created_at=now,
             updated_at=now,
         )
@@ -528,12 +548,16 @@ def update_agent(agent_id: int, incoming: AgentUpdate):
         existing = session.get(Agent, agent_id)
         if not existing:
             raise HTTPException(status_code=404, detail="Agent not found")
-        existing.agent = incoming.agent
-        existing.agent_name = incoming.agent_name
-        existing.agent_initials = incoming.agent_initials.upper()
-        existing.is_admin = incoming.is_admin
+        if incoming.agent is not None:
+            existing.agent = incoming.agent
+        if incoming.agent_name is not None:
+            existing.agent_name = incoming.agent_name
+        if incoming.agent_initials is not None:
+            existing.agent_initials = incoming.agent_initials.upper()
+        if incoming.is_admin is not None:
+            existing.is_admin = incoming.is_admin
         if incoming.pin:
-            existing.pin = incoming.pin
+            existing.pin = hash_pin(incoming.pin)
         existing.updated_at = datetime.now(timezone.utc)
         session.add(existing)
         session.commit()
@@ -566,17 +590,18 @@ def verify_agent_pin(req: PinVerifyRequest):
         if not agent.is_admin:
             return {"valid": True, "agent": agent}
 
-        expected_pin = agent.pin or "0000"
+        expected_hash = agent.pin or hash_pin("0000")
         cloud = get_cloud_store()
         cloud_agents = cloud.get("agents", [])
         for ca in cloud_agents:
             if ca.get("agent_initials") == agent.agent_initials and ca.get("pin"):
-                expected_pin = ca["pin"]
+                expected_hash = ca["pin"]
                 break
 
-        if req.pin == expected_pin:
-            if agent.pin != expected_pin:
-                agent.pin = expected_pin
+        if verify_pin_hash(req.pin, expected_hash):
+            hashed_input = hash_pin(req.pin)
+            if agent.pin != hashed_input:
+                agent.pin = hashed_input
                 session.add(agent)
                 try: session.commit()
                 except Exception: session.rollback()
