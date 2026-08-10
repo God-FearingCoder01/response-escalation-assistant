@@ -180,7 +180,12 @@ export function useAgents({ apiStatus, showToast }) {
           updatedAgent = await updateAgentApi(currentAgent.id, { pin: adminNewPin });
         }
       } catch (err) {
-        // Fallback update
+        if (err instanceof Error && err.message === "Failed to fetch") {
+          // Fallback update for offline mode
+        } else {
+          setPinErrorMsg(err instanceof Error ? err.message : "Failed to update Security PIN");
+          return;
+        }
       }
     }
 
@@ -250,7 +255,14 @@ export function useAgents({ apiStatus, showToast }) {
             showToast("Agent profile updated successfully! 👤");
             handleResetAgentForm();
             return;
-          } catch (err) {}
+          } catch (err) {
+            if (err instanceof Error && err.message === "Failed to fetch") {
+              // Fallback to local offline mode
+            } else {
+              showToast(`Error: ${err instanceof Error ? err.message : "Agent update failed"} ⚠️`);
+              return;
+            }
+          }
         }
         setAgents((curr) =>
           curr.map((a) => (a.id === editAgentId ? { ...a, ...payload } : a))
@@ -264,7 +276,14 @@ export function useAgents({ apiStatus, showToast }) {
             showToast("New agent added successfully! 👤");
             handleResetAgentForm();
             return;
-          } catch (err) {}
+          } catch (err) {
+            if (err instanceof Error && err.message === "Failed to fetch") {
+              // Fallback to local offline mode
+            } else {
+              showToast(`Error: ${err instanceof Error ? err.message : "Failed to create agent"} ⚠️`);
+              return;
+            }
+          }
         }
         const newAgent = { id: Date.now(), ...payload };
         setAgents((curr) => [...curr, newAgent]);
@@ -282,7 +301,17 @@ export function useAgents({ apiStatus, showToast }) {
       if (apiStatus !== "offline") {
         try {
           await deleteAgentApi(agentId);
-        } catch (err) {}
+          setAgents((curr) => curr.filter((a) => a.id !== agentId));
+          showToast("Agent profile deleted 🗑️");
+          return;
+        } catch (err) {
+          if (err instanceof Error && err.message === "Failed to fetch") {
+            // Fallback to local offline mode
+          } else {
+            showToast(`Error: ${err instanceof Error ? err.message : "Failed to delete agent"} ⚠️`);
+            return;
+          }
+        }
       }
       setAgents((curr) => curr.filter((a) => a.id !== agentId));
       showToast("Agent profile deleted 🗑️");

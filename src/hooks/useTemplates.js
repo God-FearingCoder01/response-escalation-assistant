@@ -276,7 +276,14 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
             showToast("Template updated successfully! 📝");
             handleResetTemplateForm();
             return;
-          } catch (err) {}
+          } catch (err) {
+            if (err instanceof Error && err.message === "Failed to fetch") {
+              // Fallback to local offline mode
+            } else {
+              showToast(`Error: ${err instanceof Error ? err.message : "Template update failed"} ⚠️`);
+              return;
+            }
+          }
         }
         setTemplates((curr) =>
           curr.map((t) => (t.id === editTplId ? { ...t, ...payload } : t))
@@ -290,7 +297,14 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
             showToast("New template created! 📝");
             handleResetTemplateForm();
             return;
-          } catch (err) {}
+          } catch (err) {
+            if (err instanceof Error && err.message === "Failed to fetch") {
+              // Fallback to local offline mode
+            } else {
+              showToast(`Error: ${err instanceof Error ? err.message : "Failed to create template"} ⚠️`);
+              return;
+            }
+          }
         }
         const newTpl = { id: Date.now(), ...payload };
         setTemplates((curr) => [newTpl, ...curr]);
@@ -308,7 +322,17 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
       if (apiStatus !== "offline") {
         try {
           await deleteTemplateApi(templateId);
-        } catch (err) {}
+          setTemplates((curr) => curr.filter((t) => t.id !== templateId));
+          showToast("Template deleted 🗑️");
+          return;
+        } catch (err) {
+          if (err instanceof Error && err.message === "Failed to fetch") {
+            // Fallback to local offline mode
+          } else {
+            showToast(`Error: ${err instanceof Error ? err.message : "Failed to delete template"} ⚠️`);
+            return;
+          }
+        }
       }
       setTemplates((curr) => curr.filter((t) => t.id !== templateId));
       showToast("Template deleted 🗑️");
@@ -345,7 +369,14 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
           setTemplates(res);
           showToast("Template library imported successfully! 📤");
           return;
-        } catch (err) {}
+        } catch (err) {
+          if (err instanceof Error && err.message === "Failed to fetch") {
+            // Fallback to local offline mode
+          } else {
+            showToast(`Error: ${err instanceof Error ? err.message : "Import failed"} ⚠️`);
+            return;
+          }
+        }
       }
       setTemplates(importedData);
       showToast("Template library imported locally 📤");

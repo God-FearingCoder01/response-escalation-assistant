@@ -20,7 +20,7 @@ if DATABASE_URL:
         pool_pre_ping=True,
     )
 elif os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
-    # Priority 2: Ephemeral serverless fallback with Cloud Persistence Sync
+    # Priority 2: Serverless environment SQLite database
     DATABASE_FILE = Path("/tmp/backend_data.db")
     DATABASE_URL = f"sqlite:///{DATABASE_FILE}"
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})

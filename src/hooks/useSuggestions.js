@@ -105,26 +105,32 @@ export function useSuggestions({ activeScreen, apiStatus, currentAgent, refreshT
   async function handleApproveSuggestion(sugId) {
     setError("");
     try {
-      let approvedOnBackend = false;
       if (apiStatus !== "offline") {
         try {
           await approveSuggestionApi(sugId);
-          approvedOnBackend = true;
           await Promise.all([refreshTemplates(), refreshSuggestions()]);
           showToast("Suggestion approved & added to template library! 🎉");
-        } catch (err) {}
+          return;
+        } catch (err) {
+          if (err instanceof Error && err.message === "Failed to fetch") {
+            // Fallback to local offline mode
+          } else {
+            const msg = err instanceof Error ? err.message : "Failed to approve suggestion";
+            setError(msg);
+            showToast(`Error: ${msg} ⚠️`);
+            return;
+          }
+        }
       }
 
-      if (!approvedOnBackend) {
-        const sug = suggestions.find((s) => s.id === sugId);
-        if (sug) {
-          setSuggestions((curr) => {
-            const list = curr.map((s) => (s.id === sugId ? { ...s, status: "approved" } : s));
-            try { localStorage.setItem("REA_SUGGESTIONS", JSON.stringify(list)); } catch (e) {}
-            return list;
-          });
-          showToast("Suggestion approved & added to template library! 🎉");
-        }
+      const sug = suggestions.find((s) => s.id === sugId);
+      if (sug) {
+        setSuggestions((curr) => {
+          const list = curr.map((s) => (s.id === sugId ? { ...s, status: "approved" } : s));
+          try { localStorage.setItem("REA_SUGGESTIONS", JSON.stringify(list)); } catch (e) {}
+          return list;
+        });
+        showToast("Suggestion approved locally 🎉");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to approve suggestion");
@@ -134,24 +140,30 @@ export function useSuggestions({ activeScreen, apiStatus, currentAgent, refreshT
   async function handleRejectSuggestion(sugId) {
     setError("");
     try {
-      let rejectedOnBackend = false;
       if (apiStatus !== "offline") {
         try {
           await rejectSuggestionApi(sugId);
-          rejectedOnBackend = true;
           await refreshSuggestions();
           showToast("Suggestion rejected ❌");
-        } catch (err) {}
+          return;
+        } catch (err) {
+          if (err instanceof Error && err.message === "Failed to fetch") {
+            // Fallback to local offline mode
+          } else {
+            const msg = err instanceof Error ? err.message : "Failed to reject suggestion";
+            setError(msg);
+            showToast(`Error: ${msg} ⚠️`);
+            return;
+          }
+        }
       }
 
-      if (!rejectedOnBackend) {
-        setSuggestions((curr) => {
-          const list = curr.map((s) => (s.id === sugId ? { ...s, status: "rejected" } : s));
-          try { localStorage.setItem("REA_SUGGESTIONS", JSON.stringify(list)); } catch (e) {}
-          return list;
-        });
-        showToast("Suggestion rejected ❌");
-      }
+      setSuggestions((curr) => {
+        const list = curr.map((s) => (s.id === sugId ? { ...s, status: "rejected" } : s));
+        try { localStorage.setItem("REA_SUGGESTIONS", JSON.stringify(list)); } catch (e) {}
+        return list;
+      });
+      showToast("Suggestion rejected locally ❌");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to reject suggestion");
     }

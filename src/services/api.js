@@ -212,7 +212,10 @@ export async function deleteTemplateApi(id) {
     method: "DELETE",
     headers: { ...getAdminHeaders() },
   });
-  if (!res.ok) throw new Error("Failed to delete template");
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(errData?.detail || "Failed to delete template");
+  }
   return true;
 }
 
@@ -222,7 +225,10 @@ export async function importTemplatesApi(payload) {
     headers: { "Content-Type": "application/json", ...getAdminHeaders() },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error("Import failed");
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(errData?.detail || "Import failed");
+  }
   return await res.json();
 }
 
@@ -261,7 +267,10 @@ export async function deleteAgentApi(id) {
     method: "DELETE",
     headers: { ...getAdminHeaders() },
   });
-  if (!res.ok) throw new Error("Failed to delete agent");
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(errData?.detail || "Failed to delete agent");
+  }
   return true;
 }
 
@@ -297,7 +306,10 @@ export async function approveSuggestionApi(id) {
     method: "POST",
     headers: { ...getAdminHeaders() },
   });
-  if (!res.ok) throw new Error("Approval failed");
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(errData?.detail || "Approval failed");
+  }
   return await res.json();
 }
 
@@ -306,7 +318,10 @@ export async function rejectSuggestionApi(id) {
     method: "POST",
     headers: { ...getAdminHeaders() },
   });
-  if (!res.ok) throw new Error("Rejection failed");
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(errData?.detail || "Rejection failed");
+  }
   return await res.json();
 }
 
