@@ -1,3 +1,4 @@
+import os
 import hashlib
 from sqlalchemy import false
 from contextlib import asynccontextmanager
@@ -274,9 +275,24 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Response Escalation Assistant API", lifespan=lifespan)
 
 
+ALLOWED_ORIGINS = [
+    "https://response-escalation-assistant.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+]
+
+env_origins = os.environ.get("ALLOWED_ORIGINS")
+if env_origins:
+    extra_origins = [o.strip() for o in env_origins.split(",") if o.strip()]
+    for eo in extra_origins:
+        if eo not in ALLOWED_ORIGINS:
+            ALLOWED_ORIGINS.append(eo)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
