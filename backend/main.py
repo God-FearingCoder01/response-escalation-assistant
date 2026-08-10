@@ -533,8 +533,10 @@ def verify_agent_pin(req: PinVerifyRequest):
         if not agent:
             raise HTTPException(status_code=404, detail="Agent profile not found")
 
+        agent_read = AgentRead.model_validate(agent)
+
         if not agent.is_admin:
-            return {"valid": True, "agent": agent}
+            return {"valid": True, "agent": agent_read}
 
         expected_hash = agent.pin or hash_pin("0000")
 
@@ -546,7 +548,7 @@ def verify_agent_pin(req: PinVerifyRequest):
                 try: session.commit()
                 except Exception: session.rollback()
             token = generate_admin_token(agent.agent_initials, expected_hash)
-            return {"valid": True, "agent": agent, "token": token}
+            return {"valid": True, "agent": agent_read, "token": token}
         else:
             return {"valid": False, "detail": "Incorrect 4-digit Security PIN"}
 
