@@ -59,6 +59,7 @@ export default function App() {
     pinErrorMsg = "",
     handleChangeAdminPin,
     editAgentId = null,
+    setEditAgentId,
     editAgentFullName = "",
     setEditAgentFullName,
     editAgentName = "",

@@ -313,6 +313,7 @@ export function useAgents({ apiStatus, showToast }) {
     handleChangeAdminPin,
     // Agent CRUD
     editAgentId,
+    setEditAgentId,
     editAgentFullName,
     setEditAgentFullName,
     editAgentName,
