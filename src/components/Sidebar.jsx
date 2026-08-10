@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Sidebar({
   currentAgent,
@@ -9,6 +9,11 @@ export default function Sidebar({
   handleLogout,
 }) {
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
+
+  // Collapse sidebar whenever active agent profile or screen changes
+  useEffect(() => {
+    setIsSidebarHovered(false);
+  }, [currentAgent, activeScreen]);
 
   if (!currentAgent || activeScreen === "welcome") return null;
 
@@ -184,7 +189,13 @@ export default function Sidebar({
           {isSidebarHovered ? (
             <div className="overflow-hidden whitespace-nowrap">
               <div className="text-xs font-semibold truncate">{currentAgent.agent_name}</div>
-              <button onClick={handleLogout} className="text-[10px] text-[#4cd34c] hover:underline block mt-0.5">
+              <button
+                onClick={() => {
+                  setIsSidebarHovered(false);
+                  handleLogout();
+                }}
+                className="text-[10px] text-[#4cd34c] hover:underline block mt-0.5"
+              >
                 Switch Profile ↩
               </button>
             </div>
