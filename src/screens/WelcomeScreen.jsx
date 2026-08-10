@@ -1,10 +1,14 @@
+import { DEFAULT_AGENTS } from "../services/api";
+
 export default function WelcomeScreen({
   activeScreen,
   currentAgent,
   agents,
   handleSelectAgent,
 }) {
-  if (activeScreen !== "welcome" && currentAgent) return null;
+  if (currentAgent && activeScreen !== "welcome") return null;
+
+  const agentList = Array.isArray(agents) && agents.length > 0 ? agents : DEFAULT_AGENTS;
 
   return (
     <section className="max-w-6xl mx-auto py-8">
@@ -34,7 +38,7 @@ export default function WelcomeScreen({
 
       {/* BLOCK CARDS: THREE IN A ROW GRID */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {agents.map((agent) => (
+        {agentList.map((agent) => (
           <div
             key={agent.id}
             onClick={() => handleSelectAgent(agent)}

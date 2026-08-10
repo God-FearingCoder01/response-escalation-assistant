@@ -26,6 +26,13 @@ export function useAgents({ apiStatus, showToast }) {
     currentAgent ? "tech_escalation" : "welcome"
   );
 
+  // Redirection safety check: redirect non-admin agents away from admin dashboard
+  useEffect(() => {
+    if (activeScreen === "admin" && currentAgent && !currentAgent.is_admin) {
+      setActiveScreen("tech_escalation");
+    }
+  }, [activeScreen, currentAgent]);
+
   // Edit agent form states (Admin Dashboard)
   const [editAgentId, setEditAgentId] = useState(null);
   const [editAgentFullName, setEditAgentFullName] = useState("");
