@@ -1,7 +1,45 @@
+import json
+import ssl
+import urllib.request
 from sqlalchemy import false
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import List, TypedDict
+
+CLOUD_BLOB_URL = "https://jsonblob.com/api/jsonBlob/019fea6b-fb22-75ae-81fc-afcedcb15781"
+
+
+def get_cloud_store() -> dict:
+    try:
+        ctx = ssl._create_unverified_context()
+        req = urllib.request.Request(
+            CLOUD_BLOB_URL,
+            headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
+        )
+        with urllib.request.urlopen(req, context=ctx, timeout=4) as res:
+            if res.status == 200:
+                data = json.loads(res.read().decode("utf-8"))
+                if isinstance(data, dict):
+                    return data
+    except Exception as e:
+        print("Cloud read fallback:", e)
+    return {}
+
+
+def save_cloud_store(data: dict) -> bool:
+    try:
+        ctx = ssl._create_unverified_context()
+        req = urllib.request.Request(
+            CLOUD_BLOB_URL,
+            data=json.dumps(data).encode("utf-8"),
+            headers={"User-Agent": "Mozilla/5.0", "Content-Type": "application/json"},
+            method="PUT"
+        )
+        with urllib.request.urlopen(req, context=ctx, timeout=4) as res:
+            return res.status in (200, 201, 204)
+    except Exception as e:
+        print("Cloud write fallback:", e)
+        return False
 
 
 from pydantic import BaseModel
@@ -227,7 +265,36 @@ def health_check():
 @app.get("/templates", response_model=List[TemplateRead])
 def list_templates():
     with Session(engine) as session:
-        return session.exec(select(Template).order_by(col(Template.updated_at).desc())).all()
+        local_tpls = session.exec(select(Template).order_by(col(Template.updated_at).desc())).all()
+        cloud = get_cloud_store()
+        cloud_tpls = cloud.get("templates", [])
+
+        if cloud_tpls:
+            local_ids = {t.id for t in local_tpls if t.id}
+            modified = False
+            now = datetime.now(timezone.utc)
+            for ct in cloud_tpls:
+                if ct.get("id") and ct["id"] not in local_ids:
+                    t_obj = Template(
+                        id=ct["id"],
+                        name=ct["name"],
+                        body=ct["body"],
+                        category_type=ct.get("category_type", "customer_reply"),
+                        category=ct.get("category"),
+                        subcategory=ct.get("subcategory"),
+                        created_at=now,
+                        updated_at=now,
+                    )
+                    session.add(t_obj)
+                    modified = True
+            if modified:
+                try:
+                    session.commit()
+                except Exception:
+                    session.rollback()
+            return session.exec(select(Template).order_by(col(Template.updated_at).desc())).all()
+
+        return local_tpls
 
 
 @app.post("/templates", response_model=TemplateRead)
@@ -463,8 +530,40 @@ def verify_agent_pin(req: PinVerifyRequest):
 def get_suggestions():
     with Session(engine) as session:
         statement = select(Suggestion).order_by(col(Suggestion.created_at).desc())
-        results = session.exec(statement).all()
-        return results
+        local_sugs = session.exec(statement).all()
+
+        cloud = get_cloud_store()
+        cloud_sugs = cloud.get("suggestions", [])
+
+        if cloud_sugs:
+            local_ids = {s.id for s in local_sugs if s.id}
+            modified = False
+            now = datetime.now(timezone.utc)
+            for cs in cloud_sugs:
+                if cs.get("id") and cs["id"] not in local_ids:
+                    s_obj = Suggestion(
+                        id=cs["id"],
+                        name=cs["name"],
+                        body=cs["body"],
+                        category_type=cs.get("category_type", "customer_reply"),
+                        category=cs.get("category"),
+                        subcategory=cs.get("subcategory"),
+                        suggested_by_name=cs.get("suggested_by_name", "Support Agent"),
+                        suggested_by_initials=cs.get("suggested_by_initials", "SA"),
+                        status=cs.get("status", "pending"),
+                        created_at=now,
+                        updated_at=now,
+                    )
+                    session.add(s_obj)
+                    modified = True
+            if modified:
+                try:
+                    session.commit()
+                except Exception:
+                    session.rollback()
+            return session.exec(select(Suggestion).order_by(col(Suggestion.created_at).desc())).all()
+
+        return local_sugs
 
 
 @app.post("/suggestions", response_model=SuggestionRead)
@@ -474,6 +573,26 @@ def create_suggestion(payload: SuggestionCreate):
         session.add(suggestion)
         session.commit()
         session.refresh(suggestion)
+
+        # Sync with Cloud Store for Vercel multi-instance persistence
+        cloud = get_cloud_store()
+        curr_list = cloud.get("suggestions", [])
+        s_dict = {
+            "id": suggestion.id,
+            "name": suggestion.name,
+            "body": suggestion.body,
+            "category_type": suggestion.category_type,
+            "category": suggestion.category,
+            "subcategory": suggestion.subcategory,
+            "suggested_by_name": suggestion.suggested_by_name,
+            "suggested_by_initials": suggestion.suggested_by_initials,
+            "status": suggestion.status,
+            "created_at": suggestion.created_at.isoformat(),
+            "updated_at": suggestion.updated_at.isoformat(),
+        }
+        cloud["suggestions"] = [s_dict] + [s for s in curr_list if s.get("id") != suggestion.id]
+        save_cloud_store(cloud)
+
         return suggestion
 
 
@@ -482,7 +601,25 @@ def approve_suggestion(suggestion_id: int):
     with Session(engine) as session:
         sug = session.get(Suggestion, suggestion_id)
         if not sug:
-            raise HTTPException(status_code=404, detail="Suggestion not found")
+            cloud = get_cloud_store()
+            cloud_sugs = cloud.get("suggestions", [])
+            target = next((s for s in cloud_sugs if s.get("id") == suggestion_id), None)
+            if not target:
+                raise HTTPException(status_code=404, detail="Suggestion not found")
+            sug = Suggestion(
+                id=target["id"],
+                name=target["name"],
+                body=target["body"],
+                category_type=target.get("category_type", "customer_reply"),
+                category=target.get("category"),
+                subcategory=target.get("subcategory"),
+                suggested_by_name=target.get("suggested_by_name", "Support Agent"),
+                suggested_by_initials=target.get("suggested_by_initials", "SA"),
+                status="pending",
+            )
+            session.add(sug)
+            session.commit()
+            session.refresh(sug)
 
         new_tpl = Template(
             name=sug.name,
@@ -499,6 +636,30 @@ def approve_suggestion(suggestion_id: int):
 
         session.commit()
         session.refresh(new_tpl)
+
+        # Update cloud store so all Vercel instances see the approved template and updated suggestion status!
+        cloud = get_cloud_store()
+        cloud_sugs = cloud.get("suggestions", [])
+        for cs in cloud_sugs:
+            if cs.get("id") == suggestion_id:
+                cs["status"] = "approved"
+                cs["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+        cloud_tpls = cloud.get("templates", [])
+        tpl_dict = {
+            "id": new_tpl.id,
+            "name": new_tpl.name,
+            "body": new_tpl.body,
+            "category_type": new_tpl.category_type,
+            "category": new_tpl.category,
+            "subcategory": new_tpl.subcategory,
+            "created_at": new_tpl.created_at.isoformat(),
+            "updated_at": new_tpl.updated_at.isoformat(),
+        }
+        cloud["suggestions"] = cloud_sugs
+        cloud["templates"] = [tpl_dict] + [t for t in cloud_tpls if t.get("id") != new_tpl.id]
+        save_cloud_store(cloud)
+
         return new_tpl
 
 
@@ -507,12 +668,41 @@ def reject_suggestion(suggestion_id: int):
     with Session(engine) as session:
         sug = session.get(Suggestion, suggestion_id)
         if not sug:
-            raise HTTPException(status_code=404, detail="Suggestion not found")
-        sug.status = "rejected"
-        sug.updated_at = datetime.now(timezone.utc)
-        session.add(sug)
-        session.commit()
-        session.refresh(sug)
+            cloud = get_cloud_store()
+            cloud_sugs = cloud.get("suggestions", [])
+            target = next((s for s in cloud_sugs if s.get("id") == suggestion_id), None)
+            if not target:
+                raise HTTPException(status_code=404, detail="Suggestion not found")
+            sug = Suggestion(
+                id=target["id"],
+                name=target["name"],
+                body=target["body"],
+                category_type=target.get("category_type", "customer_reply"),
+                category=target.get("category"),
+                subcategory=target.get("subcategory"),
+                suggested_by_name=target.get("suggested_by_name", "Support Agent"),
+                suggested_by_initials=target.get("suggested_by_initials", "SA"),
+                status="rejected",
+            )
+            session.add(sug)
+            session.commit()
+            session.refresh(sug)
+        else:
+            sug.status = "rejected"
+            sug.updated_at = datetime.now(timezone.utc)
+            session.add(sug)
+            session.commit()
+            session.refresh(sug)
+
+        cloud = get_cloud_store()
+        cloud_sugs = cloud.get("suggestions", [])
+        for cs in cloud_sugs:
+            if cs.get("id") == suggestion_id:
+                cs["status"] = "rejected"
+                cs["updated_at"] = datetime.now(timezone.utc).isoformat()
+        cloud["suggestions"] = cloud_sugs
+        save_cloud_store(cloud)
+
         return sug
 
 
@@ -536,7 +726,13 @@ def get_agent_favorites(agent_initials: str):
     with Session(engine) as session:
         initials = agent_initials.upper()
         favs = session.exec(select(Favorite).where(Favorite.agent_initials == initials)).all()
-        return [f.template_id for f in favs]
+        local_list = [f.template_id for f in favs]
+
+        cloud = get_cloud_store()
+        cloud_favs = cloud.get("favorites", {}).get(initials, [])
+        if cloud_favs:
+            return list(dict.fromkeys(local_list + cloud_favs))
+        return local_list
 
 
 @app.post("/favorites/{agent_initials}/{template_id}")
@@ -559,7 +755,15 @@ def toggle_agent_favorite(agent_initials: str, template_id: int):
         session.commit()
 
         all_favs = session.exec(select(Favorite).where(Favorite.agent_initials == initials)).all()
-        return [f.template_id for f in all_favs]
+        fav_list = [f.template_id for f in all_favs]
+
+        cloud = get_cloud_store()
+        if "favorites" not in cloud:
+            cloud["favorites"] = {}
+        cloud["favorites"][initials] = fav_list
+        save_cloud_store(cloud)
+
+        return fav_list
 
 
 @app.get("/history/{agent_initials}")
@@ -585,6 +789,21 @@ def get_agent_history(agent_initials: str):
                     "timestamp": int(h.copied_at.timestamp() * 1000)
                 })
 
+        cloud = get_cloud_store()
+        cloud_hist = cloud.get("history", {}).get(initials, {})
+        c_counts = cloud_hist.get("counts", {})
+        c_recents = cloud_hist.get("recents", [])
+
+        for tid_str, count in c_counts.items():
+            try:
+                tid = int(tid_str)
+                counts[tid] = max(counts.get(tid, 0), count)
+            except Exception:
+                pass
+
+        if c_recents and not recents:
+            recents = c_recents
+
         return {"counts": counts, "recents": recents}
 
 
@@ -595,6 +814,26 @@ def record_agent_copy_history(agent_initials: str, template_id: int):
         entry = UsageHistory(agent_initials=initials, template_id=template_id)
         session.add(entry)
         session.commit()
+
+        cloud = get_cloud_store()
+        if "history" not in cloud:
+            cloud["history"] = {}
+        if initials not in cloud["history"]:
+            cloud["history"][initials] = {"counts": {}, "recents": []}
+
+        h_data = cloud["history"][initials]
+        c_map = h_data.get("counts", {})
+        t_key = str(template_id)
+        c_map[t_key] = (c_map.get(t_key) or 0) + 1
+
+        r_list = [r for r in h_data.get("recents", []) if r.get("templateId") != template_id]
+        new_recents = [{"templateId": template_id, "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000)}] + r_list
+
+        h_data["counts"] = c_map
+        h_data["recents"] = new_recents[:30]
+        cloud["history"][initials] = h_data
+        save_cloud_store(cloud)
+
     return {"ok": True}
 
 
