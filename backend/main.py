@@ -449,11 +449,57 @@ def deduplicate_templates():
         }
 
 
+# Helper to sync agent list to Cloud Store
+def sync_agents_to_cloud(session: Session):
+    try:
+        all_agents = session.exec(select(Agent).order_by(col(Agent.id).asc())).all()
+        cloud = get_cloud_store()
+        cloud["agents"] = [
+            {
+                "id": a.id,
+                "agent": a.agent,
+                "agent_name": a.agent_name,
+                "agent_initials": a.agent_initials,
+                "is_admin": a.is_admin,
+                "pin": a.pin,
+            }
+            for a in all_agents
+        ]
+        save_cloud_store(cloud)
+    except Exception as e:
+        print("Cloud agent sync error:", e)
+
+
 # Agent endpoints
 @app.get("/agents", response_model=List[AgentRead])
 def list_agents():
     with Session(engine) as session:
-        return session.exec(select(Agent).order_by(col(Agent.id).asc())).all()
+        local_agents = session.exec(select(Agent).order_by(col(Agent.id).asc())).all()
+        cloud = get_cloud_store()
+        cloud_agents = cloud.get("agents", [])
+
+        if cloud_agents:
+            cloud_by_initials = {ca["agent_initials"]: ca for ca in cloud_agents if ca.get("agent_initials")}
+            modified = False
+            for la in local_agents:
+                if la.agent_initials in cloud_by_initials:
+                    ca = cloud_by_initials[la.agent_initials]
+                    if ca.get("pin") and la.pin != ca["pin"]:
+                        la.pin = ca["pin"]
+                        session.add(la)
+                        modified = True
+                    if "is_admin" in ca and la.is_admin != ca["is_admin"]:
+                        la.is_admin = ca["is_admin"]
+                        session.add(la)
+                        modified = True
+            if modified:
+                try:
+                    session.commit()
+                except Exception:
+                    session.rollback()
+            return session.exec(select(Agent).order_by(col(Agent.id).asc())).all()
+
+        return local_agents
 
 
 @app.post("/agents", response_model=AgentRead)
@@ -472,6 +518,7 @@ def create_agent(agent: AgentCreate):
         session.add(db_agent)
         session.commit()
         session.refresh(db_agent)
+        sync_agents_to_cloud(session)
         return db_agent
 
 
@@ -491,6 +538,7 @@ def update_agent(agent_id: int, incoming: AgentUpdate):
         session.add(existing)
         session.commit()
         session.refresh(existing)
+        sync_agents_to_cloud(session)
         return existing
 
 
@@ -502,6 +550,7 @@ def delete_agent(agent_id: int):
             raise HTTPException(status_code=404, detail="Agent not found")
         session.delete(existing)
         session.commit()
+        sync_agents_to_cloud(session)
     return {"ok": True, "message": "Agent deleted"}
 
 
@@ -518,7 +567,19 @@ def verify_agent_pin(req: PinVerifyRequest):
             return {"valid": True, "agent": agent}
 
         expected_pin = agent.pin or "0000"
+        cloud = get_cloud_store()
+        cloud_agents = cloud.get("agents", [])
+        for ca in cloud_agents:
+            if ca.get("agent_initials") == agent.agent_initials and ca.get("pin"):
+                expected_pin = ca["pin"]
+                break
+
         if req.pin == expected_pin:
+            if agent.pin != expected_pin:
+                agent.pin = expected_pin
+                session.add(agent)
+                try: session.commit()
+                except Exception: session.rollback()
             return {"valid": True, "agent": agent}
         else:
             return {"valid": False, "detail": "Incorrect 4-digit Security PIN"}
