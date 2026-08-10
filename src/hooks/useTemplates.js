@@ -208,8 +208,7 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
     const allKeys = new Set([...Object.keys(autoMap), ...Object.keys(values)]);
     for (const key of allKeys) {
       const val = values[key] ?? autoMap[key] ?? "";
-      const re = new RegExp(`\\{${key}\\}`, "g");
-      out = out.replace(re, val);
+      out = out.split(`{${key}}`).join(val);
     }
 
     // Tech Escalation rule: Always ends with #{agent_name}

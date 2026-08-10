@@ -61,7 +61,7 @@ export default function CustomerReply({
             >
               <span className="flex items-center gap-1.5">
                 <img src="/signed.png" alt="Signed" className="h-4 w-4 shrink-0 object-contain" />
-                Signed (^{currentAgent.agent_initials})
+                Signed (^{currentAgent?.agent_initials || ""})
               </span>
             </button>
             <button
@@ -294,7 +294,7 @@ export default function CustomerReply({
 
           {replyChannel === "signed" ? (
             <p className="text-xs italic" style={{ color: "var(--text-muted)" }}>
-              💡 Signed format automatically appends agent initials signature <code className="text-[#4cd34c]">^{currentAgent.agent_initials}</code>.
+              💡 Signed format automatically appends agent initials signature <code className="text-[#4cd34c]">^{currentAgent?.agent_initials || ""}</code>.
             </p>
           ) : (
             <p className="text-xs italic" style={{ color: "var(--text-muted)" }}>

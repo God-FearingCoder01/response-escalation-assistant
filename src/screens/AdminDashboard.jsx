@@ -226,7 +226,7 @@ export default function AdminDashboard({
 
         {/* Category Cards with Accordion Expansion & Horizontal Subcategory Navigation */}
         <div className="space-y-4">
-          {groupedAdminCategories.map((catGroup) => {
+          {(groupedAdminCategories || []).map((catGroup) => {
             const isExpanded = Boolean(expandedAdminCats[catGroup.categoryName]);
             const selectedSub = adminSubcatFilter[catGroup.categoryName] ?? "All";
 
@@ -464,7 +464,7 @@ export default function AdminDashboard({
 
         {/* Agent List */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {agents.map((agent) => (
+          {(agents || []).map((agent) => (
             <div key={agent.id} className="rounded-2xl border p-4 flex items-center justify-between" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#32324a_0%,#11111e_100%)] text-sm font-bold text-[#4cd34c] border" style={{ borderColor: "var(--badge-border)" }}>

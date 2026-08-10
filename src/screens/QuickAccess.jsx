@@ -5,22 +5,37 @@ export default function QuickAccess({
   currentAgent,
   quickTab,
   setQuickTab,
-  favoriteTemplates,
-  mostUsedTemplates,
-  recentlyUsedTemplates,
-  templates,
+  favoriteTemplates = [],
+  mostUsedTemplates = [],
+  recentlyUsedTemplates = [],
+  templates = [],
   setSelectedQuickId,
   activeTemplate,
   toggleFavorite,
-  favoriteIds,
-  usageCounts,
-  placeholders,
-  values,
+  favoriteIds = [],
+  usageCounts = {},
+  placeholders = [],
+  values = {},
   setValues,
   generatedMsg,
   copyText,
 }) {
   if (activeScreen !== "quick_access" || !currentAgent) return null;
+
+  const favList = favoriteTemplates || [];
+  const mostList = mostUsedTemplates || [];
+  const recList = recentlyUsedTemplates || [];
+  const allTemplates = templates || [];
+  const favIds = favoriteIds || [];
+  const counts = usageCounts || {};
+  const phList = placeholders || [];
+
+  const currentTabTemplates =
+    quickTab === "favorites"
+      ? favList
+      : quickTab === "most_used"
+        ? mostList
+        : recList;
 
   return (
     <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto">
@@ -52,7 +67,7 @@ export default function QuickAccess({
             style={{ borderColor: quickTab === "favorites" ? "#4cd34c" : "var(--field-border)" }}
           >
             <span>⭐ Favorites</span>
-            <span className="text-[10px] rounded-full px-1.5 py-0.2 bg-[#4cd34c]/20 font-bold">{favoriteTemplates.length}</span>
+            <span className="text-[10px] rounded-full px-1.5 py-0.2 bg-[#4cd34c]/20 font-bold">{favList.length}</span>
           </button>
 
           <button
@@ -66,7 +81,7 @@ export default function QuickAccess({
             style={{ borderColor: quickTab === "most_used" ? "#4cd34c" : "var(--field-border)" }}
           >
             <span>🔥 Most Used</span>
-            <span className="text-[10px] rounded-full px-1.5 py-0.2 bg-[#4cd34c]/20 font-bold">{mostUsedTemplates.length}</span>
+            <span className="text-[10px] rounded-full px-1.5 py-0.2 bg-[#4cd34c]/20 font-bold">{mostList.length}</span>
           </button>
 
           <button
@@ -80,18 +95,13 @@ export default function QuickAccess({
             style={{ borderColor: quickTab === "recently_used" ? "#4cd34c" : "var(--field-border)" }}
           >
             <span>🕒 Recents</span>
-            <span className="text-[10px] rounded-full px-1.5 py-0.2 bg-[#4cd34c]/20 font-bold">{recentlyUsedTemplates.length}</span>
+            <span className="text-[10px] rounded-full px-1.5 py-0.2 bg-[#4cd34c]/20 font-bold">{recList.length}</span>
           </button>
         </div>
 
         {/* Template List Cards */}
         <div className="space-y-3 max-h-[32rem] overflow-y-auto pr-1">
-          {(quickTab === "favorites"
-            ? favoriteTemplates
-            : quickTab === "most_used"
-              ? mostUsedTemplates
-              : recentlyUsedTemplates
-          ).length === 0 ? (
+          {currentTabTemplates.length === 0 ? (
             <div className="space-y-4">
               <div
                 className="p-6 text-center rounded-2xl border backdrop-blur space-y-2"
@@ -114,7 +124,7 @@ export default function QuickAccess({
                 <label className="text-[11px] font-semibold uppercase tracking-wider block" style={{ color: "var(--text-muted)" }}>
                   All Templates Library (Click ⭐ to add to Favorites):
                 </label>
-                {templates.map((t) => (
+                {allTemplates.map((t) => (
                   <div
                     key={t.id}
                     onClick={() => setSelectedQuickId(t.id)}
@@ -144,21 +154,16 @@ export default function QuickAccess({
                         toggleFavorite(t.id);
                       }}
                       className="p-1 rounded-lg text-sm hover:scale-125 transition shrink-0 ml-2"
-                      title={favoriteIds.includes(t.id) ? "Remove from Favorites" : "Add to Favorites"}
+                      title={favIds.includes(t.id) ? "Remove from Favorites" : "Add to Favorites"}
                     >
-                      {favoriteIds.includes(t.id) ? "⭐" : "☆"}
+                      {favIds.includes(t.id) ? "⭐" : "☆"}
                     </button>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            (quickTab === "favorites"
-              ? favoriteTemplates
-              : quickTab === "most_used"
-                ? mostUsedTemplates
-                : recentlyUsedTemplates
-            ).map((t) => (
+            currentTabTemplates.map((t) => (
               <div
                 key={t.id}
                 onClick={() => setSelectedQuickId(t.id)}
@@ -182,9 +187,9 @@ export default function QuickAccess({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {usageCounts[t.id] ? (
+                  {counts[t.id] ? (
                     <span className="text-[10px] font-semibold rounded-full bg-[#4cd34c]/10 text-[#4cd34c] border border-[#4cd34c]/30 px-2 py-0.5">
-                      {usageCounts[t.id]} copies
+                      {counts[t.id]} copies
                     </span>
                   ) : null}
                   <button
@@ -194,9 +199,9 @@ export default function QuickAccess({
                       toggleFavorite(t.id);
                     }}
                     className="p-1 rounded-lg text-sm hover:scale-125 transition"
-                    title={favoriteIds.includes(t.id) ? "Remove from Favorites" : "Add to Favorites"}
+                    title={favIds.includes(t.id) ? "Remove from Favorites" : "Add to Favorites"}
                   >
-                    {favoriteIds.includes(t.id) ? "⭐" : "☆"}
+                    {favIds.includes(t.id) ? "⭐" : "☆"}
                   </button>
                 </div>
               </div>
@@ -223,12 +228,12 @@ export default function QuickAccess({
           </div>
 
           {/* Parameters inputs for Quick Access */}
-          {placeholders.length > 0 ? (
+          {phList.length > 0 ? (
             <div className="space-y-2 max-h-48 overflow-y-auto pr-1 border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
               <label className="text-[11px] font-semibold uppercase tracking-wider block" style={{ color: "var(--text-muted)" }}>
                 Fill Template Parameters:
               </label>
-              {placeholders.map((ph) => {
+              {phList.map((ph) => {
                 const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
                 const isDateField = /^(day|month|year|date)/i.test(ph);
                 const isTimeUnitField = /^time_unit/i.test(ph);

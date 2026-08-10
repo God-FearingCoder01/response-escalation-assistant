@@ -160,7 +160,7 @@ export default function TechEscalation({
           </div>
 
           <p className="text-xs italic" style={{ color: "var(--text-muted)" }}>
-            💡 Tech Escalation messages automatically end with signature <code className="text-[#4cd34c]">#{currentAgent.agent_name}</code>.
+            💡 Tech Escalation messages automatically end with signature <code className="text-[#4cd34c]">#{currentAgent?.agent_name || ""}</code>.
           </p>
         </div>
 
@@ -175,7 +175,13 @@ export default function TechEscalation({
           </button>
           <button
             type="button"
-            onClick={() => copyText(generatedMsg.replace(new RegExp(`\\s*#${currentAgent?.agent_name}$`), ""), "Plain text escalation copied! 📋", activeTemplate?.id)}
+            onClick={() => {
+              const nameSig = currentAgent?.agent_name ? `#${currentAgent.agent_name}` : "";
+              const plainMsg = nameSig && generatedMsg.endsWith(nameSig)
+                ? generatedMsg.slice(0, -nameSig.length).trimEnd()
+                : generatedMsg;
+              copyText(plainMsg, "Plain text escalation copied! 📋", activeTemplate?.id);
+            }}
             disabled={!generatedMsg}
             className="w-full rounded-xl border py-2 text-sm font-medium transition hover:opacity-90"
             style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}

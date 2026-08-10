@@ -1,25 +1,30 @@
 export default function SuggestionsHub({
   activeScreen,
   currentAgent,
-  suggestions,
-  sugName,
+  suggestions = [],
+  sugName = "",
   setSugName,
-  sugBody,
+  sugBody = "",
   setSugBody,
-  sugType,
+  sugType = "customer_reply",
   setSugType,
-  sugCat,
+  sugCat = "",
   setSugCat,
-  sugSubcat,
+  sugSubcat = "",
   setSugSubcat,
-  sugSubmitting,
-  sugFilterStatus,
+  sugSubmitting = false,
+  sugFilterStatus = "all",
   setSugFilterStatus,
   handleSubmitSuggestion,
   handleApproveSuggestion,
   handleRejectSuggestion,
 }) {
   if (activeScreen !== "suggestions" || !currentAgent) return null;
+
+  const sugList = suggestions || [];
+  const filteredSuggestions = sugList.filter(
+    (s) => sugFilterStatus === "All" || sugFilterStatus === "all" || s.status === sugFilterStatus
+  );
 
   return (
     <section className="max-w-7xl mx-auto space-y-8">
@@ -144,7 +149,7 @@ export default function SuggestionsHub({
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-bold" style={{ color: "var(--app-text)" }}>
-                Team Template Suggestions ({suggestions.length})
+                Team Template Suggestions ({sugList.length})
               </h3>
               <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
                 {currentAgent?.is_admin
@@ -174,82 +179,80 @@ export default function SuggestionsHub({
           </div>
 
           <div className="space-y-3 max-h-[38rem] overflow-y-auto pr-1">
-            {suggestions.filter((s) => sugFilterStatus === "All" || s.status === sugFilterStatus).length === 0 ? (
+            {filteredSuggestions.length === 0 ? (
               <div className="p-8 text-center rounded-2xl border italic text-xs" style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}>
                 No template suggestions found for this status filter.
               </div>
             ) : (
-              suggestions
-                .filter((s) => sugFilterStatus === "All" || s.status === sugFilterStatus)
-                .map((sug) => (
-                  <div
-                    key={sug.id}
-                    className="p-4 rounded-2xl border space-y-3 transition backdrop-blur"
-                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="font-bold text-base flex items-center gap-2">
-                          {sug.name}
-                          <span className="text-[10px] rounded-full border px-2 py-0.5 uppercase font-bold" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
-                            {sug.category_type === "tech_escalation" ? "Tech Escalation" : "Customer Reply"}
-                          </span>
-                        </div>
-                        <div className="text-xs text-[var(--text-muted)] mt-0.5">
-                          Category: <strong className="text-[var(--app-text)]">{sug.category || "General"}</strong>
-                          {sug.subcategory ? ` › ${sug.subcategory}` : ""}
-                        </div>
+              filteredSuggestions.map((sug) => (
+                <div
+                  key={sug.id}
+                  className="p-4 rounded-2xl border space-y-3 transition backdrop-blur"
+                  style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-bold text-base flex items-center gap-2">
+                        {sug.name}
+                        <span className="text-[10px] rounded-full border px-2 py-0.5 uppercase font-bold" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                          {sug.category_type === "tech_escalation" ? "Tech Escalation" : "Customer Reply"}
+                        </span>
                       </div>
-
-                      {/* Status Badge */}
-                      <span
-                        className={`text-[10px] rounded-full border px-2.5 py-0.5 uppercase font-bold ${
-                          sug.status === "approved"
-                            ? "text-[#4cd34c] border-[#4cd34c]/40 bg-[#4cd34c]/10"
-                            : sug.status === "rejected"
-                              ? "text-[var(--error-text)] border-[var(--error-border)] bg-[var(--error-bg)]"
-                              : "text-[#f1c84b] border-[#f1c84b]/40 bg-[#f1c84b]/10"
-                        }`}
-                      >
-                        {sug.status === "approved" ? "Approved ✅" : sug.status === "rejected" ? "Rejected ❌" : "Pending Review ⏳"}
-                      </span>
+                      <div className="text-xs text-[var(--text-muted)] mt-0.5">
+                        Category: <strong className="text-[var(--app-text)]">{sug.category || "General"}</strong>
+                        {sug.subcategory ? ` › ${sug.subcategory}` : ""}
+                      </div>
                     </div>
 
-                    <div className="rounded-xl border p-3 font-mono text-xs whitespace-pre-wrap leading-relaxed" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}>
-                      {sug.body}
-                    </div>
-
-                    <div className="flex items-center justify-between pt-1 text-xs">
-                      <span className="text-[11px] text-[var(--text-muted)] italic flex items-center gap-1">
-                        Suggested by <strong className="text-[#4cd34c] font-semibold">{sug.suggested_by_name} ({sug.suggested_by_initials})</strong>
-                      </span>
-
-                      {currentAgent?.is_admin ? (
-                        <div className="flex gap-2">
-                          {sug.status !== "approved" ? (
-                            <button
-                              type="button"
-                              onClick={() => handleApproveSuggestion(sug.id)}
-                              className="px-3 py-1.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-semibold shadow transition hover:opacity-90"
-                            >
-                              Approve & Add to Templates Library
-                            </button>
-                          ) : null}
-                          {sug.status !== "rejected" ? (
-                            <button
-                              type="button"
-                              onClick={() => handleRejectSuggestion(sug.id)}
-                              className="px-3 py-1.5 rounded-xl border text-xs font-semibold hover:bg-[#b83838]/20 transition"
-                              style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
-                            >
-                              Reject
-                            </button>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
+                    {/* Status Badge */}
+                    <span
+                      className={`text-[10px] rounded-full border px-2.5 py-0.5 uppercase font-bold ${
+                        sug.status === "approved"
+                          ? "text-[#4cd34c] border-[#4cd34c]/40 bg-[#4cd34c]/10"
+                          : sug.status === "rejected"
+                            ? "text-[var(--error-text)] border-[var(--error-border)] bg-[var(--error-bg)]"
+                            : "text-[#f1c84b] border-[#f1c84b]/40 bg-[#f1c84b]/10"
+                      }`}
+                    >
+                      {sug.status === "approved" ? "Approved ✅" : sug.status === "rejected" ? "Rejected ❌" : "Pending Review ⏳"}
+                    </span>
                   </div>
-                ))
+
+                  <div className="rounded-xl border p-3 font-mono text-xs whitespace-pre-wrap leading-relaxed" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}>
+                    {sug.body}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 text-xs">
+                    <span className="text-[11px] text-[var(--text-muted)] italic flex items-center gap-1">
+                      Suggested by <strong className="text-[#4cd34c] font-semibold">{sug.suggested_by_name} ({sug.suggested_by_initials})</strong>
+                    </span>
+
+                    {currentAgent?.is_admin ? (
+                      <div className="flex gap-2">
+                        {sug.status !== "approved" ? (
+                          <button
+                            type="button"
+                            onClick={() => handleApproveSuggestion(sug.id)}
+                            className="px-3 py-1.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-semibold shadow transition hover:opacity-90"
+                          >
+                            Approve & Add to Templates Library
+                          </button>
+                        ) : null}
+                        {sug.status !== "rejected" ? (
+                          <button
+                            type="button"
+                            onClick={() => handleRejectSuggestion(sug.id)}
+                            className="px-3 py-1.5 rounded-xl border text-xs font-semibold hover:bg-[#b83838]/20 transition"
+                            style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
+                          >
+                            Reject
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>
