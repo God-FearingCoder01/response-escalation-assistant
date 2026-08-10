@@ -301,8 +301,8 @@ app.add_middleware(
 
 @app.get("/health")
 def health_check():
-    # with Session(engine) as session:
-    #     sync_default_data_if_needed(session)
+    with Session(engine) as session:
+        sync_default_data_if_needed(session)
     return {"status": "ok", "message": "Backend is ready"}
 
 
