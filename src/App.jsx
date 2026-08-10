@@ -28,51 +28,63 @@ export default function App() {
   const [statusMessage, setStatusMessage] = useState("");
   const [values, setValues] = useState({});
 
-  // 1. Agents hook (agents, currentAgent, activeScreen, PIN verification, agent CRUD)
-  const agentState = useAgents({ apiStatus, showToast: (msg) => userInteractions.showToast(msg) });
+  // 1. Agents hook
+  const agentState = useAgents({
+    apiStatus,
+    showToast: (msg) => userInteractions?.showToast?.(msg),
+  });
+
   const {
-    agents,
-    currentAgent,
+    agents = [],
+    currentAgent = null,
     setCurrentAgent,
-    activeScreen,
+    activeScreen = "welcome",
     setActiveScreen,
     handleSelectAgent,
-    showPinModal,
+    showPinModal = false,
     setShowPinModal,
     setPendingAdminAgent,
-    pinDigits,
+    pinDigits = ["", "", "", ""],
     setPinDigits,
-    pinError,
+    pinError = "",
     setPinError,
     verifyPin,
-    adminCurrentPin,
+    adminCurrentPin = "",
     setAdminCurrentPin,
-    adminNewPin,
+    adminNewPin = "",
     setAdminNewPin,
-    adminConfirmPin,
+    adminConfirmPin = "",
     setAdminConfirmPin,
-    pinSuccessMsg,
-    pinErrorMsg,
+    pinSuccessMsg = "",
+    pinErrorMsg = "",
     handleChangeAdminPin,
-    editAgentId,
-    editAgentFullName,
+    editAgentId = null,
+    editAgentFullName = "",
     setEditAgentFullName,
-    editAgentName,
+    editAgentName = "",
     setEditAgentName,
-    editAgentInitials,
+    editAgentInitials = "",
     setEditAgentInitials,
-    editAgentIsAdmin,
+    editAgentIsAdmin = false,
     setEditAgentIsAdmin,
     setUserCustomizedInitials,
     handleEditAgentClick,
     handleResetAgentForm,
     handleCreateOrUpdateAgent,
     handleDeleteAgent,
-  } = agentState;
+  } = agentState || {};
 
   // 2. User Interactions hook (toasts, favorites, history, copy actions)
   const userInteractions = useUserInteractions({ currentAgent, apiStatus });
-  const { showToast, toast, favoriteIds, usageCounts, recentlyUsed, toggleFavorite, copyText } = userInteractions;
+  const {
+    showToast = () => {},
+    toast = { show: false, message: "" },
+    favoriteIds = [],
+    usageCounts = {},
+    recentlyUsed = [],
+    toggleFavorite = () => {},
+    copyText = () => {},
+  } = userInteractions || {};
 
   // 3. Templates hook (templates, category filtering, placeholder extraction, message generation, template CRUD)
   const templateState = useTemplates({
@@ -86,39 +98,39 @@ export default function App() {
   });
 
   const {
-    templates,
-    refreshTemplates,
-    selectedTechId,
+    templates = [],
+    refreshTemplates = () => {},
+    selectedTechId = null,
     setSelectedTechId,
-    selectedCustId,
+    selectedCustId = null,
     setSelectedCustId,
-    selectedCategory,
+    selectedCategory = "All",
     setSelectedCategory,
-    selectedSubcategory,
+    selectedSubcategory = "All",
     setSelectedSubcategory,
-    replyChannel,
+    replyChannel = "signed",
     setReplyChannel,
-    searchQuery,
+    searchQuery = "",
     setSearchQuery,
-    selectedQuickId,
+    selectedQuickId = null,
     setSelectedQuickId,
-    quickTab,
+    quickTab = "favorites",
     setQuickTab,
-    expandedAdminCats,
+    expandedAdminCats = {},
     setExpandedAdminCats,
-    adminSubcatFilter,
+    adminSubcatFilter = {},
     setAdminSubcatFilter,
-    editTplId,
+    editTplId = null,
     setEditTplId,
-    editTplName,
+    editTplName = "",
     setEditTplName,
-    editTplBody,
+    editTplBody = "",
     setEditTplBody,
-    editTplType,
+    editTplType = "tech_escalation",
     setEditTplType,
-    editTplCat,
+    editTplCat = "",
     setEditTplCat,
-    editTplSubcat,
+    editTplSubcat = "",
     setEditTplSubcat,
     handleEditTemplateClick,
     handleResetTemplateForm,
@@ -127,18 +139,18 @@ export default function App() {
     handleExportTemplates,
     handleImportTemplatesFile,
     handleDeduplicateTemplates,
-    techTemplates,
-    customerCategories,
-    customerSubcategories,
-    filteredCustomerTemplates,
-    favoriteTemplates,
-    mostUsedTemplates,
-    recentlyUsedTemplates,
-    groupedAdminCategories,
-    activeTemplate,
-    placeholders,
-    generateMessage,
-  } = templateState;
+    techTemplates = [],
+    customerCategories = [],
+    customerSubcategories = [],
+    filteredCustomerTemplates = [],
+    favoriteTemplates = [],
+    mostUsedTemplates = [],
+    recentlyUsedTemplates = [],
+    groupedAdminCategories = [],
+    activeTemplate = null,
+    placeholders = [],
+    generateMessage = () => "",
+  } = templateState || {};
 
   // 4. Suggestions hook (suggestions, live 5s polling, submissions, approvals, rejections)
   const suggestionState = useSuggestions({
@@ -151,24 +163,24 @@ export default function App() {
   });
 
   const {
-    suggestions,
-    sugName,
+    suggestions = [],
+    sugName = "",
     setSugName,
-    sugBody,
+    sugBody = "",
     setSugBody,
-    sugType,
+    sugType = "customer_reply",
     setSugType,
-    sugCat,
+    sugCat = "",
     setSugCat,
-    sugSubcat,
+    sugSubcat = "",
     setSugSubcat,
-    sugSubmitting,
-    sugFilterStatus,
+    sugSubmitting = false,
+    sugFilterStatus = "all",
     setSugFilterStatus,
     handleSubmitSuggestion,
     handleApproveSuggestion,
     handleRejectSuggestion,
-  } = suggestionState;
+  } = suggestionState || {};
 
   // Check health status on app initialization
   useEffect(() => {
@@ -206,7 +218,7 @@ export default function App() {
     <div
       className="min-h-screen transition-colors duration-300 font-sans relative flex"
       style={{
-        backgroundImage: themeConfig.overlay,
+        backgroundImage: themeConfig?.overlay || "",
         backgroundColor: "var(--app-bg)",
         color: "var(--app-text)",
       }}

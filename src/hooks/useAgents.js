@@ -11,7 +11,7 @@ import {
 } from "../services/api";
 
 export function useAgents({ apiStatus, showToast }) {
-  const [agents, setAgents] = useState([]);
+  const [agents, setAgents] = useState(DEFAULT_AGENTS);
   const [currentAgent, setCurrentAgent] = useState(() => {
     if (typeof window === "undefined") return null;
     try {

@@ -10,7 +10,7 @@ import {
 } from "../services/api";
 
 export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteIds, usageCounts, recentlyUsed, showToast }) {
-  const [templates, setTemplates] = useState([]);
+  const [templates, setTemplates] = useState(DEFAULT_TEMPLATES);
 
   // Tech Escalation screen state
   const [selectedTechId, setSelectedTechId] = useState(null);
@@ -128,22 +128,25 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
 
   // Favorites templates list
   const favoriteTemplates = useMemo(() => {
-    return templates.filter((t) => favoriteIds.includes(t.id));
+    const favList = favoriteIds || [];
+    return templates.filter((t) => favList.includes(t.id));
   }, [templates, favoriteIds]);
 
   // Most used templates list
   const mostUsedTemplates = useMemo(() => {
+    const counts = usageCounts || {};
     return [...templates]
-      .filter((t) => (usageCounts[t.id] || 0) > 0)
-      .sort((a, b) => (usageCounts[b.id] || 0) - (usageCounts[a.id] || 0));
+      .filter((t) => (counts[t.id] || 0) > 0)
+      .sort((a, b) => (counts[b.id] || 0) - (counts[a.id] || 0));
   }, [templates, usageCounts]);
 
   // Recently used templates list
   const recentlyUsedTemplates = useMemo(() => {
     const map = new Map(templates.map((t) => [t.id, t]));
     const list = [];
-    recentlyUsed.forEach((item) => {
-      const t = map.get(item.templateId);
+    const recents = recentlyUsed || [];
+    recents.forEach((item) => {
+      const t = map.get(item?.templateId);
       if (t && !list.some((existing) => existing.id === t.id)) {
         list.push(t);
       }

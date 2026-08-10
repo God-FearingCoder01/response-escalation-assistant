@@ -49,27 +49,27 @@ export default function TechEscalation({
             {activeTemplate ? (
               <button
                 type="button"
-                onClick={() => toggleFavorite(activeTemplate.id)}
+                onClick={() => toggleFavorite?.(activeTemplate.id)}
                 className={`text-xs font-medium px-2.5 py-1 rounded-xl border flex items-center gap-1 transition ${
-                  favoriteIds.includes(activeTemplate.id)
+                  (favoriteIds || []).includes(activeTemplate.id)
                     ? "border-[#f1c84b] bg-[#f1c84b]/10 text-[#f1c84b]"
                     : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
                 }`}
-                style={{ borderColor: favoriteIds.includes(activeTemplate.id) ? "#f1c84b" : "var(--field-border)" }}
+                style={{ borderColor: (favoriteIds || []).includes(activeTemplate.id) ? "#f1c84b" : "var(--field-border)" }}
               >
-                {favoriteIds.includes(activeTemplate.id) ? "⭐ Favorited" : "☆ Add to Favorites"}
+                {(favoriteIds || []).includes(activeTemplate.id) ? "⭐ Favorited" : "☆ Add to Favorites"}
               </button>
             ) : null}
           </div>
           <select
             value={selectedTechId ?? ""}
-            onChange={(e) => setSelectedTechId(Number(e.target.value))}
+            onChange={(e) => setSelectedTechId?.(Number(e.target.value))}
             className="w-full rounded-xl border p-3 font-medium text-sm"
             style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
           >
-            {techTemplates.map((t) => (
+            {(techTemplates || []).map((t) => (
               <option key={t.id} value={t.id}>
-                {favoriteIds.includes(t.id) ? "⭐ " : ""}{t.name}
+                {(favoriteIds || []).includes(t.id) ? "⭐ " : ""}{t.name}
               </option>
             ))}
           </select>
@@ -81,13 +81,13 @@ export default function TechEscalation({
             Escalation Parameters:
           </h3>
 
-          {placeholders.length === 0 ? (
+          {(placeholders || []).length === 0 ? (
             <p className="text-xs italic p-3 rounded-xl border" style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}>
               This template contains no customizable fields.
             </p>
           ) : (
             <div className="space-y-3">
-              {placeholders.map((ph) => {
+              {(placeholders || []).map((ph) => {
                 const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
                 const isDateField = /^(day|month|year|date)/i.test(ph);
                 const isTimeUnitField = /^time_unit/i.test(ph);
