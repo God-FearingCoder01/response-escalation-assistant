@@ -547,7 +547,8 @@ def verify_agent_pin(req: PinVerifyRequest):
                 session.add(agent)
                 try: session.commit()
                 except Exception: session.rollback()
-            token = generate_admin_token(agent.agent_initials, expected_hash)
+            current_hash = agent.pin or hashed_input
+            token = generate_admin_token(agent.agent_initials, current_hash)
             return {"valid": True, "agent": agent_read, "token": token}
         else:
             return {"valid": False, "detail": "Incorrect 4-digit Security PIN"}
