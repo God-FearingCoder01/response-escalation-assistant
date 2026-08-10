@@ -13,7 +13,7 @@ CLOUD_BLOB_URL = "https://jsonblob.com/api/jsonBlob/019fea6b-fb22-75ae-81fc-afce
 def hash_pin(pin: str) -> str:
     if not pin:
         pin = "0000"
-    clean_pin = str(pin).strip()
+    clean_pin = pin.strip()
     salt = "rea_admin_pin_salt_v1"
     return hashlib.sha256(f"{salt}:{clean_pin}".encode("utf-8")).hexdigest()
 
@@ -21,12 +21,17 @@ def hash_pin(pin: str) -> str:
 def verify_pin_hash(pin: str, stored_hash: str | None) -> bool:
     if not pin:
         return False
-    clean_pin = str(pin).strip()
+    clean_pin = pin.strip()
     if not stored_hash or stored_hash == "0000":
         return clean_pin == "0000" or hash_pin(clean_pin) == hash_pin("0000")
     if len(stored_hash) == 64:
         return hash_pin(clean_pin) == stored_hash
     return clean_pin == stored_hash
+
+
+def generate_admin_token(agent_initials: str, pin_hash: str) -> str:
+    salt = "rea_admin_session_salt_v1"
+    return hashlib.sha256(f"{salt}:{agent_initials}:{pin_hash}".encode("utf-8")).hexdigest()
 
 
 def get_cloud_store() -> dict:
@@ -63,13 +68,61 @@ def save_cloud_store(data: dict) -> bool:
 
 
 from pydantic import BaseModel
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select, col
 
 class PinVerifyRequest(BaseModel):
     agent_initials: str
     pin: str
+
+
+def require_admin(
+    x_admin_token: str | None = Header(None, alias="X-Admin-Token"),
+    x_admin_initials: str | None = Header(None, alias="X-Admin-Initials"),
+    x_admin_pin: str | None = Header(None, alias="X-Admin-PIN"),
+):
+    token_str = x_admin_token if isinstance(x_admin_token, str) else None
+    initials_str = x_admin_initials if isinstance(x_admin_initials, str) else None
+    pin_str = x_admin_pin if isinstance(x_admin_pin, str) else None
+
+    if not token_str and not pin_str:
+        raise HTTPException(
+            status_code=401,
+            detail="Admin authorization required: missing X-Admin-Token or X-Admin-PIN header",
+        )
+
+    with Session(engine) as session:
+        admin_agents = session.exec(select(Agent).where(Agent.is_admin == True)).all()
+        if not admin_agents:
+            raise HTTPException(status_code=403, detail="No admin profile configured")
+
+        if initials_str:
+            filtered = [a for a in admin_agents if a.agent_initials.upper() == initials_str.upper()]
+            if filtered:
+                admin_agents = filtered
+
+        cloud = get_cloud_store()
+        cloud_agents = cloud.get("agents", [])
+
+        authenticated = False
+        for agent in admin_agents:
+            expected_hash = agent.pin or hash_pin("0000")
+            for ca in cloud_agents:
+                if ca.get("agent_initials") == agent.agent_initials and ca.get("pin"):
+                    expected_hash = ca["pin"]
+                    break
+
+            if token_str and token_str == generate_admin_token(agent.agent_initials, expected_hash):
+                authenticated = True
+                break
+
+            if pin_str and verify_pin_hash(pin_str, expected_hash):
+                authenticated = True
+                break
+
+        if not authenticated:
+            raise HTTPException(status_code=403, detail="Invalid or expired admin authorization credentials")
 
 
 try:
@@ -317,7 +370,7 @@ def list_templates():
         return local_tpls
 
 
-@app.post("/templates", response_model=TemplateRead)
+@app.post("/templates", response_model=TemplateRead, dependencies=[Depends(require_admin)])
 def create_template(template: TemplateCreate):
     with Session(engine) as session:
         existing = session.exec(
@@ -357,7 +410,7 @@ def get_template(template_id: int):
         return template
 
 
-@app.put("/templates/{template_id}", response_model=TemplateRead)
+@app.put("/templates/{template_id}", response_model=TemplateRead, dependencies=[Depends(require_admin)])
 def update_template(template_id: int, incoming: TemplateUpdate):
     with Session(engine) as session:
         existing = session.get(Template, template_id)
@@ -375,7 +428,7 @@ def update_template(template_id: int, incoming: TemplateUpdate):
         return existing
 
 
-@app.delete("/templates/{template_id}")
+@app.delete("/templates/{template_id}", dependencies=[Depends(require_admin)])
 def delete_template(template_id: int):
     with Session(engine) as session:
         existing = session.get(Template, template_id)
@@ -392,7 +445,7 @@ def export_templates():
         return session.exec(select(Template).order_by(col(Template.updated_at).desc())).all()
 
 
-@app.post("/import")
+@app.post("/import", dependencies=[Depends(require_admin)])
 def import_templates(items: List[TemplateCreate]):
     with Session(engine) as session:
         existing_templates = session.exec(select(Template)).all()
@@ -439,7 +492,7 @@ def import_templates(items: List[TemplateCreate]):
     }
 
 
-@app.post("/templates/deduplicate")
+@app.post("/templates/deduplicate", dependencies=[Depends(require_admin)])
 def deduplicate_templates():
     with Session(engine) as session:
         all_templates = session.exec(select(Template).order_by(col(Template.id).asc())).all()
@@ -522,7 +575,7 @@ def list_agents():
         return local_agents
 
 
-@app.post("/agents", response_model=AgentRead)
+@app.post("/agents", response_model=AgentRead, dependencies=[Depends(require_admin)])
 def create_agent(agent: AgentCreate):
     with Session(engine) as session:
         now = datetime.now(timezone.utc)
@@ -542,7 +595,7 @@ def create_agent(agent: AgentCreate):
         return db_agent
 
 
-@app.put("/agents/{agent_id}", response_model=AgentRead)
+@app.put("/agents/{agent_id}", response_model=AgentRead, dependencies=[Depends(require_admin)])
 def update_agent(agent_id: int, incoming: AgentUpdate):
     with Session(engine) as session:
         existing = session.get(Agent, agent_id)
@@ -566,7 +619,7 @@ def update_agent(agent_id: int, incoming: AgentUpdate):
         return existing
 
 
-@app.delete("/agents/{agent_id}")
+@app.delete("/agents/{agent_id}", dependencies=[Depends(require_admin)])
 def delete_agent(agent_id: int):
     with Session(engine) as session:
         existing = session.get(Agent, agent_id)
@@ -605,7 +658,8 @@ def verify_agent_pin(req: PinVerifyRequest):
                 session.add(agent)
                 try: session.commit()
                 except Exception: session.rollback()
-            return {"valid": True, "agent": agent}
+            token = generate_admin_token(agent.agent_initials, expected_hash)
+            return {"valid": True, "agent": agent, "token": token}
         else:
             return {"valid": False, "detail": "Incorrect 4-digit Security PIN"}
 
@@ -682,7 +736,7 @@ def create_suggestion(payload: SuggestionCreate):
         return suggestion
 
 
-@app.post("/suggestions/{suggestion_id}/approve", response_model=TemplateRead)
+@app.post("/suggestions/{suggestion_id}/approve", response_model=TemplateRead, dependencies=[Depends(require_admin)])
 def approve_suggestion(suggestion_id: int):
     with Session(engine) as session:
         sug = session.get(Suggestion, suggestion_id)
@@ -749,7 +803,7 @@ def approve_suggestion(suggestion_id: int):
         return new_tpl
 
 
-@app.post("/suggestions/{suggestion_id}/reject", response_model=SuggestionRead)
+@app.post("/suggestions/{suggestion_id}/reject", response_model=SuggestionRead, dependencies=[Depends(require_admin)])
 def reject_suggestion(suggestion_id: int):
     with Session(engine) as session:
         sug = session.get(Suggestion, suggestion_id)
@@ -792,7 +846,7 @@ def reject_suggestion(suggestion_id: int):
         return sug
 
 
-@app.delete("/suggestions/{suggestion_id}")
+@app.delete("/suggestions/{suggestion_id}", dependencies=[Depends(require_admin)])
 def delete_suggestion(suggestion_id: int):
     with Session(engine) as session:
         sug = session.get(Suggestion, suggestion_id)

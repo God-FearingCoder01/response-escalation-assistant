@@ -13,6 +13,18 @@ export const getApiBase = () => {
 export const API_BASE = getApiBase();
 export const THEME_KEY = "rea_theme_v1";
 export const AGENT_KEY = "rea_active_agent_v1";
+export const ADMIN_TOKEN_KEY = "rea_admin_token_v1";
+export const ADMIN_INITIALS_KEY = "rea_admin_initials_v1";
+
+export function getAdminHeaders() {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem(ADMIN_TOKEN_KEY);
+  const initials = localStorage.getItem(ADMIN_INITIALS_KEY);
+  const headers = {};
+  if (token) headers["X-Admin-Token"] = token;
+  if (initials) headers["X-Admin-Initials"] = initials;
+  return headers;
+}
 
 export const DEFAULT_TEMPLATES = [
   // Tech Escalation Templates
@@ -172,7 +184,7 @@ export async function fetchTemplatesApi() {
 export async function createTemplateApi(payload) {
   const res = await fetch(`${API_BASE}/templates`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getAdminHeaders() },
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -185,7 +197,7 @@ export async function createTemplateApi(payload) {
 export async function updateTemplateApi(id, payload) {
   const res = await fetch(`${API_BASE}/templates/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getAdminHeaders() },
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -196,7 +208,10 @@ export async function updateTemplateApi(id, payload) {
 }
 
 export async function deleteTemplateApi(id) {
-  const res = await fetch(`${API_BASE}/templates/${id}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/templates/${id}`, {
+    method: "DELETE",
+    headers: { ...getAdminHeaders() },
+  });
   if (!res.ok) throw new Error("Failed to delete template");
   return true;
 }
@@ -204,7 +219,7 @@ export async function deleteTemplateApi(id) {
 export async function importTemplatesApi(payload) {
   const res = await fetch(`${API_BASE}/import`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getAdminHeaders() },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("Import failed");
@@ -218,7 +233,7 @@ export async function fetchAgentsApi() {
 export async function createAgentApi(payload) {
   const res = await fetch(`${API_BASE}/agents`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getAdminHeaders() },
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -231,7 +246,7 @@ export async function createAgentApi(payload) {
 export async function updateAgentApi(id, payload) {
   const res = await fetch(`${API_BASE}/agents/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getAdminHeaders() },
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -242,7 +257,10 @@ export async function updateAgentApi(id, payload) {
 }
 
 export async function deleteAgentApi(id) {
-  const res = await fetch(`${API_BASE}/agents/${id}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/agents/${id}`, {
+    method: "DELETE",
+    headers: { ...getAdminHeaders() },
+  });
   if (!res.ok) throw new Error("Failed to delete agent");
   return true;
 }
@@ -275,13 +293,19 @@ export async function createSuggestionApi(payload) {
 }
 
 export async function approveSuggestionApi(id) {
-  const res = await fetch(`${API_BASE}/suggestions/${id}/approve`, { method: "POST" });
+  const res = await fetch(`${API_BASE}/suggestions/${id}/approve`, {
+    method: "POST",
+    headers: { ...getAdminHeaders() },
+  });
   if (!res.ok) throw new Error("Approval failed");
   return await res.json();
 }
 
 export async function rejectSuggestionApi(id) {
-  const res = await fetch(`${API_BASE}/suggestions/${id}/reject`, { method: "POST" });
+  const res = await fetch(`${API_BASE}/suggestions/${id}/reject`, {
+    method: "POST",
+    headers: { ...getAdminHeaders() },
+  });
   if (!res.ok) throw new Error("Rejection failed");
   return await res.json();
 }

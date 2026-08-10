@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import {
   AGENT_KEY,
+  ADMIN_TOKEN_KEY,
+  ADMIN_INITIALS_KEY,
   DEFAULT_AGENTS,
   fetchAgentsApi,
   createAgentApi,
@@ -87,6 +89,8 @@ export function useAgents({ apiStatus, showToast }) {
       setCurrentAgent(agent);
       try {
         window.localStorage.setItem(AGENT_KEY, JSON.stringify(agent));
+        window.localStorage.removeItem(ADMIN_TOKEN_KEY);
+        window.localStorage.removeItem(ADMIN_INITIALS_KEY);
       } catch (e) {}
       setActiveScreen("tech_escalation");
     }
@@ -110,6 +114,10 @@ export function useAgents({ apiStatus, showToast }) {
           setCurrentAgent(verifiedAgent);
           try {
             window.localStorage.setItem(AGENT_KEY, JSON.stringify(verifiedAgent));
+            if (res.token) {
+              window.localStorage.setItem(ADMIN_TOKEN_KEY, res.token);
+            }
+            window.localStorage.setItem(ADMIN_INITIALS_KEY, verifiedAgent.agent_initials);
           } catch (e) {}
           setShowPinModal(false);
           setPendingAdminAgent(null);
