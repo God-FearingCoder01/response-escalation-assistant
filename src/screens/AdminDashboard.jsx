@@ -306,11 +306,10 @@ export default function AdminDashboard({
                                     [catGroup.categoryName]: sub,
                                   }))
                                 }
-                                className={`rounded-xl border px-3 py-1 text-xs font-medium shrink-0 transition ${
-                                  isSubActive
+                                className={`rounded-xl border px-3 py-1 text-xs font-medium shrink-0 transition ${isSubActive
                                     ? "bg-[#4cd34c] text-[#071007] font-bold border-[#4cd34c] shadow-sm"
                                     : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
-                                }`}
+                                  }`}
                                 style={{ borderColor: isSubActive ? "#4cd34c" : "var(--badge-border)" }}
                               >
                                 {sub}
@@ -396,7 +395,7 @@ export default function AdminDashboard({
               <input
                 value={editAgentFullName}
                 onChange={(e) => setEditAgentFullName(e.target.value)}
-                placeholder="e.g. Vuyo Ndlovu"
+                placeholder="e.g. Vuyolwenkosi Ndlovu"
                 className="w-full rounded-xl border p-2.5 text-sm"
                 style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
               />

@@ -1,5 +1,7 @@
 import os
 import hashlib
+import json
+from pathlib import Path
 from sqlalchemy import false
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -207,8 +209,29 @@ DEFAULT_AGENTS: List[DefaultAgent] = [
   { "agent": "Kilian D", "agent_name": "Kilian", "agent_initials": "KD", "is_admin": False, "pin": "0000" },
   { "agent": "Thembi Sibanda", "agent_name": "Thembie", "agent_initials": "TS", "is_admin": False, "pin": "0000" },
   { "agent": "Kudzi Honde", "agent_name": "Kudzie", "agent_initials": "KH", "is_admin": False, "pin": "0000" },
-  { "agent": "System Admin", "agent_name": "Sys_Admin", "agent_initials": "SA", "is_admin": True, "pin": "0000" },
 ]
+
+
+CLOUD_STORE_FILE = Path("/tmp/cloud_store.json") if (os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")) else (Path(__file__).resolve().parent / "cloud_store.json")
+
+
+def get_cloud_store() -> dict:
+    try:
+        if CLOUD_STORE_FILE.exists():
+            with open(CLOUD_STORE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as e:
+        print("Error reading cloud store:", e)
+    return {}
+
+
+def save_cloud_store(cloud: dict) -> None:
+    try:
+        CLOUD_STORE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(CLOUD_STORE_FILE, "w", encoding="utf-8") as f:
+            json.dump(cloud, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print("Error saving cloud store:", e)
 
 
 # Helper to sync template list to Cloud Store
