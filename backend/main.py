@@ -603,6 +603,11 @@ def update_agent(agent_id: int, incoming: AgentUpdate):
         existing = session.get(Agent, agent_id)
         if not existing:
             raise HTTPException(status_code=404, detail="Agent not found")
+        if (existing.agent_initials == "SA" or existing.agent_name == "Sys_Admin") and incoming.is_admin is False:
+            raise HTTPException(
+                status_code=400,
+                detail="Security Protection: System Admin profile (Sys_Admin / SA) must retain admin privileges.",
+            )
         if incoming.agent is not None:
             existing.agent = incoming.agent
         if incoming.agent_name is not None:
@@ -626,6 +631,18 @@ def delete_agent(agent_id: int):
         existing = session.get(Agent, agent_id)
         if not existing:
             raise HTTPException(status_code=404, detail="Agent not found")
+        if existing.agent_initials == "SA" or existing.agent_name == "Sys_Admin":
+            raise HTTPException(
+                status_code=400,
+                detail="Security Protection: The System Admin profile (Sys_Admin / SA) cannot be deleted to ensure platform admin access remains available.",
+            )
+        if existing.is_admin:
+            admin_count = len(session.exec(select(Agent).where(Agent.is_admin == True)).all())
+            if admin_count <= 1:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Security Protection: Cannot delete the last remaining System Admin profile on the platform.",
+                )
         session.delete(existing)
         session.commit()
     return {"ok": True, "message": "Agent deleted"}

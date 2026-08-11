@@ -553,13 +553,23 @@ export default function AdminDashboard({
                 >
                   Edit
                 </button>
-                <button
-                  onClick={() => handleDeleteAgent(agent.id)}
-                  className="px-3 py-1.5 rounded-xl border text-xs font-semibold"
-                  style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
-                >
-                  Delete
-                </button>
+                {agent.agent_initials === "SA" || agent.agent_name === "Sys_Admin" ? (
+                  <button
+                    disabled
+                    className="px-3 py-1.5 rounded-xl border text-xs font-semibold opacity-50 cursor-not-allowed text-[#4cd34c] border-[#4cd34c]/30 bg-[#4cd34c]/10"
+                    title="System Admin profile cannot be deleted"
+                  >
+                    Protected 🛡️
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleDeleteAgent(agent.id)}
+                    className="px-3 py-1.5 rounded-xl border text-xs font-semibold"
+                    style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
           ))}

@@ -296,6 +296,17 @@ export function useAgents({ apiStatus, showToast }) {
   };
 
   const handleDeleteAgent = async (agentId) => {
+    const targetAgent = agents.find((a) => a.id === agentId);
+    if (targetAgent && (targetAgent.agent_initials === "SA" || targetAgent.agent_name === "Sys_Admin")) {
+      showToast("Security Protection: The System Admin profile (Sys_Admin / SA) cannot be deleted. 🛡️");
+      return;
+    }
+    const adminCount = agents.filter((a) => a.is_admin).length;
+    if (targetAgent?.is_admin && adminCount <= 1) {
+      showToast("Security Protection: Cannot delete the last remaining System Admin profile. 🛡️");
+      return;
+    }
+
     if (!window.confirm("Are you sure you want to delete this agent?")) return;
     try {
       if (apiStatus !== "offline") {
