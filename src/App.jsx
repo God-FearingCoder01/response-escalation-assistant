@@ -5,6 +5,7 @@ import { useAgents } from "./hooks/useAgents";
 import { useUserInteractions } from "./hooks/useUserInteractions";
 import { useTemplates } from "./hooks/useTemplates";
 import { useSuggestions } from "./hooks/useSuggestions";
+import { useTranslator } from "./hooks/useTranslator";
 
 import Sidebar from "./components/Sidebar";
 import PinModal from "./components/PinModal";
@@ -17,6 +18,7 @@ import CustomerReply from "./screens/CustomerReply";
 import AdminDashboard from "./screens/AdminDashboard";
 import SuggestionsHub from "./screens/SuggestionsHub";
 import QuickAccess from "./screens/QuickAccess";
+import TranslatorScreen from "./screens/TranslatorScreen";
 
 export default function App() {
   const { themeMode, setThemeMode, themeConfig } = useTheme();
@@ -182,6 +184,9 @@ export default function App() {
     handleApproveSuggestion,
     handleRejectSuggestion,
   } = suggestionState || {};
+
+  // 5. Translator hook
+  const translatorState = useTranslator({ showToast });
 
   // Check health status on app initialization
   useEffect(() => {
@@ -400,6 +405,14 @@ export default function App() {
           generatedMsg={generatedMsg}
           copyText={copyText}
         />
+
+        {activeScreen === "translator" && (
+          <TranslatorScreen
+            translatorState={translatorState}
+            copyText={copyText}
+            showToast={showToast}
+          />
+        )}
       </div>
 
       <Toast toast={toast} />

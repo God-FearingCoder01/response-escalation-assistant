@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { getDateAutoValues } from "../services/api";
+import { translateText } from "../services/translationService";
 
 export default function CustomerReply({
   activeScreen,
@@ -24,6 +26,23 @@ export default function CustomerReply({
   generatedMsg,
   copyText,
 }) {
+  const [shonaText, setShonaText] = useState("");
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [viewMode, setViewMode] = useState("english"); // 'english' | 'shona'
+
+  const handleInlineTranslate = async () => {
+    if (!generatedMsg) return;
+    setIsTranslating(true);
+    try {
+      const res = await translateText(generatedMsg, "en", "sn");
+      setShonaText(res.translatedText);
+      setViewMode("shona");
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
   if (activeScreen !== "customer_reply" || !currentAgent) return null;
 
   return (
@@ -270,26 +289,48 @@ export default function CustomerReply({
             <h2 className="text-xl font-bold" style={{ color: "var(--app-text)" }}>
               Customer Reply Preview
             </h2>
-            <span className="text-xs uppercase font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-3 py-1 rounded-full flex items-center gap-1.5">
-              {replyChannel === "signed" ? (
-                <>
-                  <img src="/signed.png" alt="Signed" className="h-3.5 w-3.5 object-contain" />
-                  Signed
-                </>
-              ) : (
-                <>
-                  <img src="/unsigned.png" alt="Unsigned" className="h-3.5 w-3.5 object-contain" />
-                  Unsigned
-                </>
+            <div className="flex items-center gap-2">
+              {shonaText && (
+                <div className="flex items-center rounded-xl border p-1 text-xs" style={{ borderColor: "var(--badge-border)" }}>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("english")}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition ${viewMode === "english" ? "bg-[#4cd34c] text-[#071007]" : "opacity-70"}`}
+                  >
+                    EN
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("shona")}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition ${viewMode === "shona" ? "bg-[#4cd34c] text-[#071007]" : "opacity-70"}`}
+                  >
+                    SN
+                  </button>
+                </div>
               )}
-            </span>
+              <span className="text-xs uppercase font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-3 py-1 rounded-full flex items-center gap-1.5">
+                {replyChannel === "signed" ? (
+                  <>
+                    <img src="/signed.png" alt="Signed" className="h-3.5 w-3.5 object-contain" />
+                    Signed
+                  </>
+                ) : (
+                  <>
+                    <img src="/unsigned.png" alt="Unsigned" className="h-3.5 w-3.5 object-contain" />
+                    Unsigned
+                  </>
+                )}
+              </span>
+            </div>
           </div>
 
           <div
             className="rounded-2xl border p-4 min-h-[12rem] whitespace-pre-wrap font-mono text-sm leading-relaxed"
             style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
           >
-            {generatedMsg || <span style={{ color: "var(--field-placeholder)" }}>Select a response template...</span>}
+            {viewMode === "shona" && shonaText
+              ? shonaText
+              : generatedMsg || <span style={{ color: "var(--field-placeholder)" }}>Select a response template...</span>}
           </div>
 
           {replyChannel === "signed" ? (
@@ -306,12 +347,25 @@ export default function CustomerReply({
         <div className="space-y-2 mt-6">
           <button
             type="button"
-            onClick={() => copyText(generatedMsg, "Customer reply message copied! 📋", activeTemplate?.id)}
+            onClick={() => {
+              const activeText = viewMode === "shona" ? shonaText : generatedMsg;
+              copyText(activeText, "Customer reply message copied! 📋", activeTemplate?.id);
+            }}
             disabled={!generatedMsg}
             className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3 font-semibold text-[#071007] shadow-lg disabled:opacity-50 transition"
           >
-            Copy Customer Response
+            Copy Customer Response ({viewMode === "shona" ? "Shona" : "English"})
           </button>
+
+          <button
+            type="button"
+            onClick={handleInlineTranslate}
+            disabled={!generatedMsg || isTranslating}
+            className="w-full rounded-xl border border-[#4cd34c]/40 bg-[#4cd34c]/10 py-2.5 text-sm font-bold text-[#4cd34c] hover:bg-[#4cd34c] hover:text-[#071007] transition disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {isTranslating ? "Translating to Shona..." : "🌐 Translate Response to Shona"}
+          </button>
+
           <button
             type="button"
             onClick={() => setValues({})}

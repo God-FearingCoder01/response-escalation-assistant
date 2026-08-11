@@ -1,6 +1,8 @@
 import os
 import hashlib
 import json
+import urllib.request
+import urllib.parse
 from pathlib import Path
 from sqlalchemy import false
 from contextlib import asynccontextmanager
@@ -40,6 +42,12 @@ from sqlmodel import Session, select, col
 class PinVerifyRequest(BaseModel):
     agent_initials: str
     pin: str
+
+
+class TranslateRequest(BaseModel):
+    text: str
+    source_lang: str = "en"
+    target_lang: str = "sn"
 
 
 def require_admin(
@@ -791,6 +799,47 @@ def record_agent_copy_history(agent_initials: str, template_id: int):
         session.add(entry)
         session.commit()
     return {"ok": True}
+
+
+# English <-> Shona Translation Endpoint
+@app.post("/translate")
+def translate_text(req: TranslateRequest):
+    if not req.text or not req.text.strip():
+        return {"translatedText": "", "source": req.source_lang, "target": req.target_lang}
+
+    clean_text = req.text.strip()
+    src = (req.source_lang or "en").lower()
+    tgt = (req.target_lang or "sn").lower()
+
+    # Attempt translation via MyMemory API
+    try:
+        langpair = f"{src}|{tgt}"
+        encoded_query = urllib.parse.quote(clean_text)
+        url = f"https://api.mymemory.translated.net/get?q={encoded_query}&langpair={langpair}"
+        
+        req_obj = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req_obj, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            if data and "responseData" in data and data["responseData"].get("translatedText"):
+                translated = data["responseData"]["translatedText"]
+                if translated and translated.strip() and translated.upper() != clean_text.upper():
+                    return {
+                        "translatedText": translated,
+                        "source": src,
+                        "target": tgt,
+                        "provider": "mymemory"
+                    }
+    except Exception as e:
+        print("Translation API error:", e)
+
+    # Fallback response if API unavailable
+    return {
+        "translatedText": clean_text,
+        "source": src,
+        "target": tgt,
+        "provider": "fallback"
+    }
+
 
 
 

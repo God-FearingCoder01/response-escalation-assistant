@@ -107,6 +107,28 @@ export default function Sidebar({
 
           <button
             onClick={() => {
+              setActiveScreen("translator");
+              setIsSidebarHovered(false);
+            }}
+            className={`flex w-full items-center justify-start rounded-2xl p-2.5 font-medium transition-all ${
+              activeScreen === "translator"
+                ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
+                : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+            }`}
+            title="Translator (EN ⇄ SN)"
+          >
+            <span className="flex h-6 w-6 items-center justify-center shrink-0 text-base">
+              🌐
+            </span>
+            {isSidebarHovered ? (
+              <span className="ml-3 font-semibold text-sm whitespace-nowrap">
+                Translator (EN ⇄ SN)
+              </span>
+            ) : null}
+          </button>
+
+          <button
+            onClick={() => {
               setActiveScreen("suggestions");
               setIsSidebarHovered(false);
             }}
