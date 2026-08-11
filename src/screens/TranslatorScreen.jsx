@@ -18,6 +18,7 @@ export default function TranslatorScreen({
     handleTranslate,
     handleSelectPreset,
     handleClear,
+    handleClearHistory,
     presetPhrases,
   } = translatorState || {};
 
@@ -255,7 +256,15 @@ export default function TranslatorScreen({
             <h2 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
               <span>🕒</span> Recent Translations
             </h2>
-            <span className="text-xs opacity-60">{history.length} items</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs opacity-60">{history.length} items</span>
+              <button
+                onClick={handleClearHistory}
+                className="text-xs font-semibold text-red-400 hover:underline"
+              >
+                Clear History
+              </button>
+            </div>
           </div>
 
           <div className="space-y-3">

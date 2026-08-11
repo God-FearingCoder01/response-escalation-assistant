@@ -106,10 +106,10 @@ export default function TechEscalation({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {(placeholders || []).map((ph) => {
-                const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
-                const isDateField = /^(day|month|year|date)/i.test(ph);
-                const isTimeUnitField = /^time_unit/i.test(ph);
                 const dateAuto = getDateAutoValues();
+                const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
+                const isDateField = dateAuto[ph] !== undefined;
+                const isTimeUnitField = /^time_unit/i.test(ph);
                 const autoVal = isAgentField
                   ? (ph === "agent_initials" ? currentAgent?.agent_initials : currentAgent?.agent_name)
                   : isDateField

@@ -156,11 +156,39 @@ function matchCase(original, translated) {
   return translated;
 }
 
-// Preset common support phrases for quick selection in UI
-export const PRESET_TRANSLATION_PHRASES = [
+// Default preset common support phrases
+export const DEFAULT_PRESET_PHRASES = [
   { label: "Greeting", en: "Hello, thank you for contacting technical support. How can I assist you today?", sn: "Mhoroi, tinokutendai nekutibata pane rutsigiro rweunyanzvi. Ndingagone kukubatsirai sei nhasi?" },
   { label: "Ticket Escalation", en: "Your ticket has been escalated to our senior technical team for investigation.", sn: "Tikiti renyu rakwidziridzwa kune chikwata chedu chikuru cheunyanzvi kuti vakuferefete." },
   { label: "Restart Router", en: "Please restart your router by turning it off for 30 seconds and turning it back on.", sn: "Ndapota dzimurayi router yenyu kwemasekonzi makumi matatu uyezve moidzidzisa zvakare." },
   { label: "Request Account ID", en: "Please provide your account number or registered phone number.", sn: "Ndapota ipai nhamba yeakaundi yenyu kana nhamba yerunhare yakanyoreswa." },
   { label: "Issue Resolved", en: "We are pleased to inform you that your connection issue has been resolved.", sn: "Tinofara kukuzivisai kuti dambudziko renyu rekubatana kwewebhu ragadziriswa." },
 ];
+
+export const PRESET_PHRASES_KEY = "rea_preset_phrases_v1";
+
+export function getPresetPhrases() {
+  try {
+    const stored = localStorage.getItem(PRESET_PHRASES_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error("Error reading preset phrases:", e);
+  }
+  return DEFAULT_PRESET_PHRASES;
+}
+
+export function savePresetPhrases(phrases) {
+  try {
+    localStorage.setItem(PRESET_PHRASES_KEY, JSON.stringify(phrases));
+    window.dispatchEvent(new Event("rea_preset_phrases_updated"));
+  } catch (e) {
+    console.error("Error saving preset phrases:", e);
+  }
+}
+
+export const PRESET_TRANSLATION_PHRASES = getPresetPhrases();

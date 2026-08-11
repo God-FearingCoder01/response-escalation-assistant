@@ -1,4 +1,5 @@
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
+import { getPresetPhrases, savePresetPhrases, DEFAULT_PRESET_PHRASES } from "../services/translationService";
 
 export default function AdminDashboard({
   activeScreen,
@@ -73,6 +74,67 @@ export default function AdminDashboard({
       element.style.height = `${element.scrollHeight}px`;
     }
   };
+
+  const [presetList, setPresetList] = useState(() => getPresetPhrases());
+  const [editPresetIndex, setEditPresetIndex] = useState(null);
+  const [presetLabel, setPresetLabel] = useState("");
+  const [presetEn, setPresetEn] = useState("");
+  const [presetSn, setPresetSn] = useState("");
+
+  const handleSavePreset = (e) => {
+    e.preventDefault();
+    if (!presetLabel.trim() || !presetEn.trim() || !presetSn.trim()) return;
+
+    let updatedList;
+    if (editPresetIndex !== null) {
+      updatedList = presetList.map((item, idx) =>
+        idx === editPresetIndex ? { label: presetLabel.trim(), en: presetEn.trim(), sn: presetSn.trim() } : item
+      );
+    } else {
+      updatedList = [...presetList, { label: presetLabel.trim(), en: presetEn.trim(), sn: presetSn.trim() }];
+    }
+
+    setPresetList(updatedList);
+    savePresetPhrases(updatedList);
+    setEditPresetIndex(null);
+    setPresetLabel("");
+    setPresetEn("");
+    setPresetSn("");
+  };
+
+  const handleEditPresetClick = (preset, idx) => {
+    setEditPresetIndex(idx);
+    setPresetLabel(preset.label);
+    setPresetEn(preset.en);
+    setPresetSn(preset.sn);
+  };
+
+  const handleDeletePreset = (idx) => {
+    const updatedList = presetList.filter((_, i) => i !== idx);
+    setPresetList(updatedList);
+    savePresetPhrases(updatedList);
+    if (editPresetIndex === idx) {
+      setEditPresetIndex(null);
+      setPresetLabel("");
+      setPresetEn("");
+      setPresetSn("");
+    }
+  };
+
+  const handleResetPresetDefaults = () => {
+    setPresetList(DEFAULT_PRESET_PHRASES);
+    savePresetPhrases(DEFAULT_PRESET_PHRASES);
+    setEditPresetIndex(null);
+    setPresetLabel("");
+    setPresetEn("");
+    setPresetSn("");
+  };
+
+  useEffect(() => {
+    if (templateBodyRef.current) {
+      adjustTextareaHeight(templateBodyRef.current);
+    }
+  }, [editTplBody, editTplId]);
 
   return (
     <section className="max-w-7xl mx-auto space-y-8">
@@ -352,6 +414,12 @@ export default function AdminDashboard({
                                 onClick={() => {
                                   handleEditTemplateClick(t);
                                   scrollToTemplateForm();
+                                  setTimeout(() => {
+                                    if (templateBodyRef.current) {
+                                      templateBodyRef.current.focus();
+                                      adjustTextareaHeight(templateBodyRef.current);
+                                    }
+                                  }, 50);
                                 }}
                                 className="px-3 py-1.5 rounded-xl border text-xs font-semibold transition hover:bg-[var(--neutral-bg)]"
                                 style={{ borderColor: "var(--badge-border)" }}
@@ -577,6 +645,143 @@ export default function AdminDashboard({
             </button>
           </div>
         </form>
+      </div>
+
+      {/* SECTION 4: PRESET TELECOM & SUPPORT PHRASES MANAGEMENT */}
+      <div className="rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-6" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: "var(--app-text)" }}>
+              <span>🌐</span> 4. Preset Telecom & Support Phrases Control
+            </h3>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+              Configure quick preset phrases displayed on the English ⇄ Shona Translator screen.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleResetPresetDefaults}
+            className="px-3 py-1.5 rounded-xl border text-xs font-semibold hover:opacity-90"
+            style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
+          >
+            Reset Default Presets 🔄
+          </button>
+        </div>
+
+        {/* Add/Edit Preset Form */}
+        <form onSubmit={handleSavePreset} className="rounded-2xl border p-4 space-y-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
+          <h4 className="text-xs uppercase font-semibold text-[#4cd34c]">
+            {editPresetIndex !== null ? `Edit Preset Phrase #${editPresetIndex + 1}` : "Add New Preset Phrase"}
+          </h4>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Badge / Label *:</label>
+              <input
+                value={presetLabel}
+                onChange={(e) => setPresetLabel(e.target.value)}
+                placeholder="e.g. Billing Query"
+                className="w-full rounded-xl border p-2.5 text-sm font-medium"
+                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                required
+              />
+            </div>
+            <div>
+              <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>English Phrase *:</label>
+              <input
+                value={presetEn}
+                onChange={(e) => setPresetEn(e.target.value)}
+                placeholder="e.g. Please provide your invoice number."
+                className="w-full rounded-xl border p-2.5 text-sm font-medium"
+                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                required
+              />
+            </div>
+            <div>
+              <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Shona Translation *:</label>
+              <input
+                value={presetSn}
+                onChange={(e) => setPresetSn(e.target.value)}
+                placeholder="e.g. Ndapota ipai nhamba yenhoroondo yemubhadharo."
+                className="w-full rounded-xl border p-2.5 text-sm font-medium"
+                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2 justify-end">
+            {(editPresetIndex !== null || presetLabel || presetEn || presetSn) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditPresetIndex(null);
+                  setPresetLabel("");
+                  setPresetEn("");
+                  setPresetSn("");
+                }}
+                className="px-4 py-2 rounded-xl border text-sm font-medium transition"
+                style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
+              >
+                Cancel
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={!presetLabel.trim() || !presetEn.trim() || !presetSn.trim()}
+              className="px-5 py-2 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-sm font-semibold shadow-md disabled:opacity-50"
+            >
+              {editPresetIndex !== null ? "Update Preset Phrase" : "Add Preset Phrase"}
+            </button>
+          </div>
+        </form>
+
+        {/* Existing Preset Phrases Cards */}
+        <div className="space-y-3">
+          <label className="text-xs font-semibold uppercase tracking-wider block" style={{ color: "var(--text-muted)" }}>
+            Active Preset Phrases ({presetList.length}):
+          </label>
+          <div className="grid grid-cols-1 gap-3">
+            {presetList.map((preset, idx) => (
+              <div
+                key={idx}
+                className="rounded-2xl border p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 transition"
+                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}
+              >
+                <div className="space-y-1">
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border border-[#4cd34c]/40 bg-[#4cd34c]/10 text-[#4cd34c] uppercase">
+                    {preset.label}
+                  </span>
+                  <p className="text-xs font-semibold" style={{ color: "var(--app-text)" }}>
+                    🇬🇧 <span className="opacity-90">{preset.en}</span>
+                  </p>
+                  <p className="text-xs font-semibold text-[#4cd34c]">
+                    🇿🇼 <span>{preset.sn}</span>
+                  </p>
+                </div>
+
+                <div className="flex gap-2 self-end md:self-center shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleEditPresetClick(preset, idx)}
+                    className="px-3 py-1.5 rounded-xl border text-xs font-semibold transition hover:bg-[var(--neutral-bg)]"
+                    style={{ borderColor: "var(--badge-border)" }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeletePreset(idx)}
+                    className="px-3 py-1.5 rounded-xl border text-xs font-semibold transition hover:bg-[#b83838]/20"
+                    style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   );

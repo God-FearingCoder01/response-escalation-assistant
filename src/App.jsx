@@ -186,7 +186,7 @@ export default function App() {
   } = suggestionState || {};
 
   // 5. Translator hook
-  const translatorState = useTranslator({ showToast });
+  const translatorState = useTranslator({ currentAgent, showToast });
 
   // Check health status on app initialization
   useEffect(() => {

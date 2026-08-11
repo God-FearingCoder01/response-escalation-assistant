@@ -1,14 +1,59 @@
-import { useState, useCallback } from "react";
-import { translateText, PRESET_TRANSLATION_PHRASES } from "../services/translationService";
+import { useState, useCallback, useEffect } from "react";
+import { translateText, getPresetPhrases } from "../services/translationService";
 
-export function useTranslator({ showToast = () => {} } = {}) {
+const HISTORY_KEY = "rea_translator_history_v1";
+
+export function useTranslator({ currentAgent = null, showToast = () => {} } = {}) {
   const [sourceText, setSourceText] = useState("");
   const [translatedText, setTranslatedText] = useState("");
   const [sourceLang, setSourceLang] = useState("en"); // 'en' or 'sn'
   const [targetLang, setTargetLang] = useState("sn"); // 'sn' or 'en'
   const [isTranslating, setIsTranslating] = useState(false);
   const [translationProvider, setTranslationProvider] = useState("");
+  const [presetPhrases, setPresetPhrases] = useState(getPresetPhrases());
+
+  const agentInitials = currentAgent?.agent_initials ? currentAgent.agent_initials.toUpperCase() : "GUEST";
+  const historyKey = `rea_translator_history_${agentInitials}`;
+
+  // Persistent user-scoped translation history
   const [history, setHistory] = useState([]);
+
+  // Load history whenever active agent changes
+  useEffect(() => {
+    if (!agentInitials) return;
+    try {
+      const stored = localStorage.getItem(historyKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setHistory(parsed);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("Error reading translation history:", e);
+    }
+    setHistory([]);
+  }, [historyKey, agentInitials]);
+
+  // Save history updates per agent to localStorage
+  useEffect(() => {
+    if (!agentInitials || history.length === 0) return;
+    try {
+      localStorage.setItem(historyKey, JSON.stringify(history));
+    } catch (e) {
+      console.error("Error saving translation history:", e);
+    }
+  }, [history, historyKey, agentInitials]);
+
+  // Listen for admin preset phrases updates
+  useEffect(() => {
+    const updatePresets = () => {
+      setPresetPhrases(getPresetPhrases());
+    };
+    window.addEventListener("rea_preset_phrases_updated", updatePresets);
+    return () => window.removeEventListener("rea_preset_phrases_updated", updatePresets);
+  }, []);
 
   // Swap translation direction (EN -> SN <==> SN -> EN)
   const handleSwapLanguages = useCallback(() => {
@@ -37,7 +82,7 @@ export function useTranslator({ showToast = () => {} } = {}) {
       setTranslatedText(res.translatedText);
       setTranslationProvider(res.provider);
 
-      // Add to history log (keep max 10 recent items)
+      // Add to persistent history log (keep max 25 recent items)
       if (res.translatedText && res.translatedText.trim()) {
         const historyItem = {
           id: Date.now(),
@@ -47,7 +92,7 @@ export function useTranslator({ showToast = () => {} } = {}) {
           targetLang: tgt,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         };
-        setHistory((prev) => [historyItem, ...prev.filter((h) => h.sourceText !== textToTranslate.trim())].slice(0, 10));
+        setHistory((prev) => [historyItem, ...prev.filter((h) => h.sourceText !== textToTranslate.trim())].slice(0, 25));
       }
     } catch (err) {
       console.error("Translation error:", err);
@@ -76,6 +121,15 @@ export function useTranslator({ showToast = () => {} } = {}) {
     setTranslationProvider("");
   }, []);
 
+  // Clear history log
+  const handleClearHistory = useCallback(() => {
+    setHistory([]);
+    try {
+      localStorage.removeItem(historyKey);
+    } catch (e) {}
+    showToast?.("Translation history cleared!");
+  }, [historyKey, showToast]);
+
   return {
     sourceText,
     setSourceText,
@@ -90,6 +144,7 @@ export function useTranslator({ showToast = () => {} } = {}) {
     handleTranslate,
     handleSelectPreset,
     handleClear,
-    presetPhrases: PRESET_TRANSLATION_PHRASES,
+    handleClearHistory,
+    presetPhrases,
   };
 }

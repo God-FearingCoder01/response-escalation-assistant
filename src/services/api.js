@@ -146,18 +146,27 @@ export function getDateAutoValues() {
   const y = String(now.getFullYear());
   const h = String(now.getHours()).padStart(2, "0");
   const min = String(now.getMinutes()).padStart(2, "0");
+  const monthName = now.toLocaleString("default", { month: "long" });
 
   return {
     day: d,
     date: d,
     dd: d,
+    day_number: d,
+    day_num: d,
     month: m,
+    month_number: m,
+    month_num: m,
+    month_name: monthName,
     mm: m,
     year: y,
     yyyy: y,
+    yy: y.slice(-2),
     time: `${h}:${min}`,
     hh: h,
     min: min,
+    minute: min,
+    minutes: min,
   };
 }
 

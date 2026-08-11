@@ -234,10 +234,10 @@ export default function QuickAccess({
                 Fill Template Parameters:
               </label>
               {phList.map((ph) => {
-                const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
-                const isDateField = /^(day|month|year|date)/i.test(ph);
-                const isTimeUnitField = /^time_unit/i.test(ph);
                 const dateAuto = getDateAutoValues();
+                const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
+                const isDateField = dateAuto[ph] !== undefined;
+                const isTimeUnitField = /^time_unit/i.test(ph);
                 const autoVal = isAgentField
                   ? (ph === "agent_initials" ? currentAgent?.agent_initials : currentAgent?.agent_name)
                   : isDateField
