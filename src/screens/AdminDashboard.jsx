@@ -662,7 +662,8 @@ export default function AdminDashboard({
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: "var(--app-text)" }}>
-              <span>🌐</span> 4. Preset Telecom & Support Phrases Control
+              <img src="/globe.png" alt="Globe" className="h-5 w-5 shrink-0 object-contain" />
+              4. Preset Telecom & Support Phrases Control
             </h3>
             <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
               Configure quick preset phrases displayed on the English ⇄ Shona Translator screen.

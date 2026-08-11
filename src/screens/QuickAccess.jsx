@@ -80,7 +80,10 @@ export default function QuickAccess({
             }`}
             style={{ borderColor: quickTab === "most_used" ? "#4cd34c" : "var(--field-border)" }}
           >
-            <span>🔥 Most Used</span>
+            <span className="flex items-center gap-1">
+              <img src="/fire.png" alt="Most Used" className="h-4 w-4 shrink-0 object-contain" />
+              Most Used
+            </span>
             <span className="text-[10px] rounded-full px-1.5 py-0.2 bg-[#4cd34c]/20 font-bold">{mostList.length}</span>
           </button>
 
@@ -94,7 +97,10 @@ export default function QuickAccess({
             }`}
             style={{ borderColor: quickTab === "recently_used" ? "#4cd34c" : "var(--field-border)" }}
           >
-            <span>🕒 Recents</span>
+            <span className="flex items-center gap-1">
+              <img src="/clock.png" alt="Recents" className="h-4 w-4 shrink-0 object-contain" />
+              Recents
+            </span>
             <span className="text-[10px] rounded-full px-1.5 py-0.2 bg-[#4cd34c]/20 font-bold">{recList.length}</span>
           </button>
         </div>

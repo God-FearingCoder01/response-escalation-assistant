@@ -117,8 +117,8 @@ export default function Sidebar({
             }`}
             title="Translator (EN ⇄ SN)"
           >
-            <span className="flex h-6 w-6 items-center justify-center shrink-0 text-base">
-              🌐
+            <span className="flex h-6 w-6 items-center justify-center shrink-0">
+              <img src="/globe.png" alt="Translator" className="h-5 w-5 object-contain" />
             </span>
             {isSidebarHovered ? (
               <span className="ml-3 font-semibold text-sm whitespace-nowrap">
@@ -216,9 +216,10 @@ export default function Sidebar({
                   setIsSidebarHovered(false);
                   handleLogout();
                 }}
-                className="text-[10px] text-[#4cd34c] hover:underline block mt-0.5"
+                className="text-[11px] text-[#4cd34c] hover:underline flex items-center gap-1 mt-0.5 font-medium"
               >
-                Switch Profile ↩
+                <img src="/out.png" alt="Sign Out" className="h-3.5 w-3.5 object-contain shrink-0" />
+                Sign Out / Switch
               </button>
             </div>
           ) : null}

@@ -46,8 +46,8 @@ export default function TranslatorScreen({
       >
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-2xl shadow-lg">
-              🌐
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] shadow-lg">
+              <img src="/globe.png" alt="Translator" className="h-7 w-7 object-contain" />
             </div>
             <div>
               <h1 className="text-xl font-extrabold tracking-tight">
@@ -254,7 +254,8 @@ export default function TranslatorScreen({
         >
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-              <span>🕒</span> Recent Translations
+              <img src="/clock.png" alt="Recents" className="h-4 w-4 shrink-0 object-contain" />
+              Recent Translations
             </h2>
             <div className="flex items-center gap-3">
               <span className="text-xs opacity-60">{history.length} items</span>

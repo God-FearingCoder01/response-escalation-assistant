@@ -363,7 +363,14 @@ export default function CustomerReply({
             disabled={!generatedMsg || isTranslating}
             className="w-full rounded-xl border border-[#4cd34c]/40 bg-[#4cd34c]/10 py-2.5 text-sm font-bold text-[#4cd34c] hover:bg-[#4cd34c] hover:text-[#071007] transition disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {isTranslating ? "Translating to Shona..." : "🌐 Translate Response to Shona"}
+            {isTranslating ? (
+              "Translating to Shona..."
+            ) : (
+              <span className="flex items-center gap-1.5">
+                <img src="/globe.png" alt="Globe" className="h-4 w-4 shrink-0 object-contain" />
+                Translate Response to Shona
+              </span>
+            )}
           </button>
 
           <button
