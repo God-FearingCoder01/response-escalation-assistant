@@ -211,44 +211,55 @@ DEFAULT_AGENTS: List[DefaultAgent] = [
 ]
 
 
+# Helper to sync template list to Cloud Store
+def sync_templates_to_cloud(session: Session):
+    try:
+        all_tpls = session.exec(select(Template).order_by(col(Template.id).asc())).all()
+        cloud = get_cloud_store()
+        cloud["templates"] = [
+            {
+                "id": t.id,
+                "name": t.name,
+                "body": t.body,
+                "category_type": t.category_type,
+                "category": t.category,
+                "subcategory": t.subcategory,
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+                "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+            }
+            for t in all_tpls
+        ]
+        save_cloud_store(cloud)
+    except Exception as e:
+        print("Cloud template sync error:", e)
+
+
 def sync_default_data_if_needed(session: Session) -> None:
-    # Seed or update default agents while preserving customized PINs
     now = datetime.now(timezone.utc)
+    # Seed default agents if missing
     for item in DEFAULT_AGENTS:
         existing = session.exec(select(Agent).where(Agent.agent_initials == item["agent_initials"])).first()
-        if existing:
-            existing.agent = item["agent"]
-            existing.agent_name = item["agent_name"]
-            existing.is_admin = item["is_admin"]
-            if not existing.pin:
-                existing.pin = item["pin"]
-            existing.updated_at = now
-            session.add(existing)
-        else:
+        if not existing:
             session.add(
                 Agent(
                     agent=item["agent"],
                     agent_name=item["agent_name"],
                     agent_initials=item["agent_initials"],
                     is_admin=item["is_admin"],
-                    pin=item["pin"],
+                    pin=hash_pin(item["pin"]),
                     created_at=now,
                     updated_at=now,
                 )
             )
     session.commit()
 
-    # 3. Seed or update user's default templates
-    for item in DEFAULT_TEMPLATES:
-        existing = session.exec(select(Template).where(Template.name == item["name"])).first()
-        if existing:
-            existing.body = item["body"]
-            existing.category_type = item["category_type"]
-            existing.category = item.get("category")
-            existing.subcategory = item.get("subcategory")
-            existing.updated_at = now
-            session.add(existing)
-        else:
+    # Seed default templates ONLY IF both local database and cloud store have no templates
+    cloud = get_cloud_store()
+    cloud_templates = cloud.get("templates", [])
+    local_templates = session.exec(select(Template)).all()
+
+    if not local_templates and not cloud_templates:
+        for item in DEFAULT_TEMPLATES:
             session.add(
                 Template(
                     name=item["name"],
@@ -260,7 +271,8 @@ def sync_default_data_if_needed(session: Session) -> None:
                     updated_at=now,
                 )
             )
-    session.commit()
+        session.commit()
+        sync_templates_to_cloud(session)
 
 
 
@@ -309,7 +321,66 @@ def health_check():
 @app.get("/templates", response_model=List[TemplateRead])
 def list_templates():
     with Session(engine) as session:
-        return session.exec(select(Template).order_by(col(Template.updated_at).desc())).all()
+        local_templates = session.exec(select(Template).order_by(col(Template.updated_at).desc())).all()
+        cloud = get_cloud_store()
+        cloud_templates = cloud.get("templates", [])
+
+        if cloud_templates:
+            local_map = {t.id: t for t in local_templates if t.id}
+            modified = False
+            now = datetime.now(timezone.utc)
+            cloud_ids = set()
+
+            for ct in cloud_templates:
+                t_id = ct.get("id")
+                if not t_id:
+                    continue
+                cloud_ids.add(t_id)
+                if t_id in local_map:
+                    lt = local_map[t_id]
+                    if (
+                        lt.name != ct.get("name")
+                        or lt.body != ct.get("body")
+                        or lt.category_type != ct.get("category_type")
+                        or lt.category != ct.get("category")
+                        or lt.subcategory != ct.get("subcategory")
+                    ):
+                        lt.name = ct.get("name", lt.name)
+                        lt.body = ct.get("body", lt.body)
+                        lt.category_type = ct.get("category_type", lt.category_type)
+                        lt.category = ct.get("category", lt.category)
+                        lt.subcategory = ct.get("subcategory", lt.subcategory)
+                        lt.updated_at = now
+                        session.add(lt)
+                        modified = True
+                else:
+                    session.add(
+                        Template(
+                            id=t_id,
+                            name=ct.get("name", "Untitled"),
+                            body=ct.get("body", ""),
+                            category_type=ct.get("category_type", "tech_escalation"),
+                            category=ct.get("category"),
+                            subcategory=ct.get("subcategory"),
+                            created_at=now,
+                            updated_at=now,
+                        )
+                    )
+                    modified = True
+
+            for lt in local_templates:
+                if lt.id and lt.id not in cloud_ids:
+                    session.delete(lt)
+                    modified = True
+
+            if modified:
+                try:
+                    session.commit()
+                except Exception:
+                    session.rollback()
+            return session.exec(select(Template).order_by(col(Template.updated_at).desc())).all()
+
+        return local_templates
 
 
 @app.post("/templates", response_model=TemplateRead, dependencies=[Depends(require_admin)])
@@ -340,6 +411,7 @@ def create_template(template: TemplateCreate):
         session.add(db_template)
         session.commit()
         session.refresh(db_template)
+        sync_templates_to_cloud(session)
         return db_template
 
 
@@ -367,6 +439,7 @@ def update_template(template_id: int, incoming: TemplateUpdate):
         session.add(existing)
         session.commit()
         session.refresh(existing)
+        sync_templates_to_cloud(session)
         return existing
 
 
@@ -378,6 +451,7 @@ def delete_template(template_id: int):
             raise HTTPException(status_code=404, detail="Template not found")
         session.delete(existing)
         session.commit()
+        sync_templates_to_cloud(session)
     return {"ok": True, "message": "Template deleted"}
 
 
@@ -427,6 +501,7 @@ def import_templates(items: List[TemplateCreate]):
             )
             count += 1
         session.commit()
+        sync_templates_to_cloud(session)
     return {
         "imported": count,
         "skipped": skipped,
@@ -455,6 +530,7 @@ def deduplicate_templates():
         for dup in to_delete:
             session.delete(dup)
         session.commit()
+        sync_templates_to_cloud(session)
 
         return {
             "status": "success",
@@ -594,6 +670,7 @@ def approve_suggestion(suggestion_id: int):
 
         session.commit()
         session.refresh(new_tpl)
+        sync_templates_to_cloud(session)
         return new_tpl
 
 
