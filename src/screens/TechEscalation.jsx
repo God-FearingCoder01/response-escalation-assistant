@@ -77,7 +77,7 @@ export default function TechEscalation({
 
           {/* Dynamic Parameters */}
           {(placeholders || []).length > 0 ? (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {(placeholders || []).map((ph) => {
                 const dateAuto = getDateAutoValues();
                 const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";

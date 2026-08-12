@@ -50,6 +50,8 @@ export default function CustomerReply({
   const subcategoriesList = customerSubcategories || [];
   const templatesList = filteredCustomerTemplates || [];
   const placeholderList = placeholders || [];
+  const favIds = favoriteIds || [];
+  const valMap = values || {};
 
   if (activeScreen !== "customer_reply" || !currentAgent) return null;
 
@@ -215,9 +217,9 @@ export default function CustomerReply({
                           toggleFavorite(t.id);
                         }}
                         className="p-1 text-sm hover:scale-125 transition"
-                        title={favoriteIds.includes(t.id) ? "Remove from Favorites" : "Add to Favorites"}
+                        title={favIds.includes(t.id) ? "Remove from Favorites" : "Add to Favorites"}
                       >
-                        {favoriteIds.includes(t.id) ? "⭐" : "☆"}
+                        {favIds.includes(t.id) ? "⭐" : "☆"}
                       </button>
                     </div>
                   </div>
@@ -261,7 +263,7 @@ export default function CustomerReply({
                       </div>
                       {isTimeUnitField ? (
                         <select
-                          value={values[ph] ?? "hour(s)"}
+                          value={valMap[ph] ?? "hour(s)"}
                           onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
                           className="w-full rounded-xl border p-2.5 text-sm font-medium"
                           style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
@@ -271,7 +273,7 @@ export default function CustomerReply({
                         </select>
                       ) : (
                         <input
-                          value={values[ph] ?? autoVal}
+                          value={valMap[ph] ?? autoVal}
                           onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
                           placeholder={`Enter ${ph.replace("_", " ")}`}
                           className="w-full rounded-xl border p-2.5 text-sm placeholder:text-[var(--field-placeholder)]"
@@ -298,7 +300,7 @@ export default function CustomerReply({
               Customer Reply Preview
             </h2>
             <div className="flex items-center gap-2">
-              {shonaText && (
+              {translatedText && (
                 <div className="flex items-center rounded-xl border p-1 text-xs" style={{ borderColor: "var(--badge-border)" }}>
                   <button
                     type="button"
@@ -309,10 +311,10 @@ export default function CustomerReply({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setViewMode("shona")}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition ${viewMode === "shona" ? "bg-[#4cd34c] text-[#071007]" : "opacity-70"}`}
+                    onClick={() => setViewMode("translated")}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition ${viewMode === "translated" ? "bg-[#4cd34c] text-[#071007]" : "opacity-70"}`}
                   >
-                    SN
+                    {translatedLangLabel === "IsiNdebele" ? "ND" : "SN"}
                   </button>
                 </div>
               )}
