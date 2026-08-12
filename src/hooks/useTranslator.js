@@ -55,15 +55,15 @@ export function useTranslator({ currentAgent = null, showToast = () => {} } = {}
     return () => window.removeEventListener("rea_preset_phrases_updated", updatePresets);
   }, []);
 
-  // Swap translation direction (EN -> SN <==> SN -> EN)
+  // Swap translation direction (e.g. EN -> ND <==> ND -> EN)
   const handleSwapLanguages = useCallback(() => {
-    setSourceLang((prevSrc) => (prevSrc === "en" ? "sn" : "en"));
-    setTargetLang((prevTgt) => (prevTgt === "en" ? "sn" : "en"));
-    
+    setSourceLang(targetLang);
+    setTargetLang(sourceLang);
+
     // Swap text inputs as well if translated text exists
     setSourceText(translatedText);
     setTranslatedText(sourceText);
-  }, [sourceText, translatedText]);
+  }, [sourceText, translatedText, sourceLang, targetLang]);
 
   // Execute translation
   const handleTranslate = useCallback(async (customText, overrideSrc, overrideTgt) => {

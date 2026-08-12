@@ -1,5 +1,9 @@
 import os
 import hashlib
+import hmac
+import secrets
+import base64
+import time
 import json
 import urllib.request
 import urllib.parse
@@ -9,13 +13,47 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import List, TypedDict
 
+SECRET_KEY = os.environ.get("SECRET_KEY", "rea_admin_secret_key_v1_change_in_production").encode("utf-8")
+ADMIN_SESSION_EXPIRE_HOURS = int(os.environ.get("ADMIN_SESSION_EXPIRE_HOURS", "12"))
+PBKDF2_ITERATIONS = 100000
 
-def hash_pin(pin: str) -> str:
+PIN_FAILED_ATTEMPTS: dict[str, list[float]] = {}
+MAX_PIN_ATTEMPTS = 5
+PIN_LOCKOUT_WINDOW_SECONDS = 900  # 15 minutes
+
+
+def check_pin_rate_limit(key: str):
+    now = time.time()
+    cutoff = now - PIN_LOCKOUT_WINDOW_SECONDS
+    attempts = PIN_FAILED_ATTEMPTS.get(key, [])
+    recent = [t for t in attempts if t > cutoff]
+    PIN_FAILED_ATTEMPTS[key] = recent
+    if len(recent) >= MAX_PIN_ATTEMPTS:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many failed PIN verification attempts. Please try again in 15 minutes.",
+        )
+
+
+def record_failed_pin_attempt(key: str):
+    now = time.time()
+    attempts = PIN_FAILED_ATTEMPTS.get(key, [])
+    attempts.append(now)
+    PIN_FAILED_ATTEMPTS[key] = attempts
+
+
+def clear_pin_attempts(key: str):
+    PIN_FAILED_ATTEMPTS.pop(key, None)
+
+
+def hash_pin(pin: str, salt: str | None = None) -> str:
     if not pin:
         pin = "0000"
     clean_pin = pin.strip()
-    salt = "rea_admin_pin_salt_v1"
-    return hashlib.sha256(f"{salt}:{clean_pin}".encode("utf-8")).hexdigest()
+    if salt is None:
+        salt = "rea_admin_pin_salt_v2"
+    dk = hashlib.pbkdf2_hmac("sha256", clean_pin.encode("utf-8"), salt.encode("utf-8"), PBKDF2_ITERATIONS)
+    return f"pbkdf2_v1:{salt}:{dk.hex()}"
 
 
 def verify_pin_hash(pin: str, stored_hash: str | None) -> bool:
@@ -23,23 +61,77 @@ def verify_pin_hash(pin: str, stored_hash: str | None) -> bool:
         return False
     clean_pin = pin.strip()
     if not stored_hash or stored_hash == "0000":
-        return clean_pin == "0000" or hash_pin(clean_pin) == hash_pin("0000")
+        return clean_pin == "0000"
+
+    if stored_hash.startswith("pbkdf2_v1:"):
+        parts = stored_hash.split(":")
+        if len(parts) == 3:
+            _, salt, hex_hash = parts
+            dk = hashlib.pbkdf2_hmac("sha256", clean_pin.encode("utf-8"), salt.encode("utf-8"), PBKDF2_ITERATIONS)
+            return hmac.compare_digest(dk.hex(), hex_hash)
+
     if len(stored_hash) == 64:
         unsalted = hashlib.sha256(clean_pin.encode("utf-8")).hexdigest()
-        salted_v1 = hash_pin(clean_pin)
+        legacy_salted = hashlib.sha256(f"rea_admin_pin_salt_v1:{clean_pin}".encode("utf-8")).hexdigest()
         if clean_pin == "0000":
             return True
-        return salted_v1 == stored_hash or unsalted == stored_hash
+        return hmac.compare_digest(legacy_salted, stored_hash) or hmac.compare_digest(unsalted, stored_hash)
+
     return clean_pin == stored_hash
 
 
-def generate_admin_token(agent_initials: str, pin_hash: str) -> str:
-    salt = "rea_admin_session_salt_v1"
-    return hashlib.sha256(f"{salt}:{agent_initials}:{pin_hash}".encode("utf-8")).hexdigest()
+def generate_admin_token(agent_initials: str, pin_hash: str | None = None, expires_in_seconds: int | None = None) -> str:
+    if expires_in_seconds is None:
+        expires_in_seconds = ADMIN_SESSION_EXPIRE_HOURS * 3600
+
+    now = int(time.time())
+    exp = now + expires_in_seconds
+    payload = {
+        "sub": agent_initials.upper(),
+        "iat": now,
+        "exp": exp,
+        "nonce": secrets.token_hex(8),
+    }
+    payload_json = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    payload_b64 = base64.urlsafe_b64encode(payload_json).decode("utf-8").rstrip("=")
+
+    signature = hmac.new(SECRET_KEY, payload_b64.encode("utf-8"), hashlib.sha256).digest()
+    sig_b64 = base64.urlsafe_b64encode(signature).decode("utf-8").rstrip("=")
+
+    return f"{payload_b64}.{sig_b64}"
+
+
+def verify_admin_token(token_str: str) -> dict | None:
+    if not token_str or "." not in token_str:
+        return None
+    try:
+        parts = token_str.split(".")
+        if len(parts) != 2:
+            return None
+        payload_b64, sig_b64 = parts[0], parts[1]
+
+        expected_sig = hmac.new(SECRET_KEY, payload_b64.encode("utf-8"), hashlib.sha256).digest()
+        expected_sig_b64 = base64.urlsafe_b64encode(expected_sig).decode("utf-8").rstrip("=")
+
+        if not hmac.compare_digest(sig_b64, expected_sig_b64):
+            return None
+
+        rem = len(payload_b64) % 4
+        padded_b64 = payload_b64 + ("=" * (4 - rem) if rem else "")
+        payload_bytes = base64.urlsafe_b64decode(padded_b64)
+        payload = json.loads(payload_bytes.decode("utf-8"))
+
+        exp = payload.get("exp")
+        if not exp or time.time() >= exp:
+            return None
+
+        return payload
+    except Exception:
+        return None
 
 
 from pydantic import BaseModel
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select, col
 
@@ -80,26 +172,30 @@ def require_admin(
                 admin_agents = filtered
 
         authenticated = False
-        for agent in admin_agents:
-            expected_hash = agent.pin if (agent.pin and len(agent.pin) == 64) else hash_pin(agent.pin or "0000")
 
-            if token_str and (
-                token_str == generate_admin_token(agent.agent_initials, expected_hash)
-                or token_str == generate_admin_token(agent.agent_initials, hash_pin("0000"))
-            ):
-                authenticated = True
-                break
+        if token_str:
+            payload = verify_admin_token(token_str)
+            if payload:
+                token_initials = payload.get("sub")
+                if token_initials:
+                    for agent in admin_agents:
+                        if agent.agent_initials.upper() == token_initials.upper():
+                            authenticated = True
+                            break
 
-            if pin_str and verify_pin_hash(pin_str, expected_hash):
-                authenticated = True
-                break
+        if not authenticated and pin_str:
+            for agent in admin_agents:
+                expected_hash = agent.pin or hash_pin("0000")
+                if verify_pin_hash(pin_str, expected_hash):
+                    authenticated = True
+                    break
 
         if not authenticated:
             raise HTTPException(status_code=403, detail="Invalid or expired admin authorization credentials")
 
 
 try:
-    from .database import create_db_and_tables, engine
+    from .database import create_db_and_tables, engine, ping_database
     from .models import (
         Agent,
         AgentCreate,
@@ -117,7 +213,7 @@ try:
         UsageHistory,
     )
 except ImportError:
-    from backend.database import create_db_and_tables, engine
+    from backend.database import create_db_and_tables, engine, ping_database
     from backend.models import (
         Agent,
         AgentCreate,
@@ -311,8 +407,8 @@ app.add_middleware(
 @app.get("/health")
 def health_check():
     with Session(engine) as session:
-        sync_default_data_if_needed(session)
-    return {"status": "ok", "message": "Backend is ready"}
+        ping_database(session)
+    return {"status": "ok", "database": "connected", "message": "Backend is ready"}
 
 
 @app.get("/templates", response_model=List[TemplateRead])
@@ -551,32 +647,39 @@ def delete_agent(agent_id: int):
 
 
 @app.post("/agents/verify-pin")
-def verify_agent_pin(req: PinVerifyRequest):
+def verify_agent_pin(req: PinVerifyRequest, request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    rate_key = f"{client_ip}:{req.agent_initials.upper()}"
+    check_pin_rate_limit(rate_key)
+
     with Session(engine) as session:
         agent = session.exec(select(Agent).where(Agent.agent_initials == req.agent_initials.upper())).first()
         if not agent:
             agent = session.exec(select(Agent).where(Agent.is_admin == True)).first()
         if not agent:
+            record_failed_pin_attempt(rate_key)
             raise HTTPException(status_code=404, detail="Agent profile not found")
 
         agent_read = AgentRead.model_validate(agent)
 
         if not agent.is_admin:
+            clear_pin_attempts(rate_key)
             return {"valid": True, "agent": agent_read}
 
         expected_hash = agent.pin or hash_pin("0000")
 
         if verify_pin_hash(req.pin, expected_hash):
-            hashed_input = hash_pin(req.pin)
-            if agent.pin != hashed_input:
-                agent.pin = hashed_input
+            clear_pin_attempts(rate_key)
+            if not agent.pin or not agent.pin.startswith("pbkdf2_v1:"):
+                agent.pin = hash_pin(req.pin)
                 session.add(agent)
                 try: session.commit()
                 except Exception: session.rollback()
-            current_hash = agent.pin or hashed_input
-            token = generate_admin_token(agent.agent_initials, current_hash)
+
+            token = generate_admin_token(agent.agent_initials)
             return {"valid": True, "agent": agent_read, "token": token}
         else:
+            record_failed_pin_attempt(rate_key)
             return {"valid": False, "detail": "Incorrect 4-digit Security PIN"}
 
 
@@ -620,7 +723,6 @@ def approve_suggestion(suggestion_id: int):
 
         session.commit()
         session.refresh(new_tpl)
-        sync_templates_to_cloud(session)
         return new_tpl
 
 
@@ -720,7 +822,101 @@ def record_agent_copy_history(agent_initials: str, template_id: int):
     return {"ok": True}
 
 
-# English <-> Shona Translation Endpoint
+# --- MULTILINGUAL TRANSLATION ENDPOINT (English <-> Shona / IsiNdebele) ---
+
+SUPPORT_DICTIONARY_SHONA = {
+    "hello": "mhoroi",
+    "hi": "mhoro",
+    "good morning": "mangwanani",
+    "good afternoon": "masikati",
+    "good evening": "manheru",
+    "thank you": "tatenda",
+    "thank you very much": "tatenda chaizvo",
+    "you are welcome": "tinozvitenda",
+    "please": "ndapota",
+    "sorry for the inconvenience": "tine urombo nekukanganisika",
+    "how can i help you today?": "ndingagone kukubatsirai sei nhasi?",
+    "how can i help you": "ndingagone kukubatsirai sei",
+    "account number": "nhamba yeakaundi",
+    "phone number": "nhamba yerunhare",
+    "email address": "kero ye-email",
+    "reference number": "nhamba dereferensi",
+    "ticket number": "nhamba yetikiti",
+    "customer care": "rutsigiro rwatengi",
+    "support team": "chikwata cherutsigiro",
+    "technical support": "rutsigiro rweunyanzvi",
+    "technical team": "chikwata cheunyanzvi",
+    "network team": "chikwata chesainzi yetiweki",
+    "escalated": "zvatumirwa kune vanobatsira vamberi",
+    "your ticket has been escalated": "tikiti renyu rakwidziridzwa kune vanobatsira mberi",
+    "your query has been escalated to technical support": "mubvunzo wenyu watumirwa kune vakwidzi veunyanzvi",
+    "we are currently investigating the issue": "parizvino tiri kuferefeta dambudziko iri",
+    "connection issue": "dambudziko riine chekuita nekubatana kwewebhu",
+    "internet down": "internet haisi kushanda",
+    "slow connection": "internet iri kunonoka",
+    "no signal": "hapana chikwangwani mesainzi",
+    "router": "mugadzirisi wandandaro (router)",
+    "please restart your router": "ndapota dzimurayi nekutangidza router yenyu",
+    "turn off the router for 30 seconds": "dzimurai router kwemasekonzi makumi matatu",
+    "fibre connection": "kubatana kwefibre",
+    "power light": "mwenje wesimba",
+    "red light": "mwenje mupfumbu/mupfuwira",
+    "resolved": "zvatadzoreredzwa panzvimbo",
+    "the issue has been resolved": "dambudziko ragadziriswa",
+    "service restored": "basa radzoreredzwa",
+    "payment": "mubhadharo",
+    "invoice": "nhoroondo yemubhadharo (invoice)",
+    "balance": "mhedzisiro yemari",
+    "thank you for choosing us": "tinokutendai nekusarudza isu",
+}
+
+SUPPORT_DICTIONARY_NDEBELE = {
+    "hello": "salibonani",
+    "hi": "salibonani",
+    "good morning": "sabona",
+    "good afternoon": "litshonile",
+    "good evening": "litshonile",
+    "thank you": "siyabonga",
+    "thank you very much": "siyabonga kakhulu",
+    "you are welcome": "wamukelekile",
+    "please": "cela",
+    "sorry for the inconvenience": "siyaxolisa ngokuhlupheka",
+    "how can i help you today?": "ngingakusiza njani lamuhla?",
+    "how can i help you": "ngingakusiza njani",
+    "account number": "inombolo ye-akhawunti",
+    "phone number": "inombolo yocingo",
+    "email address": "ikheli le-eyili",
+    "ticket number": "inombolo yetikiti",
+    "reference number": "inombolo yokukhomba",
+    "technical support": "usizo lwethekhinikhali",
+    "technical team": "iqembu lethekhinikhali",
+    "support team": "iqembu losizo",
+    "customer care": "usizo lwabathengi",
+    "escalated": "itshiyiwe kubasizi abaphezulu",
+    "your ticket has been escalated": "itikiti lakho lisiwe eqenjini lethu eliphezulu lethekhinikhali",
+    "your query has been escalated to technical support": "umbuzo wakho udluliselwe eqenjini lethekhinikhali",
+    "we are currently investigating the issue": "kusakhangelwa inkinga le okwakhathesi",
+    "connection issue": "inkinga yokuxhumana kwewebhu",
+    "internet down": "iyinthanethi kayisebenzi",
+    "slow connection": "iyinthanethi inyenyezela",
+    "no signal": "kakulamaza",
+    "router": "i-router",
+    "please restart your router": "cela ucime i-router yakho okwemizuzwana engamashumi amathathu uyivuse njalo",
+    "turn off the router for 30 seconds": "cima i-router okwemizuzwana engamashumi amathathu",
+    "fibre connection": "ukuxhumana kwe-fibre",
+    "resolved": "kulungisisiwe",
+    "the issue has been resolved": "inkinga yakho ilungisisiwe",
+    "service restored": "inkonzo ibuyiselwe",
+    "payment": "inkokhelo",
+    "invoice": "i-invoysi",
+    "balance": "ibhalansi",
+    "thank you for choosing us": "siyabonga ngokukhetha thina",
+}
+
+REVERSE_SHONA = {v.lower(): k for k, v in SUPPORT_DICTIONARY_SHONA.items()}
+REVERSE_NDEBELE = {v.lower(): k for k, v in SUPPORT_DICTIONARY_NDEBELE.items()}
+
+
 @app.post("/translate")
 def translate_text(req: TranslateRequest):
     if not req.text or not req.text.strip():
@@ -729,35 +925,88 @@ def translate_text(req: TranslateRequest):
     clean_text = req.text.strip()
     src = (req.source_lang or "en").lower()
     tgt = (req.target_lang or "sn").lower()
+    norm_text = clean_text.lower().rstrip(".?!,")
 
-    # Attempt translation via MyMemory API
-    try:
-        langpair = f"{src}|{tgt}"
-        encoded_query = urllib.parse.quote(clean_text)
-        url = f"https://api.mymemory.translated.net/get?q={encoded_query}&langpair={langpair}"
-        
-        req_obj = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req_obj, timeout=5) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            if data and "responseData" in data and data["responseData"].get("translatedText"):
-                translated = data["responseData"]["translatedText"]
-                if translated and translated.strip() and translated.upper() != clean_text.upper():
-                    return {
-                        "translatedText": translated,
-                        "source": src,
-                        "target": tgt,
-                        "provider": "mymemory"
-                    }
-    except Exception as e:
-        print("Translation API error:", e)
+    # 1. Direct dictionary match check
+    if src == "en" and tgt == "sn" and norm_text in SUPPORT_DICTIONARY_SHONA:
+        return {"translatedText": SUPPORT_DICTIONARY_SHONA[norm_text], "source": src, "target": tgt, "provider": "dictionary"}
+    if src == "sn" and tgt == "en" and norm_text in REVERSE_SHONA:
+        return {"translatedText": REVERSE_SHONA[norm_text], "source": src, "target": tgt, "provider": "dictionary"}
+    if src == "en" and tgt == "nd" and norm_text in SUPPORT_DICTIONARY_NDEBELE:
+        return {"translatedText": SUPPORT_DICTIONARY_NDEBELE[norm_text], "source": src, "target": tgt, "provider": "dictionary"}
+    if src == "nd" and tgt == "en" and norm_text in REVERSE_NDEBELE:
+        return {"translatedText": REVERSE_NDEBELE[norm_text], "source": src, "target": tgt, "provider": "dictionary"}
 
-    # Fallback response if API unavailable
+    # 2. MyMemory API with language pair fallbacks (zu/nr for Ndebele)
+    lang_pairs = [f"{src}|{tgt}"]
+    if tgt == "nd":
+        lang_pairs.extend([f"{src}|zu", f"{src}|nr"])
+    elif src == "nd":
+        lang_pairs.extend([f"zu|{tgt}", f"nr|{tgt}"])
+
+    for lp in lang_pairs:
+        try:
+            encoded_query = urllib.parse.quote(clean_text)
+            url = f"https://api.mymemory.translated.net/get?q={encoded_query}&langpair={lp}"
+            req_obj = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req_obj, timeout=5) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                resp_data = data.get("responseData", {})
+                translated = resp_data.get("translatedText")
+                match_val = resp_data.get("match", 0) or 0
+
+                if translated and isinstance(translated, str) and translated.strip():
+                    t_clean = translated.strip()
+                    t_lower = t_clean.lower()
+
+                    bad_keywords = ["mymemory warning", "is not available", "query length limit", "no valid translation", "invalid language pair"]
+                    if any(bk in t_lower for bk in bad_keywords):
+                        continue
+
+                    if match_val >= 0.35 and t_clean.upper() != clean_text.upper():
+                        if lp.endswith("|zu") and tgt == "nd":
+                            t_clean = (
+                                t_clean.replace("Sawubona", "Salibonani")
+                                .replace("sawubona", "salibonani")
+                                .replace("kanjani", "njani")
+                            )
+                        return {
+                            "translatedText": t_clean,
+                            "source": src,
+                            "target": tgt,
+                            "provider": f"mymemory_{lp}",
+                        }
+        except Exception as e:
+            print(f"Translation API error for {lp}:", e)
+
+    # 3. Partial phrase dictionary substitution fallback
+    dict_map = (
+        SUPPORT_DICTIONARY_NDEBELE if (src == "en" and tgt == "nd") else
+        SUPPORT_DICTIONARY_SHONA if (src == "en" and tgt == "sn") else
+        REVERSE_NDEBELE if (src == "nd" and tgt == "en") else
+        REVERSE_SHONA if (src == "sn" and tgt == "en") else {}
+    )
+
+    import re
+    phrase = clean_text
+    substituted = False
+    for k in sorted(dict_map.keys(), key=len, reverse=True):
+        val = dict_map[k]
+        pattern = re.compile(r"\b" + re.escape(k) + r"\b", re.IGNORECASE)
+        if pattern.search(phrase):
+            phrase = pattern.sub(val, phrase)
+            substituted = True
+
+    if substituted:
+        return {"translatedText": phrase, "source": src, "target": tgt, "provider": "dictionary_partial"}
+
     return {
         "translatedText": clean_text,
         "source": src,
         "target": tgt,
-        "provider": "fallback"
+        "provider": "fallback",
     }
+
 
 
 

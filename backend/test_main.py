@@ -21,6 +21,7 @@ def test_health_check():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
+    assert data["database"] == "connected"
 
 
 def test_admin_pin_verification():
@@ -33,7 +34,7 @@ def test_admin_pin_verification():
     data = response.json()
     assert data["valid"] is True
     assert "token" in data
-    assert len(data["token"]) == 64
+    assert "." in data["token"]
 
     # Verify invalid PIN
     response_invalid = client.post(
@@ -68,7 +69,7 @@ def test_admin_authorization_headers():
     assert response_forbidden.status_code == 403
 
     # 3. Valid Admin token -> 200 OK
-    token = generate_admin_token("SA", hash_pin("0000"))
+    token = generate_admin_token("SA")
     response_valid = client.post(
         "/templates",
         headers={"X-Admin-Token": token, "X-Admin-Initials": "SA"},
@@ -81,6 +82,66 @@ def test_admin_authorization_headers():
     )
     assert response_valid.status_code == 200
     assert response_valid.json()["name"] == "Authorized Test Template"
+
+
+def test_expired_and_tampered_admin_tokens():
+    # 1. Expired token -> 403 Forbidden
+    expired_token = generate_admin_token("SA", expires_in_seconds=-10)
+    res_exp = client.post(
+        "/templates",
+        headers={"X-Admin-Token": expired_token, "X-Admin-Initials": "SA"},
+        json={
+            "name": "Expired Test",
+            "body": "Test body",
+            "category_type": "customer_reply",
+            "category": "Test"
+        }
+    )
+    assert res_exp.status_code == 403
+
+    # 2. Tampered token -> 403 Forbidden
+    valid_token = generate_admin_token("SA")
+    tampered_token = valid_token[:-4] + "XXXX"
+    res_tampered = client.post(
+        "/templates",
+        headers={"X-Admin-Token": tampered_token, "X-Admin-Initials": "SA"},
+        json={
+            "name": "Tampered Test",
+            "body": "Test body",
+            "category_type": "customer_reply",
+            "category": "Test"
+        }
+    )
+    assert res_tampered.status_code == 403
+
+
+def test_pin_verification_rate_limiting():
+    # Attempt 5 invalid PINs for agent 'SA_LIMIT_TEST'
+    agent_initials = "SA_LIMIT_TEST"
+    for _ in range(5):
+        client.post(
+            "/agents/verify-pin",
+            json={"agent_initials": agent_initials, "pin": "9999"}
+        )
+
+    # 6th attempt triggers 429 Too Many Requests
+    res_limit = client.post(
+        "/agents/verify-pin",
+        json={"agent_initials": agent_initials, "pin": "9999"}
+    )
+    assert res_limit.status_code == 429
+    assert "Too many failed PIN verification attempts" in res_limit.json()["detail"]
+
+
+def test_pbkdf2_pin_hashing_and_upgrade():
+    # Test PBKDF2 hash generation
+    h = hash_pin("1234")
+    assert h.startswith("pbkdf2_v1:")
+
+    # Verify PIN against PBKDF2 hash
+    from backend.main import verify_pin_hash
+    assert verify_pin_hash("1234", h) is True
+    assert verify_pin_hash("9999", h) is False
 
 
 def test_template_crud_lifecycle():
@@ -179,3 +240,64 @@ def test_sys_admin_protection():
         del_res = client.delete(f"/agents/{sa_agent.id}", headers=headers)
         assert del_res.status_code == 400
         assert "Sys_Admin" in del_res.json()["detail"]
+
+
+def test_suggestion_approval_lifecycle():
+    token = generate_admin_token("SA", hash_pin("0000"))
+    headers = {"X-Admin-Token": token, "X-Admin-Initials": "SA"}
+
+    # 1. Create a suggestion
+    sug_res = client.post(
+        "/suggestions",
+        json={
+            "name": "Suggested Refund Template",
+            "body": "Your refund of ${amount} has been processed.",
+            "category_type": "customer_reply",
+            "category": "Billing",
+            "subcategory": "Refunds",
+            "suggested_by_name": "TestAgent",
+            "suggested_by_initials": "TA"
+        }
+    )
+    assert sug_res.status_code == 200
+    sug = sug_res.json()
+    sug_id = sug["id"]
+    assert sug["status"] == "pending"
+
+    # 2. Approve suggestion -> Creates new Template
+    appr_res = client.post(f"/suggestions/{sug_id}/approve", headers=headers)
+    assert appr_res.status_code == 200
+    tpl = appr_res.json()
+    assert tpl["name"] == "Suggested Refund Template"
+
+    # 3. Verify suggestion list reflects approved status
+    list_res = client.get("/suggestions")
+    assert list_res.status_code == 200
+    suggestions = list_res.json()
+    approved_sug = next(s for s in suggestions if s["id"] == sug_id)
+    assert approved_sug["status"] == "approved"
+
+
+def test_multilingual_translate_endpoint():
+    # 1. Shona dictionary translation
+    res_sn = client.post("/translate", json={"text": "Hello", "source_lang": "en", "target_lang": "sn"})
+    assert res_sn.status_code == 200
+    data_sn = res_sn.json()
+    assert data_sn["translatedText"].lower() == "mhoroi"
+    assert data_sn["provider"] == "dictionary"
+
+    # 2. IsiNdebele dictionary translation
+    res_nd = client.post("/translate", json={"text": "Thank you", "source_lang": "en", "target_lang": "nd"})
+    assert res_nd.status_code == 200
+    data_nd = res_nd.json()
+    assert data_nd["translatedText"].lower() == "siyabonga"
+    assert data_nd["provider"] == "dictionary"
+
+    # 3. Dynamic sentence translation for IsiNdebele
+    res_dynamic = client.post("/translate", json={"text": "Your request is being processed.", "source_lang": "en", "target_lang": "nd"})
+    assert res_dynamic.status_code == 200
+    data_dyn = res_dynamic.json()
+    assert len(data_dyn["translatedText"]) > 0
+    assert data_dyn["translatedText"] != "Your request is being processed."
+
+

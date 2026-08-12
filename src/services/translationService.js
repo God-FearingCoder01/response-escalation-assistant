@@ -125,19 +125,21 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
   const src = sourceLang.toLowerCase();
   const tgt = targetLang.toLowerCase();
 
-  // 1. Direct dictionary exact match check
+  // 1. Direct & normalized dictionary match check
   const lowerText = cleanText.toLowerCase();
-  if (src === "en" && tgt === "sn" && SUPPORT_DICTIONARY[lowerText]) {
-    return { translatedText: matchCase(cleanText, SUPPORT_DICTIONARY[lowerText]), provider: "dictionary" };
+  const normText = lowerText.replace(/[.?!,]+$/g, "");
+
+  if (src === "en" && tgt === "sn" && (SUPPORT_DICTIONARY[lowerText] || SUPPORT_DICTIONARY[normText])) {
+    return { translatedText: matchCase(cleanText, SUPPORT_DICTIONARY[lowerText] || SUPPORT_DICTIONARY[normText]), provider: "dictionary" };
   }
-  if (src === "sn" && tgt === "en" && REVERSE_DICTIONARY[lowerText]) {
-    return { translatedText: matchCase(cleanText, REVERSE_DICTIONARY[lowerText]), provider: "dictionary" };
+  if (src === "sn" && tgt === "en" && (REVERSE_DICTIONARY[lowerText] || REVERSE_DICTIONARY[normText])) {
+    return { translatedText: matchCase(cleanText, REVERSE_DICTIONARY[lowerText] || REVERSE_DICTIONARY[normText]), provider: "dictionary" };
   }
-  if (src === "en" && tgt === "nd" && SUPPORT_NDEBELE_DICTIONARY[lowerText]) {
-    return { translatedText: matchCase(cleanText, SUPPORT_NDEBELE_DICTIONARY[lowerText]), provider: "dictionary" };
+  if (src === "en" && tgt === "nd" && (SUPPORT_NDEBELE_DICTIONARY[lowerText] || SUPPORT_NDEBELE_DICTIONARY[normText])) {
+    return { translatedText: matchCase(cleanText, SUPPORT_NDEBELE_DICTIONARY[lowerText] || SUPPORT_NDEBELE_DICTIONARY[normText]), provider: "dictionary" };
   }
-  if (src === "nd" && tgt === "en" && REVERSE_NDEBELE_DICTIONARY[lowerText]) {
-    return { translatedText: matchCase(cleanText, REVERSE_NDEBELE_DICTIONARY[lowerText]), provider: "dictionary" };
+  if (src === "nd" && tgt === "en" && (REVERSE_NDEBELE_DICTIONARY[lowerText] || REVERSE_NDEBELE_DICTIONARY[normText])) {
+    return { translatedText: matchCase(cleanText, REVERSE_NDEBELE_DICTIONARY[lowerText] || REVERSE_NDEBELE_DICTIONARY[normText]), provider: "dictionary" };
   }
 
   // 2. Call backend `/translate` endpoint if available
@@ -150,7 +152,13 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
 
     if (res.ok) {
       const data = await res.json();
-      if (data.translatedText && data.translatedText.trim()) {
+      if (
+        data.translatedText &&
+        data.translatedText.trim() &&
+        data.provider !== "fallback" &&
+        !data.translatedText.toLowerCase().includes("mymemory warning") &&
+        !data.translatedText.toLowerCase().includes("is not available")
+      ) {
         return {
           translatedText: data.translatedText,
           provider: data.provider || "backend",
@@ -182,7 +190,14 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
             !trans.toLowerCase().includes("mymemory warning") &&
             !trans.toLowerCase().includes("is not available")
           ) {
-            return { translatedText: trans, provider: "mymemory_client" };
+            let cleanTrans = trans;
+            if (langpair.endsWith("|zu") && tgt === "nd") {
+              cleanTrans = cleanTrans
+                .replace(/Sawubona/g, "Salibonani")
+                .replace(/sawubona/g, "salibonani")
+                .replace(/kanjani/g, "njani");
+            }
+            return { translatedText: cleanTrans, provider: "mymemory_client" };
           }
         }
       }
