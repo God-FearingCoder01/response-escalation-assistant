@@ -192,13 +192,16 @@ export default function CustomerReply({
                 templatesList.map((t) => (
                   <div
                     key={t.id}
-                    onClick={() => setSelectedCustId(t.id)}
+                    onClick={() => {
+                      setSelectedCustId(t.id);
+                      setValues({});
+                    }}
                     className={`p-3 rounded-2xl border cursor-pointer transition flex items-center justify-between ${
-                      t.id === activeTemplate?.id
+                      String(t.id) === String(activeTemplate?.id)
                         ? "border-[#4cd34c] ring-1 ring-[#4cd34c]/30 bg-[#4cd34c]/5"
                         : "hover:border-[#4cd34c]/50"
                     }`}
-                    style={{ borderColor: t.id === activeTemplate?.id ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
+                    style={{ borderColor: String(t.id) === String(activeTemplate?.id) ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
                   >
                     <div>
                       <div className="font-semibold text-sm">{t.name}</div>

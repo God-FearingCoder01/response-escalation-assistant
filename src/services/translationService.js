@@ -56,6 +56,11 @@ const SUPPORT_DICTIONARY = {
   "thank you for choosing us": "tinokutendai nekusarudza isu",
 };
 
+const REVERSE_DICTIONARY = Object.entries(SUPPORT_DICTIONARY).reduce((acc, [en, sn]) => {
+  acc[sn.toLowerCase()] = en;
+  return acc;
+}, {});
+
 const SUPPORT_NDEBELE_DICTIONARY = {
   "hello": "salibonani",
   "hi": "salibonani",
@@ -66,21 +71,37 @@ const SUPPORT_NDEBELE_DICTIONARY = {
   "thank you very much": "siyabonga kakhulu",
   "you are welcome": "wamukelekile",
   "please": "cela",
+  "sorry for the inconvenience": "siyaxolisa ngokuhlupheka",
   "how can i help you today?": "ngingakusiza njani lamuhla?",
+  "how can i help you": "ngingakusiza njani",
   "account number": "inombolo ye-akhawunti",
+  "phone number": "inombolo yocingo",
+  "email address": "ikheli le-eyili",
   "ticket number": "inombolo yetikiti",
-  "technical support": "ukusiza kwethekhinikhali",
+  "reference number": "inombolo yokukhomba",
+  "technical support": "usizo lwethekhinikhali",
   "technical team": "iqembu lethekhinikhali",
+  "support team": "iqembu losizo",
+  "customer care": "usizo lwabathengi",
   "escalated": "itshiyiwe kubasizi abaphezulu",
   "your ticket has been escalated": "itikiti lakho lisiwe eqenjini lethu eliphezulu lethekhinikhali",
+  "your query has been escalated to technical support": "umbuzo wakho udluliselwe eqenjini lethekhinikhali",
   "we are currently investigating the issue": "kusakhangelwa inkinga le okwakhathesi",
   "connection issue": "inkinga yokuxhumana kwewebhu",
   "internet down": "iyinthanethi kayisebenzi",
   "slow connection": "iyinthanethi inyenyezela",
+  "no signal": "kakulamaza",
+  "router": "i-router",
   "please restart your router": "cela ucime i-router yakho okwemizuzwana engamashumi amathathu uyivuse njalo",
+  "turn off the router for 30 seconds": "cima i-router okwemizuzwana engamashumi amathathu",
+  "fibre connection": "ukuxhumana kwe-fibre",
   "resolved": "kulungisisiwe",
   "the issue has been resolved": "inkinga yakho ilungisisiwe",
   "service restored": "inkonzo ibuyiselwe",
+  "payment": "inkokhelo",
+  "invoice": "i-invoysi",
+  "balance": "ibhalansi",
+  "thank you for choosing us": "siyabonga ngokukhetha thina",
 };
 
 const REVERSE_NDEBELE_DICTIONARY = Object.entries(SUPPORT_NDEBELE_DICTIONARY).reduce((acc, [en, nd]) => {
@@ -119,7 +140,7 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
     return { translatedText: matchCase(cleanText, REVERSE_NDEBELE_DICTIONARY[lowerText]), provider: "dictionary" };
   }
 
-  // 2. Call backend `/translate` endpoint
+  // 2. Call backend `/translate` endpoint if available
   try {
     const res = await fetch(`${API_BASE}/translate`, {
       method: "POST",
@@ -140,38 +161,62 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
     console.warn("Backend translation API unavailable, trying client fallback:", err);
   }
 
-  // 3. Fallback: Call MyMemory API directly from client
-  try {
-    const langpair = `${src}|${tgt}`;
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleanText)}&langpair=${langpair}`;
-    const res = await fetch(url);
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.responseData?.translatedText) {
-        const trans = data.responseData.translatedText;
-        if (trans && trans.toUpperCase() !== cleanText.toUpperCase()) {
-          return { translatedText: trans, provider: "mymemory_client" };
+  // 3. Fallback: Call MyMemory API directly from client (with Zulu fallback for IsiNdebele)
+  const langPairsToTry = [
+    `${src}|${tgt}`,
+    ...(tgt === "nd" ? [`${src}|zu`, `${src}|nr`] : []),
+    ...(src === "nd" ? [`zu|${tgt}`, `nr|${tgt}`] : []),
+  ];
+
+  for (const langpair of langPairsToTry) {
+    try {
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleanText)}&langpair=${langpair}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.responseData?.translatedText) {
+          const trans = data.responseData.translatedText;
+          if (
+            trans &&
+            trans.toUpperCase() !== cleanText.toUpperCase() &&
+            !trans.toLowerCase().includes("mymemory warning") &&
+            !trans.toLowerCase().includes("is not available")
+          ) {
+            return { translatedText: trans, provider: "mymemory_client" };
+          }
         }
       }
+    } catch (err) {
+      console.warn(`Client MyMemory translation failed for ${langpair}:`, err);
     }
-  } catch (err) {
-    console.warn("Client MyMemory translation failed:", err);
   }
 
-  // 4. Word-by-word phrase dictionary fallback if available
-  const dict = src === "en" ? (tgt === "nd" ? SUPPORT_NDEBELE_DICTIONARY : SUPPORT_DICTIONARY) : (src === "nd" ? REVERSE_NDEBELE_DICTIONARY : REVERSE_DICTIONARY);
-  let phraseReplaced = lowerText;
+  // 4. Word-by-word & phrase dictionary substitution fallback
+  const dict =
+    src === "en"
+      ? tgt === "nd"
+        ? SUPPORT_NDEBELE_DICTIONARY
+        : SUPPORT_DICTIONARY
+      : src === "nd"
+        ? REVERSE_NDEBELE_DICTIONARY
+        : REVERSE_DICTIONARY;
+
+  let phraseReplaced = cleanText;
   let substituted = false;
 
-  for (const [key, value] of Object.entries(dict)) {
-    if (phraseReplaced.includes(key)) {
-      phraseReplaced = phraseReplaced.replaceAll(key, value);
+  const sortedKeys = Object.keys(dict).sort((a, b) => b.length - a.length);
+
+  for (const key of sortedKeys) {
+    const value = dict[key];
+    const regex = new RegExp(`\\b${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
+    if (regex.test(phraseReplaced)) {
+      phraseReplaced = phraseReplaced.replace(regex, value);
       substituted = true;
     }
   }
 
   if (substituted) {
-    return { translatedText: matchCase(cleanText, phraseReplaced), provider: "dictionary_partial" };
+    return { translatedText: phraseReplaced, provider: "dictionary_partial" };
   }
 
   // 5. Ultimate fallback: Return original text with notice if unresolvable

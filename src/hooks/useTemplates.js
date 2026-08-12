@@ -168,10 +168,15 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
   // Selected template object for current activeScreen
   const activeTemplate = useMemo(() => {
     if (activeScreen === "tech_escalation") {
-      return techTemplates.find((t) => t.id === selectedTechId) ?? techTemplates[0];
+      return techTemplates.find((t) => String(t.id) === String(selectedTechId)) ?? techTemplates[0];
     }
     if (activeScreen === "customer_reply") {
-      return templates.find((t) => t.id === selectedCustId) ?? filteredCustomerTemplates[0] ?? customerTemplates[0];
+      return (
+        templates.find((t) => String(t.id) === String(selectedCustId)) ??
+        filteredCustomerTemplates.find((t) => String(t.id) === String(selectedCustId)) ??
+        filteredCustomerTemplates[0] ??
+        customerTemplates[0]
+      );
     }
     if (activeScreen === "quick_access") {
       return quickAccessActiveTemplate;
