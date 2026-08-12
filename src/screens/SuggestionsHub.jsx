@@ -96,13 +96,13 @@ export default function SuggestionsHub({
   const toggleAccordion = (title) => {
     setExpandedGroups((prev) => ({
       ...prev,
-      [title]: prev[title] === undefined ? false : !prev[title],
+      [title]: !prev[title],
     }));
   };
 
   const isGroupExpanded = (title) => {
-    // Expanded by default
-    return expandedGroups[title] !== false;
+    // Collapsed by default
+    return Boolean(expandedGroups[title]);
   };
 
   return (

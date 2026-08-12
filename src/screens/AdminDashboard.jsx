@@ -60,8 +60,6 @@ export default function AdminDashboard({
   const templateFormRef = useRef(null);
   const templateBodyRef = useRef(null);
 
-  if (activeScreen !== "admin" || !currentAgent?.is_admin) return null;
-
   const scrollToTemplateForm = () => {
     if (templateFormRef.current) {
       templateFormRef.current.scrollIntoView({ behavior: "smooth" });
@@ -135,6 +133,8 @@ export default function AdminDashboard({
       adjustTextareaHeight(templateBodyRef.current);
     }
   }, [editTplBody, editTplId]);
+
+  if (activeScreen !== "admin" || !currentAgent?.is_admin) return null;
 
   return (
     <section className="max-w-7xl mx-auto space-y-8">
