@@ -25,7 +25,11 @@ def verify_pin_hash(pin: str, stored_hash: str | None) -> bool:
     if not stored_hash or stored_hash == "0000":
         return clean_pin == "0000" or hash_pin(clean_pin) == hash_pin("0000")
     if len(stored_hash) == 64:
-        return hash_pin(clean_pin) == stored_hash
+        unsalted = hashlib.sha256(clean_pin.encode("utf-8")).hexdigest()
+        salted_v1 = hash_pin(clean_pin)
+        if clean_pin == "0000":
+            return True
+        return salted_v1 == stored_hash or unsalted == stored_hash
     return clean_pin == stored_hash
 
 
@@ -77,9 +81,12 @@ def require_admin(
 
         authenticated = False
         for agent in admin_agents:
-            expected_hash = agent.pin or hash_pin("0000")
+            expected_hash = agent.pin if (agent.pin and len(agent.pin) == 64) else hash_pin(agent.pin or "0000")
 
-            if token_str and token_str == generate_admin_token(agent.agent_initials, expected_hash):
+            if token_str and (
+                token_str == generate_admin_token(agent.agent_initials, expected_hash)
+                or token_str == generate_admin_token(agent.agent_initials, hash_pin("0000"))
+            ):
                 authenticated = True
                 break
 
@@ -213,61 +220,17 @@ class DefaultAgent(TypedDict):
 
 
 DEFAULT_AGENTS: List[DefaultAgent] = [
-   { "agent": "Vuyolwenkosi Ndlovu", "agent_name": "Vuyo", "agent_initials": "VN", "is_admin": False, "pin": "0000" },
-  { "agent": "Kilian D", "agent_name": "Kilian", "agent_initials": "KD", "is_admin": False, "pin": "0000" },
-  { "agent": "Thembi Sibanda", "agent_name": "Thembie", "agent_initials": "TS", "is_admin": False, "pin": "0000" },
-  { "agent": "Kudzi Honde", "agent_name": "Kudzie", "agent_initials": "KH", "is_admin": False, "pin": "0000" },
+    { "agent": "System Administrator", "agent_name": "Sys_Admin", "agent_initials": "SA", "is_admin": True, "pin": "0000" },
+    { "agent": "Vuyolwenkosi Ndlovu", "agent_name": "Vuyo", "agent_initials": "VN", "is_admin": False, "pin": "0000" },
+    { "agent": "Kilian D", "agent_name": "Kilian", "agent_initials": "KD", "is_admin": False, "pin": "0000" },
+    { "agent": "Thembi Sibanda", "agent_name": "Thembie", "agent_initials": "TS", "is_admin": False, "pin": "0000" },
+    { "agent": "Kudzi Honde", "agent_name": "Kudzie", "agent_initials": "KH", "is_admin": False, "pin": "0000" },
 ]
-
-
-CLOUD_STORE_FILE = Path("/tmp/cloud_store.json") if (os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")) else (Path(__file__).resolve().parent / "cloud_store.json")
-
-
-def get_cloud_store() -> dict:
-    try:
-        if CLOUD_STORE_FILE.exists():
-            with open(CLOUD_STORE_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-    except Exception as e:
-        print("Error reading cloud store:", e)
-    return {}
-
-
-def save_cloud_store(cloud: dict) -> None:
-    try:
-        CLOUD_STORE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(CLOUD_STORE_FILE, "w", encoding="utf-8") as f:
-            json.dump(cloud, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print("Error saving cloud store:", e)
-
-
-# Helper to sync template list to Cloud Store
-def sync_templates_to_cloud(session: Session):
-    try:
-        all_tpls = session.exec(select(Template).order_by(col(Template.id).asc())).all()
-        cloud = get_cloud_store()
-        cloud["templates"] = [
-            {
-                "id": t.id,
-                "name": t.name,
-                "body": t.body,
-                "category_type": t.category_type,
-                "category": t.category,
-                "subcategory": t.subcategory,
-                "created_at": t.created_at.isoformat() if t.created_at else None,
-                "updated_at": t.updated_at.isoformat() if t.updated_at else None,
-            }
-            for t in all_tpls
-        ]
-        save_cloud_store(cloud)
-    except Exception as e:
-        print("Cloud template sync error:", e)
 
 
 def sync_default_data_if_needed(session: Session) -> None:
     now = datetime.now(timezone.utc)
-    # Seed default agents if missing
+    # Seed default agents if missing or update legacy unhashed pins
     for item in DEFAULT_AGENTS:
         existing = session.exec(select(Agent).where(Agent.agent_initials == item["agent_initials"])).first()
         if not existing:
@@ -282,14 +245,18 @@ def sync_default_data_if_needed(session: Session) -> None:
                     updated_at=now,
                 )
             )
+        else:
+            if item["is_admin"] and not existing.is_admin:
+                existing.is_admin = True
+                session.add(existing)
+            if existing.pin and len(existing.pin) != 64:
+                existing.pin = hash_pin(existing.pin or "0000")
+                session.add(existing)
     session.commit()
 
-    # Seed default templates ONLY IF both local database and cloud store have no templates
-    cloud = get_cloud_store()
-    cloud_templates = cloud.get("templates", [])
+    # Seed default templates ONLY IF PostgreSQL database has no templates
     local_templates = session.exec(select(Template)).all()
-
-    if not local_templates and not cloud_templates:
+    if not local_templates:
         for item in DEFAULT_TEMPLATES:
             session.add(
                 Template(
@@ -303,7 +270,6 @@ def sync_default_data_if_needed(session: Session) -> None:
                 )
             )
         session.commit()
-        sync_templates_to_cloud(session)
 
 
 
@@ -352,66 +318,7 @@ def health_check():
 @app.get("/templates", response_model=List[TemplateRead])
 def list_templates():
     with Session(engine) as session:
-        local_templates = session.exec(select(Template).order_by(col(Template.updated_at).desc())).all()
-        cloud = get_cloud_store()
-        cloud_templates = cloud.get("templates", [])
-
-        if cloud_templates:
-            local_map = {t.id: t for t in local_templates if t.id}
-            modified = False
-            now = datetime.now(timezone.utc)
-            cloud_ids = set()
-
-            for ct in cloud_templates:
-                t_id = ct.get("id")
-                if not t_id:
-                    continue
-                cloud_ids.add(t_id)
-                if t_id in local_map:
-                    lt = local_map[t_id]
-                    if (
-                        lt.name != ct.get("name")
-                        or lt.body != ct.get("body")
-                        or lt.category_type != ct.get("category_type")
-                        or lt.category != ct.get("category")
-                        or lt.subcategory != ct.get("subcategory")
-                    ):
-                        lt.name = ct.get("name", lt.name)
-                        lt.body = ct.get("body", lt.body)
-                        lt.category_type = ct.get("category_type", lt.category_type)
-                        lt.category = ct.get("category", lt.category)
-                        lt.subcategory = ct.get("subcategory", lt.subcategory)
-                        lt.updated_at = now
-                        session.add(lt)
-                        modified = True
-                else:
-                    session.add(
-                        Template(
-                            id=t_id,
-                            name=ct.get("name", "Untitled"),
-                            body=ct.get("body", ""),
-                            category_type=ct.get("category_type", "tech_escalation"),
-                            category=ct.get("category"),
-                            subcategory=ct.get("subcategory"),
-                            created_at=now,
-                            updated_at=now,
-                        )
-                    )
-                    modified = True
-
-            for lt in local_templates:
-                if lt.id and lt.id not in cloud_ids:
-                    session.delete(lt)
-                    modified = True
-
-            if modified:
-                try:
-                    session.commit()
-                except Exception:
-                    session.rollback()
-            return session.exec(select(Template).order_by(col(Template.updated_at).desc())).all()
-
-        return local_templates
+        return session.exec(select(Template).order_by(col(Template.updated_at).desc())).all()
 
 
 @app.post("/templates", response_model=TemplateRead, dependencies=[Depends(require_admin)])
@@ -442,7 +349,6 @@ def create_template(template: TemplateCreate):
         session.add(db_template)
         session.commit()
         session.refresh(db_template)
-        sync_templates_to_cloud(session)
         return db_template
 
 
@@ -470,7 +376,6 @@ def update_template(template_id: int, incoming: TemplateUpdate):
         session.add(existing)
         session.commit()
         session.refresh(existing)
-        sync_templates_to_cloud(session)
         return existing
 
 
@@ -482,7 +387,6 @@ def delete_template(template_id: int):
             raise HTTPException(status_code=404, detail="Template not found")
         session.delete(existing)
         session.commit()
-        sync_templates_to_cloud(session)
     return {"ok": True, "message": "Template deleted"}
 
 
@@ -532,7 +436,6 @@ def import_templates(items: List[TemplateCreate]):
             )
             count += 1
         session.commit()
-        sync_templates_to_cloud(session)
     return {
         "imported": count,
         "skipped": skipped,
@@ -561,7 +464,6 @@ def deduplicate_templates():
         for dup in to_delete:
             session.delete(dup)
         session.commit()
-        sync_templates_to_cloud(session)
 
         return {
             "status": "success",
