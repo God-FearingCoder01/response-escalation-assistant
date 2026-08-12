@@ -1,6 +1,4 @@
-import { useState } from "react";
 import { getDateAutoValues } from "../services/api";
-import { translateText } from "../services/translationService";
 
 export default function TechEscalation({
   activeScreen,
@@ -17,26 +15,6 @@ export default function TechEscalation({
   generatedMsg,
   copyText,
 }) {
-  const [translatedText, setTranslatedText] = useState("");
-  const [translatedLangLabel, setTranslatedLangLabel] = useState("Shona");
-  const [isTranslating, setIsTranslating] = useState(false);
-  const [viewMode, setViewMode] = useState("english"); // 'english' | 'translated'
-
-  const handleInlineTranslate = async (targetLang = "sn") => {
-    if (!generatedMsg) return;
-    setIsTranslating(true);
-    try {
-      const res = await translateText(generatedMsg, "en", targetLang);
-      setTranslatedText(res.translatedText);
-      setTranslatedLangLabel(targetLang === "nd" ? "IsiNdebele" : "Shona");
-      setViewMode("translated");
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsTranslating(false);
-    }
-  };
-
   if (activeScreen !== "tech_escalation" || !currentAgent) return null;
 
   return (
@@ -67,11 +45,7 @@ export default function TechEscalation({
           <label className="text-xs uppercase tracking-wider font-semibold opacity-75">Select Escalation Template</label>
           <select
             value={selectedTechId || ""}
-            onChange={(e) => {
-              setSelectedTechId(Number(e.target.value));
-              setShonaText("");
-              setViewMode("english");
-            }}
+            onChange={(e) => setSelectedTechId(Number(e.target.value))}
             className="w-full rounded-2xl border p-3 font-medium outline-none transition focus:ring-2 focus:ring-[#4cd34c]"
             style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
           >
@@ -101,12 +75,9 @@ export default function TechEscalation({
             )}
           </div>
 
-          {(placeholders || []).length === 0 ? (
-            <p className="text-xs italic py-2" style={{ color: "var(--text-muted)" }}>
-              No dynamic placeholders required for this template.
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Dynamic Parameters */}
+          {(placeholders || []).length > 0 ? (
+            <div className="space-y-3">
               {(placeholders || []).map((ph) => {
                 const dateAuto = getDateAutoValues();
                 const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
@@ -121,15 +92,17 @@ export default function TechEscalation({
                       : "";
 
                 return (
-                  <div key={ph} className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="text-xs font-semibold capitalize opacity-85">
-                        {ph.replace(/_/g, " ")}:
-                      </label>
+                  <div key={ph}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs capitalize font-medium" style={{ color: "var(--text-muted)" }}>
+                        {ph.replace("_", " ")}:
+                      </span>
                       {isAgentField ? (
-                        <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled</span>
+                        <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from profile</span>
                       ) : isDateField ? (
-                        <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-date</span>
+                        <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from date</span>
+                      ) : isTimeUnitField ? (
+                        <span className="text-[10px] text-[#4cd34c] font-semibold">Preset dropdown</span>
                       ) : null}
                     </div>
 
@@ -137,25 +110,30 @@ export default function TechEscalation({
                       <select
                         value={values[ph] ?? "hour(s)"}
                         onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
-                        className="w-full rounded-xl border p-2.5 text-sm font-medium outline-none transition"
+                        className="w-full rounded-xl border p-2.5 text-sm font-medium"
                         style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                       >
+                        <option value="minute(s)">minute(s)</option>
                         <option value="hour(s)">hour(s)</option>
-                        <option value="minutes">minutes</option>
+                        <option value="day(s)">day(s)</option>
+                        <option value="week(s)">week(s)</option>
                       </select>
                     ) : (
                       <input
-                        type="text"
-                        value={values[ph] ?? autoVal ?? ""}
+                        value={values[ph] ?? autoVal}
                         onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
-                        placeholder={`Enter ${ph.replace(/_/g, " ")}...`}
-                        className="w-full rounded-xl border p-2.5 text-sm font-medium outline-none transition focus:border-[#4cd34c]"
+                        placeholder={autoVal ? `Auto: ${autoVal}` : `Enter ${ph}...`}
+                        className="w-full rounded-xl border p-2.5 text-sm"
                         style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                       />
                     )}
                   </div>
                 );
               })}
+            </div>
+          ) : (
+            <div className="p-4 text-center rounded-xl border text-xs italic" style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}>
+              No parameters required for this escalation template.
             </div>
           )}
         </div>
@@ -167,39 +145,15 @@ export default function TechEscalation({
         style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}
       >
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold" style={{ color: "var(--app-text)" }}>
-              Telegram Escalation Preview
-            </h2>
-
-            {/* Language View Switcher */}
-            {translatedText && (
-              <div className="flex items-center rounded-xl border p-1 text-xs" style={{ borderColor: "var(--badge-border)" }}>
-                <button
-                  type="button"
-                  onClick={() => setViewMode("english")}
-                  className={`px-2.5 py-1 rounded-lg font-bold transition ${viewMode === "english" ? "bg-[#4cd34c] text-[#071007]" : "opacity-70"}`}
-                >
-                  EN
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode("translated")}
-                  className={`px-2.5 py-1 rounded-lg font-bold transition ${viewMode === "translated" ? "bg-[#4cd34c] text-[#071007]" : "opacity-70"}`}
-                >
-                  {translatedLangLabel === "IsiNdebele" ? "ND" : "SN"}
-                </button>
-              </div>
-            )}
-          </div>
+          <h2 className="text-xl font-bold" style={{ color: "var(--app-text)" }}>
+            Telegram Escalation Preview
+          </h2>
 
           <div
             className="rounded-2xl border p-4 min-h-[12rem] whitespace-pre-wrap font-mono text-sm leading-relaxed"
             style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
           >
-            {viewMode === "translated" && translatedText
-              ? translatedText
-              : generatedMsg || <span style={{ color: "var(--field-placeholder)" }}>Select an escalation template...</span>}
+            {generatedMsg || <span style={{ color: "var(--field-placeholder)" }}>Select an escalation template...</span>}
           </div>
 
           <p className="text-xs italic" style={{ color: "var(--text-muted)" }}>
@@ -210,36 +164,12 @@ export default function TechEscalation({
         <div className="space-y-2 mt-6">
           <button
             type="button"
-            onClick={() => {
-              const activeText = viewMode === "translated" ? translatedText : generatedMsg;
-              copyText(activeText, "Telegram escalation copied! 📋", activeTemplate?.id);
-            }}
+            onClick={() => copyText(generatedMsg, "Telegram escalation copied! 📋", activeTemplate?.id)}
             disabled={!generatedMsg}
             className="w-full rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3.5 font-bold text-[#071007] shadow-[var(--btn-glow)] transition hover:opacity-90 disabled:opacity-40"
           >
             Copy Escalation Message 🚀
           </button>
-
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleInlineTranslate("sn")}
-              disabled={!generatedMsg || isTranslating}
-              className="rounded-xl border border-[#4cd34c]/40 bg-[#4cd34c]/10 py-2.5 text-xs font-bold text-[#4cd34c] hover:bg-[#4cd34c] hover:text-[#071007] transition disabled:opacity-50 flex items-center justify-center gap-1.5"
-            >
-              <img src="/globe.png" alt="Globe" className="h-3.5 w-3.5 shrink-0 object-contain" />
-              Shona
-            </button>
-            <button
-              type="button"
-              onClick={() => handleInlineTranslate("nd")}
-              disabled={!generatedMsg || isTranslating}
-              className="rounded-xl border border-[#4cd34c]/40 bg-[#4cd34c]/10 py-2.5 text-xs font-bold text-[#4cd34c] hover:bg-[#4cd34c] hover:text-[#071007] transition disabled:opacity-50 flex items-center justify-center gap-1.5"
-            >
-              <img src="/globe.png" alt="Globe" className="h-3.5 w-3.5 shrink-0 object-contain" />
-              IsiNdebele
-            </button>
-          </div>
 
           <button
             type="button"

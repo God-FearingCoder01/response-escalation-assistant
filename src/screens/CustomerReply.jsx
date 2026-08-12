@@ -45,6 +45,12 @@ export default function CustomerReply({
       setIsTranslating(false);
     }
   };
+
+  const categoriesList = customerCategories || [];
+  const subcategoriesList = customerSubcategories || [];
+  const templatesList = filteredCustomerTemplates || [];
+  const placeholderList = placeholders || [];
+
   if (activeScreen !== "customer_reply" || !currentAgent) return null;
 
   return (
@@ -123,7 +129,7 @@ export default function CustomerReply({
               Primary Category:
             </label>
             <div className="flex flex-wrap gap-2">
-              {customerCategories.map((cat) => (
+              {categoriesList.map((cat) => (
                 <button
                   key={cat}
                   type="button"
@@ -145,13 +151,13 @@ export default function CustomerReply({
           </div>
 
           {/* Level 2: Subcategory Chips */}
-          {customerSubcategories.length > 1 ? (
+          {subcategoriesList.length > 1 ? (
             <div>
               <label className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "var(--text-muted)" }}>
                 Subcategory:
               </label>
               <div className="flex flex-wrap gap-1.5">
-                {customerSubcategories.map((subcat) => (
+                {subcategoriesList.map((subcat) => (
                   <button
                     key={subcat}
                     type="button"
@@ -173,15 +179,15 @@ export default function CustomerReply({
           {/* Categorized Template List Cards */}
           <div>
             <label className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "var(--text-muted)" }}>
-              Select Response Template ({filteredCustomerTemplates.length}):
+              Select Response Template ({templatesList.length}):
             </label>
             <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
-              {filteredCustomerTemplates.length === 0 ? (
+              {templatesList.length === 0 ? (
                 <div className="text-xs italic p-3 rounded-xl border" style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}>
                   No templates found matching your category filter.
                 </div>
               ) : (
-                filteredCustomerTemplates.map((t) => (
+                templatesList.map((t) => (
                   <div
                     key={t.id}
                     onClick={() => setSelectedCustId(t.id)}
@@ -221,13 +227,13 @@ export default function CustomerReply({
           </div>
 
           {/* Dynamic Parameters for Customer Reply */}
-          {placeholders.length > 0 ? (
+          {placeholderList.length > 0 ? (
             <div className="pt-3 border-t space-y-3" style={{ borderColor: "var(--field-border)" }}>
               <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
                 Response Parameters:
               </h3>
               <div className="space-y-3">
-                {placeholders.map((ph) => {
+                {placeholderList.map((ph) => {
                   const dateAuto = getDateAutoValues();
                   const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
                   const isDateField = dateAuto[ph] !== undefined;
