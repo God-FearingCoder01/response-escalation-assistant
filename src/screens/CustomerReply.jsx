@@ -26,17 +26,19 @@ export default function CustomerReply({
   generatedMsg,
   copyText,
 }) {
-  const [shonaText, setShonaText] = useState("");
+  const [translatedText, setTranslatedText] = useState("");
+  const [translatedLangLabel, setTranslatedLangLabel] = useState("Shona");
   const [isTranslating, setIsTranslating] = useState(false);
-  const [viewMode, setViewMode] = useState("english"); // 'english' | 'shona'
+  const [viewMode, setViewMode] = useState("english"); // 'english' | 'translated'
 
-  const handleInlineTranslate = async () => {
+  const handleInlineTranslate = async (targetLang = "sn") => {
     if (!generatedMsg) return;
     setIsTranslating(true);
     try {
-      const res = await translateText(generatedMsg, "en", "sn");
-      setShonaText(res.translatedText);
-      setViewMode("shona");
+      const res = await translateText(generatedMsg, "en", targetLang);
+      setTranslatedText(res.translatedText);
+      setTranslatedLangLabel(targetLang === "nd" ? "IsiNdebele" : "Shona");
+      setViewMode("translated");
     } catch (e) {
       console.error(e);
     } finally {
@@ -328,8 +330,8 @@ export default function CustomerReply({
             className="rounded-2xl border p-4 min-h-[12rem] whitespace-pre-wrap font-mono text-sm leading-relaxed"
             style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
           >
-            {viewMode === "shona" && shonaText
-              ? shonaText
+            {viewMode === "translated" && translatedText
+              ? translatedText
               : generatedMsg || <span style={{ color: "var(--field-placeholder)" }}>Select a response template...</span>}
           </div>
 
@@ -348,30 +350,35 @@ export default function CustomerReply({
           <button
             type="button"
             onClick={() => {
-              const activeText = viewMode === "shona" ? shonaText : generatedMsg;
+              const activeText = viewMode === "translated" ? translatedText : generatedMsg;
               copyText(activeText, "Customer reply message copied! 📋", activeTemplate?.id);
             }}
             disabled={!generatedMsg}
-            className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3 font-semibold text-[#071007] shadow-lg disabled:opacity-50 transition"
+            className="w-full rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3.5 font-bold text-[#071007] shadow-[var(--btn-glow)] transition hover:opacity-90 disabled:opacity-40"
           >
-            Copy Customer Response ({viewMode === "shona" ? "Shona" : "English"})
+            Copy Customer Response 🚀
           </button>
 
-          <button
-            type="button"
-            onClick={handleInlineTranslate}
-            disabled={!generatedMsg || isTranslating}
-            className="w-full rounded-xl border border-[#4cd34c]/40 bg-[#4cd34c]/10 py-2.5 text-sm font-bold text-[#4cd34c] hover:bg-[#4cd34c] hover:text-[#071007] transition disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {isTranslating ? (
-              "Translating to Shona..."
-            ) : (
-              <span className="flex items-center gap-1.5">
-                <img src="/globe.png" alt="Globe" className="h-4 w-4 shrink-0 object-contain" />
-                Translate Response to Shona
-              </span>
-            )}
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => handleInlineTranslate("sn")}
+              disabled={!generatedMsg || isTranslating}
+              className="rounded-xl border border-[#4cd34c]/40 bg-[#4cd34c]/10 py-2.5 text-xs font-bold text-[#4cd34c] hover:bg-[#4cd34c] hover:text-[#071007] transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+            >
+              <img src="/globe.png" alt="Globe" className="h-3.5 w-3.5 shrink-0 object-contain" />
+              Shona
+            </button>
+            <button
+              type="button"
+              onClick={() => handleInlineTranslate("nd")}
+              disabled={!generatedMsg || isTranslating}
+              className="rounded-xl border border-[#4cd34c]/40 bg-[#4cd34c]/10 py-2.5 text-xs font-bold text-[#4cd34c] hover:bg-[#4cd34c] hover:text-[#071007] transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+            >
+              <img src="/globe.png" alt="Globe" className="h-3.5 w-3.5 shrink-0 object-contain" />
+              IsiNdebele
+            </button>
+          </div>
 
           <button
             type="button"

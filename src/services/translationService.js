@@ -56,17 +56,43 @@ const SUPPORT_DICTIONARY = {
   "thank you for choosing us": "tinokutendai nekusarudza isu",
 };
 
-// Reverse dictionary (Shona -> English)
-const REVERSE_DICTIONARY = Object.entries(SUPPORT_DICTIONARY).reduce((acc, [en, sn]) => {
-  acc[sn.toLowerCase()] = en;
+const SUPPORT_NDEBELE_DICTIONARY = {
+  "hello": "salibonani",
+  "hi": "salibonani",
+  "good morning": "sabona",
+  "good afternoon": "litshonile",
+  "good evening": "litshonile",
+  "thank you": "siyabonga",
+  "thank you very much": "siyabonga kakhulu",
+  "you are welcome": "wamukelekile",
+  "please": "cela",
+  "how can i help you today?": "ngingakusiza njani lamuhla?",
+  "account number": "inombolo ye-akhawunti",
+  "ticket number": "inombolo yetikiti",
+  "technical support": "ukusiza kwethekhinikhali",
+  "technical team": "iqembu lethekhinikhali",
+  "escalated": "itshiyiwe kubasizi abaphezulu",
+  "your ticket has been escalated": "itikiti lakho lisiwe eqenjini lethu eliphezulu lethekhinikhali",
+  "we are currently investigating the issue": "kusakhangelwa inkinga le okwakhathesi",
+  "connection issue": "inkinga yokuxhumana kwewebhu",
+  "internet down": "iyinthanethi kayisebenzi",
+  "slow connection": "iyinthanethi inyenyezela",
+  "please restart your router": "cela ucime i-router yakho okwemizuzwana engamashumi amathathu uyivuse njalo",
+  "resolved": "kulungisisiwe",
+  "the issue has been resolved": "inkinga yakho ilungisisiwe",
+  "service restored": "inkonzo ibuyiselwe",
+};
+
+const REVERSE_NDEBELE_DICTIONARY = Object.entries(SUPPORT_NDEBELE_DICTIONARY).reduce((acc, [en, nd]) => {
+  acc[nd.toLowerCase()] = en;
   return acc;
 }, {});
 
 /**
- * Translate text between English and Shona
+ * Translate text between English, Shona, and IsiNdebele
  * @param {string} text - Source text
- * @param {string} sourceLang - 'en' or 'sn'
- * @param {string} targetLang - 'sn' or 'en'
+ * @param {string} sourceLang - 'en', 'sn', or 'nd'
+ * @param {string} targetLang - 'sn', 'en', or 'nd'
  * @returns {Promise<{ translatedText: string, provider: string }>}
  */
 export async function translateText(text, sourceLang = "en", targetLang = "sn") {
@@ -85,6 +111,12 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
   }
   if (src === "sn" && tgt === "en" && REVERSE_DICTIONARY[lowerText]) {
     return { translatedText: matchCase(cleanText, REVERSE_DICTIONARY[lowerText]), provider: "dictionary" };
+  }
+  if (src === "en" && tgt === "nd" && SUPPORT_NDEBELE_DICTIONARY[lowerText]) {
+    return { translatedText: matchCase(cleanText, SUPPORT_NDEBELE_DICTIONARY[lowerText]), provider: "dictionary" };
+  }
+  if (src === "nd" && tgt === "en" && REVERSE_NDEBELE_DICTIONARY[lowerText]) {
+    return { translatedText: matchCase(cleanText, REVERSE_NDEBELE_DICTIONARY[lowerText]), provider: "dictionary" };
   }
 
   // 2. Call backend `/translate` endpoint
@@ -127,7 +159,7 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
   }
 
   // 4. Word-by-word phrase dictionary fallback if available
-  const dict = src === "en" ? SUPPORT_DICTIONARY : REVERSE_DICTIONARY;
+  const dict = src === "en" ? (tgt === "nd" ? SUPPORT_NDEBELE_DICTIONARY : SUPPORT_DICTIONARY) : (src === "nd" ? REVERSE_NDEBELE_DICTIONARY : REVERSE_DICTIONARY);
   let phraseReplaced = lowerText;
   let substituted = false;
 
@@ -158,11 +190,11 @@ function matchCase(original, translated) {
 
 // Default preset common support phrases
 export const DEFAULT_PRESET_PHRASES = [
-  { label: "Greeting", en: "Hello, thank you for contacting technical support. How can I assist you today?", sn: "Mhoroi, tinokutendai nekutibata pane rutsigiro rweunyanzvi. Ndingagone kukubatsirai sei nhasi?" },
-  { label: "Ticket Escalation", en: "Your ticket has been escalated to our senior technical team for investigation.", sn: "Tikiti renyu rakwidziridzwa kune chikwata chedu chikuru cheunyanzvi kuti vakuferefete." },
-  { label: "Restart Router", en: "Please restart your router by turning it off for 30 seconds and turning it back on.", sn: "Ndapota dzimurayi router yenyu kwemasekonzi makumi matatu uyezve moidzidzisa zvakare." },
-  { label: "Request Account ID", en: "Please provide your account number or registered phone number.", sn: "Ndapota ipai nhamba yeakaundi yenyu kana nhamba yerunhare yakanyoreswa." },
-  { label: "Issue Resolved", en: "We are pleased to inform you that your connection issue has been resolved.", sn: "Tinofara kukuzivisai kuti dambudziko renyu rekubatana kwewebhu ragadziriswa." },
+  { label: "Greeting", en: "Hello, thank you for contacting technical support. How can I assist you today?", sn: "Mhoroi, tinokutendai nekutibata pane rutsigiro rweunyanzvi. Ndingagone kukubatsirai sei nhasi?", nd: "Salibonani, siyabonga ukuxhumana nosizo lwethekhinikhali. Ngingakusiza njani lamuhla?" },
+  { label: "Ticket Escalation", en: "Your ticket has been escalated to our senior technical team for investigation.", sn: "Tikiti renyu rakwidziridzwa kune chikwata chedu chikuru cheunyanzvi kuti vakuferefete.", nd: "Itikiti lakho lisiwe eqenjini lethu eliphezulu lethekhinikhali ukuba lihlolisiswe." },
+  { label: "Restart Router", en: "Please restart your router by turning it off for 30 seconds and turning it back on.", sn: "Ndapota dzimurayi router yenyu kwemasekonzi makumi matatu uyezve moidzidzisa zvakare.", nd: "Cela ucime i-router yakho okwemizuzwana engamashumi amathathu uyivuse njalo." },
+  { label: "Request Account ID", en: "Please provide your account number or registered phone number.", sn: "Ndapota ipai nhamba yeakaundi yenyu kana nhamba yerunhare yakanyoreswa.", nd: "Cela unikeze inombolo yakho ye-akhawunti loba inombolo yocingo ebhalisiweyo." },
+  { label: "Issue Resolved", en: "We are pleased to inform you that your connection issue has been resolved.", sn: "Tinofara kukuzivisai kuti dambudziko renyu rekubatana kwewebhu ragadziriswa.", nd: "Siyathokoza ukukubikela ukuthi inkinga yakho yokuxhumana ilungisisiwe." },
 ];
 
 export const PRESET_PHRASES_KEY = "rea_preset_phrases_v1";

@@ -78,18 +78,18 @@ export default function AdminDashboard({
   const [presetLabel, setPresetLabel] = useState("");
   const [presetEn, setPresetEn] = useState("");
   const [presetSn, setPresetSn] = useState("");
+  const [presetNd, setPresetNd] = useState("");
 
   const handleSavePreset = (e) => {
     e.preventDefault();
     if (!presetLabel.trim() || !presetEn.trim() || !presetSn.trim()) return;
 
+    const newObj = { label: presetLabel.trim(), en: presetEn.trim(), sn: presetSn.trim(), nd: presetNd.trim() };
     let updatedList;
     if (editPresetIndex !== null) {
-      updatedList = presetList.map((item, idx) =>
-        idx === editPresetIndex ? { label: presetLabel.trim(), en: presetEn.trim(), sn: presetSn.trim() } : item
-      );
+      updatedList = presetList.map((item, idx) => (idx === editPresetIndex ? newObj : item));
     } else {
-      updatedList = [...presetList, { label: presetLabel.trim(), en: presetEn.trim(), sn: presetSn.trim() }];
+      updatedList = [...presetList, newObj];
     }
 
     setPresetList(updatedList);
@@ -98,6 +98,7 @@ export default function AdminDashboard({
     setPresetLabel("");
     setPresetEn("");
     setPresetSn("");
+    setPresetNd("");
   };
 
   const handleEditPresetClick = (preset, idx) => {
@@ -105,6 +106,7 @@ export default function AdminDashboard({
     setPresetLabel(preset.label);
     setPresetEn(preset.en);
     setPresetSn(preset.sn);
+    setPresetNd(preset.nd || "");
   };
 
   const handleDeletePreset = (idx) => {
@@ -116,6 +118,7 @@ export default function AdminDashboard({
       setPresetLabel("");
       setPresetEn("");
       setPresetSn("");
+      setPresetNd("");
     }
   };
 
@@ -126,6 +129,7 @@ export default function AdminDashboard({
     setPresetLabel("");
     setPresetEn("");
     setPresetSn("");
+    setPresetNd("");
   };
 
   useEffect(() => {
@@ -685,7 +689,7 @@ export default function AdminDashboard({
             {editPresetIndex !== null ? `Edit Preset Phrase #${editPresetIndex + 1}` : "Add New Preset Phrase"}
           </h4>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div>
               <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Badge / Label *:</label>
               <input
@@ -719,10 +723,20 @@ export default function AdminDashboard({
                 required
               />
             </div>
+            <div>
+              <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>IsiNdebele Translation:</label>
+              <input
+                value={presetNd}
+                onChange={(e) => setPresetNd(e.target.value)}
+                placeholder="e.g. Cela unikeze inombolo yakho..."
+                className="w-full rounded-xl border p-2.5 text-sm font-medium"
+                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+              />
+            </div>
           </div>
 
           <div className="flex gap-2 justify-end">
-            {(editPresetIndex !== null || presetLabel || presetEn || presetSn) && (
+            {(editPresetIndex !== null || presetLabel || presetEn || presetSn || presetNd) && (
               <button
                 type="button"
                 onClick={() => {
@@ -730,6 +744,7 @@ export default function AdminDashboard({
                   setPresetLabel("");
                   setPresetEn("");
                   setPresetSn("");
+                  setPresetNd("");
                 }}
                 className="px-4 py-2 rounded-xl border text-sm font-medium transition"
                 style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
@@ -767,8 +782,13 @@ export default function AdminDashboard({
                     🇬🇧 <span className="opacity-90">{preset.en}</span>
                   </p>
                   <p className="text-xs font-semibold text-[#4cd34c]">
-                    🇿🇼 <span>{preset.sn}</span>
+                    🇿🇼 (SN) <span>{preset.sn}</span>
                   </p>
+                  {preset.nd && (
+                    <p className="text-xs font-semibold text-[#4cd34c]">
+                      🇿🇼 (ND) <span>{preset.nd}</span>
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex gap-2 self-end md:self-center shrink-0">

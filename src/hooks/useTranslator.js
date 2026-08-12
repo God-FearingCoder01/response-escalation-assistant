@@ -106,13 +106,16 @@ export function useTranslator({ currentAgent = null, showToast = () => {} } = {}
   const handleSelectPreset = useCallback((preset) => {
     if (sourceLang === "en") {
       setSourceText(preset.en);
-      setTranslatedText(preset.sn);
-    } else {
+      setTranslatedText(targetLang === "nd" ? (preset.nd || preset.sn) : preset.sn);
+    } else if (sourceLang === "sn") {
       setSourceText(preset.sn);
-      setTranslatedText(preset.en);
+      setTranslatedText(targetLang === "nd" ? (preset.nd || preset.en) : preset.en);
+    } else {
+      setSourceText(preset.nd || preset.en);
+      setTranslatedText(targetLang === "sn" ? preset.sn : preset.en);
     }
     setTranslationProvider("preset");
-  }, [sourceLang]);
+  }, [sourceLang, targetLang]);
 
   // Clear translation inputs
   const handleClear = useCallback(() => {
@@ -136,7 +139,9 @@ export function useTranslator({ currentAgent = null, showToast = () => {} } = {}
     translatedText,
     setTranslatedText,
     sourceLang,
+    setSourceLang,
     targetLang,
+    setTargetLang,
     isTranslating,
     translationProvider,
     history,

@@ -10,7 +10,9 @@ export default function TranslatorScreen({
     setSourceText,
     translatedText,
     sourceLang,
+    setSourceLang,
     targetLang,
+    setTargetLang,
     isTranslating,
     translationProvider,
     history,
@@ -24,7 +26,12 @@ export default function TranslatorScreen({
 
   const [copied, setCopied] = useState(false);
 
-  const getLangName = (code) => (code === "en" ? "English" : "Shona");
+  const getLangName = (code) => {
+    if (code === "en") return "English";
+    if (code === "sn") return "Shona";
+    if (code === "nd") return "IsiNdebele";
+    return code;
+  };
 
   const handleCopyTranslated = () => {
     if (!translatedText) return;
@@ -51,25 +58,33 @@ export default function TranslatorScreen({
             </div>
             <div>
               <h1 className="text-xl font-extrabold tracking-tight">
-                English ⇄ Shona Translator
+                Multilingual Support Translator (EN ⇄ SN / ND)
               </h1>
               <p className="text-xs opacity-75">
-                Instant bidirectional translation for customer queries and escalation messages
+                Instant bidirectional translation across English, Shona & IsiNdebele for support queries
               </p>
             </div>
           </div>
 
-          {/* Language direction toggle bar */}
+          {/* Language direction selectors bar */}
           <div
-            className="flex items-center rounded-2xl border p-1.5 shadow-sm"
+            className="flex items-center gap-2 rounded-2xl border p-2 shadow-sm"
             style={{
               borderColor: "var(--badge-border)",
               backgroundColor: "var(--app-bg)",
             }}
           >
-            <span className="px-3 text-xs font-bold uppercase tracking-wider text-[#4cd34c]">
-              {getLangName(sourceLang)}
-            </span>
+            <select
+              value={sourceLang || "en"}
+              onChange={(e) => setSourceLang?.(e.target.value)}
+              className="rounded-xl border px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-[#4cd34c] outline-none cursor-pointer"
+              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}
+            >
+              <option value="en">English 🇬🇧</option>
+              <option value="sn">Shona 🇿🇼</option>
+              <option value="nd">IsiNdebele 🇿🇼</option>
+            </select>
+
             <button
               onClick={handleSwapLanguages}
               className="flex h-8 w-8 items-center justify-center rounded-xl transition hover:scale-110 active:scale-95 bg-[var(--neutral-bg)] text-[var(--neutral-text)] shadow-sm"
@@ -77,9 +92,17 @@ export default function TranslatorScreen({
             >
               ⇄
             </button>
-            <span className="px-3 text-xs font-bold uppercase tracking-wider text-[#4cd34c]">
-              {getLangName(targetLang)}
-            </span>
+
+            <select
+              value={targetLang || "sn"}
+              onChange={(e) => setTargetLang?.(e.target.value)}
+              className="rounded-xl border px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-[#4cd34c] outline-none cursor-pointer"
+              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}
+            >
+              <option value="sn">Shona 🇿🇼</option>
+              <option value="nd">IsiNdebele 🇿🇼</option>
+              <option value="en">English 🇬🇧</option>
+            </select>
           </div>
         </div>
       </div>
@@ -237,7 +260,7 @@ export default function TranslatorScreen({
               }}
             >
               <span className="text-[#4cd34c] font-bold">[{preset.label}]</span>{" "}
-              {sourceLang === "en" ? preset.en.slice(0, 45) + "..." : preset.sn.slice(0, 45) + "..."}
+              {sourceLang === "en" ? preset.en?.slice(0, 45) + "..." : sourceLang === "nd" ? (preset.nd || preset.en)?.slice(0, 45) + "..." : preset.sn?.slice(0, 45) + "..."}
             </button>
           ))}
         </div>
