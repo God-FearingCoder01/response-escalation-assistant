@@ -523,6 +523,7 @@ def create_company(payload: CompanyCreate):
         session.add(comp)
         session.commit()
         session.refresh(comp)
+        assert comp.id is not None
 
         # Seed default admin agent for new company
         admin_agent = Agent(
@@ -602,6 +603,8 @@ def list_templates(company: Company = Depends(get_current_company)):
 
 @app.post("/templates", response_model=TemplateRead, dependencies=[Depends(require_admin)])
 def create_template(template: TemplateCreate, company: Company = Depends(get_current_company)):
+    if company.id is None:
+        raise HTTPException(status_code=400, detail="Invalid company ID")
     with Session(engine) as session:
         existing = session.exec(
             select(Template).where(
@@ -688,6 +691,8 @@ def export_templates(company: Company = Depends(get_current_company)):
 
 @app.post("/import", dependencies=[Depends(require_admin)])
 def import_templates(items: List[TemplateCreate], company: Company = Depends(get_current_company)):
+    if company.id is None:
+        raise HTTPException(status_code=400, detail="Invalid company ID")
     with Session(engine) as session:
         existing_templates = session.exec(
             select(Template).where(Template.company_id == company.id)
@@ -781,6 +786,8 @@ def list_agents(company: Company = Depends(get_current_company)):
 
 @app.post("/agents", response_model=AgentRead, dependencies=[Depends(require_admin)])
 def create_agent(agent: AgentCreate, company: Company = Depends(get_current_company)):
+    if company.id is None:
+        raise HTTPException(status_code=400, detail="Invalid company ID")
     with Session(engine) as session:
         now = datetime.now(timezone.utc)
         db_agent = Agent(
@@ -913,6 +920,8 @@ def get_suggestions(company: Company = Depends(get_current_company)):
 
 @app.post("/suggestions", response_model=SuggestionRead)
 def create_suggestion(payload: SuggestionCreate, company: Company = Depends(get_current_company)):
+    if company.id is None:
+        raise HTTPException(status_code=400, detail="Invalid company ID")
     with Session(engine) as session:
         suggestion = Suggestion.model_validate(payload)
         suggestion.company_id = company.id
@@ -924,6 +933,8 @@ def create_suggestion(payload: SuggestionCreate, company: Company = Depends(get_
 
 @app.post("/suggestions/{suggestion_id}/approve", response_model=TemplateRead, dependencies=[Depends(require_admin)])
 def approve_suggestion(suggestion_id: int, company: Company = Depends(get_current_company)):
+    if company.id is None:
+        raise HTTPException(status_code=400, detail="Invalid company ID")
     with Session(engine) as session:
         sug = session.get(Suggestion, suggestion_id)
         if not sug or sug.company_id != company.id:
@@ -990,6 +1001,8 @@ def get_agent_favorites(agent_initials: str, company: Company = Depends(get_curr
 
 @app.post("/favorites/{agent_initials}/{template_id}")
 def toggle_agent_favorite(agent_initials: str, template_id: int, company: Company = Depends(get_current_company)):
+    if company.id is None:
+        raise HTTPException(status_code=400, detail="Invalid company ID")
     with Session(engine) as session:
         initials = agent_initials.upper()
         existing = session.exec(
@@ -1048,6 +1061,8 @@ def get_agent_history(agent_initials: str, company: Company = Depends(get_curren
 
 @app.post("/history/{agent_initials}/{template_id}")
 def record_agent_copy_history(agent_initials: str, template_id: int, company: Company = Depends(get_current_company)):
+    if company.id is None:
+        raise HTTPException(status_code=400, detail="Invalid company ID")
     with Session(engine) as session:
         initials = agent_initials.upper()
         entry = UsageHistory(company_id=company.id, agent_initials=initials, template_id=template_id)
