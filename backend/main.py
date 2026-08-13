@@ -5,10 +5,10 @@ import secrets
 import base64
 import time
 import json
+import re
 import urllib.request
 import urllib.parse
 from pathlib import Path
-from sqlalchemy import false
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import List, TypedDict
@@ -150,6 +150,8 @@ def require_admin(
     x_admin_token: str | None = Header(None, alias="X-Admin-Token"),
     x_admin_initials: str | None = Header(None, alias="X-Admin-Initials"),
     x_admin_pin: str | None = Header(None, alias="X-Admin-PIN"),
+    x_company_id: str | None = Header(None, alias="X-Company-ID"),
+    x_company_slug: str | None = Header(None, alias="X-Company-Slug"),
 ):
     token_str = x_admin_token if isinstance(x_admin_token, str) else None
     initials_str = x_admin_initials if isinstance(x_admin_initials, str) else None
@@ -162,7 +164,25 @@ def require_admin(
         )
 
     with Session(engine) as session:
-        admin_agents = session.exec(select(Agent).where(Agent.is_admin == True)).all()
+        target_company_id = None
+        if x_company_id:
+            try:
+                target_company_id = int(x_company_id)
+            except ValueError:
+                pass
+        elif x_company_slug:
+            comp = session.exec(select(Company).where(Company.slug == x_company_slug.lower(), Company.is_active == True)).first()
+            if comp:
+                target_company_id = comp.id
+
+        stmt = select(Agent).where(Agent.is_admin == True)
+        if target_company_id is not None:
+            stmt = stmt.where(Agent.company_id == target_company_id)
+
+        admin_agents = session.exec(stmt).all()
+        if not admin_agents and target_company_id is not None:
+            admin_agents = session.exec(select(Agent).where(Agent.is_admin == True)).all()
+
         if not admin_agents:
             raise HTTPException(status_code=403, detail="No admin profile configured")
 
@@ -197,6 +217,10 @@ def require_admin(
 try:
     from .database import create_db_and_tables, engine, ping_database
     from .models import (
+        Company,
+        CompanyCreate,
+        CompanyRead,
+        CompanyUpdate,
         Agent,
         AgentCreate,
         AgentRead,
@@ -215,6 +239,10 @@ try:
 except ImportError:
     from backend.database import create_db_and_tables, engine, ping_database
     from backend.models import (
+        Company,
+        CompanyCreate,
+        CompanyRead,
+        CompanyUpdate,
         Agent,
         AgentCreate,
         AgentRead,
@@ -326,9 +354,35 @@ DEFAULT_AGENTS: List[DefaultAgent] = [
 
 def sync_default_data_if_needed(session: Session) -> None:
     now = datetime.now(timezone.utc)
-    # Seed default agents if missing or update legacy unhashed pins
+    # 1. Default Company
+    default_company = session.exec(select(Company).where(Company.id == 1)).first()
+    if not default_company:
+        default_company = session.exec(select(Company).where(Company.slug == "default")).first()
+
+    if not default_company:
+        default_company = Company(
+            id=1,
+            name="Default Organization",
+            slug="default",
+            is_active=True,
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(default_company)
+        session.commit()
+        session.refresh(default_company)
+
+    if default_company.id is None:
+        return
+
+    # 2. Seed default agents associated with default_company.id
     for item in DEFAULT_AGENTS:
-        existing = session.exec(select(Agent).where(Agent.agent_initials == item["agent_initials"])).first()
+        existing = session.exec(
+            select(Agent).where(
+                Agent.agent_initials == item["agent_initials"],
+                Agent.company_id == default_company.id,
+            )
+        ).first()
         if not existing:
             session.add(
                 Agent(
@@ -337,6 +391,7 @@ def sync_default_data_if_needed(session: Session) -> None:
                     agent_initials=item["agent_initials"],
                     is_admin=item["is_admin"],
                     pin=hash_pin(item["pin"]),
+                    company_id=default_company.id,
                     created_at=now,
                     updated_at=now,
                 )
@@ -345,13 +400,13 @@ def sync_default_data_if_needed(session: Session) -> None:
             if item["is_admin"] and not existing.is_admin:
                 existing.is_admin = True
                 session.add(existing)
-            if existing.pin and len(existing.pin) != 64:
+            if existing.pin and not existing.pin.startswith("pbkdf2_v1:"):
                 existing.pin = hash_pin(existing.pin or "0000")
                 session.add(existing)
     session.commit()
 
-    # Seed default templates ONLY IF PostgreSQL database has no templates
-    local_templates = session.exec(select(Template)).all()
+    # 3. Seed default templates for default company
+    local_templates = session.exec(select(Template).where(Template.company_id == default_company.id)).all()
     if not local_templates:
         for item in DEFAULT_TEMPLATES:
             session.add(
@@ -361,11 +416,41 @@ def sync_default_data_if_needed(session: Session) -> None:
                     category_type=item["category_type"],
                     category=item.get("category"),
                     subcategory=item.get("subcategory"),
+                    company_id=default_company.id,
                     created_at=now,
                     updated_at=now,
                 )
             )
         session.commit()
+
+
+def get_current_company(
+    x_company_id: str | None = Header(None, alias="X-Company-ID"),
+    x_company_slug: str | None = Header(None, alias="X-Company-Slug"),
+) -> Company:
+    with Session(engine) as session:
+        if x_company_id:
+            try:
+                cid = int(x_company_id)
+                comp = session.get(Company, cid)
+                if comp and comp.is_active:
+                    return comp
+            except ValueError:
+                pass
+
+        if x_company_slug:
+            comp = session.exec(
+                select(Company).where(Company.slug == x_company_slug.lower(), Company.is_active == True)
+            ).first()
+            if comp:
+                return comp
+
+        comp = session.get(Company, 1)
+        if not comp:
+            comp = session.exec(select(Company).where(Company.is_active == True)).first()
+        if not comp:
+            raise HTTPException(status_code=404, detail="No active organization found")
+        return comp
 
 
 
@@ -411,17 +496,116 @@ def health_check():
     return {"status": "ok", "database": "connected", "message": "Backend is ready"}
 
 
-@app.get("/templates", response_model=List[TemplateRead])
-def list_templates():
+# --- COMPANY / ORGANIZATION ENDPOINTS ---
+
+@app.get("/companies", response_model=List[CompanyRead])
+def list_companies():
     with Session(engine) as session:
-        return session.exec(select(Template).order_by(col(Template.updated_at).desc())).all()
+        return session.exec(select(Company).order_by(col(Company.id).asc())).all()
+
+
+@app.post("/companies", response_model=CompanyRead, dependencies=[Depends(require_admin)])
+def create_company(payload: CompanyCreate):
+    with Session(engine) as session:
+        slug = payload.slug.strip().lower()
+        existing = session.exec(select(Company).where(Company.slug == slug)).first()
+        if existing:
+            raise HTTPException(status_code=400, detail=f"Company with slug '{slug}' already exists")
+
+        now = datetime.now(timezone.utc)
+        comp = Company(
+            name=payload.name.strip(),
+            slug=slug,
+            is_active=payload.is_active,
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(comp)
+        session.commit()
+        session.refresh(comp)
+
+        # Seed default admin agent for new company
+        admin_agent = Agent(
+            agent="System Administrator",
+            agent_name="Sys_Admin",
+            agent_initials="SA",
+            is_admin=True,
+            pin=hash_pin("0000"),
+            company_id=comp.id,
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(admin_agent)
+
+        # Seed default starter templates for new company
+        for item in DEFAULT_TEMPLATES:
+            session.add(
+                Template(
+                    name=item["name"],
+                    body=item["body"],
+                    category_type=item["category_type"],
+                    category=item.get("category"),
+                    subcategory=item.get("subcategory"),
+                    company_id=comp.id,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+        session.commit()
+        session.refresh(comp)
+        return CompanyRead.model_validate(comp)
+
+
+@app.get("/companies/{company_id}", response_model=CompanyRead)
+def get_company(company_id: int):
+    with Session(engine) as session:
+        comp = session.get(Company, company_id)
+        if not comp:
+            raise HTTPException(status_code=404, detail="Company not found")
+        return CompanyRead.model_validate(comp)
+
+
+@app.put("/companies/{company_id}", response_model=CompanyRead, dependencies=[Depends(require_admin)])
+def update_company(company_id: int, payload: CompanyUpdate):
+    with Session(engine) as session:
+        comp = session.get(Company, company_id)
+        if not comp:
+            raise HTTPException(status_code=404, detail="Company not found")
+        if payload.name is not None:
+            comp.name = payload.name.strip()
+        if payload.slug is not None:
+            new_slug = payload.slug.strip().lower()
+            existing = session.exec(select(Company).where(Company.slug == new_slug, Company.id != company_id)).first()
+            if existing:
+                raise HTTPException(status_code=400, detail=f"Company slug '{new_slug}' is already taken")
+            comp.slug = new_slug
+        if payload.is_active is not None:
+            comp.is_active = payload.is_active
+        comp.updated_at = datetime.now(timezone.utc)
+        session.add(comp)
+        session.commit()
+        session.refresh(comp)
+        return CompanyRead.model_validate(comp)
+
+
+# --- TEMPLATE ENDPOINTS ---
+
+@app.get("/templates", response_model=List[TemplateRead])
+def list_templates(company: Company = Depends(get_current_company)):
+    with Session(engine) as session:
+        return session.exec(
+            select(Template)
+            .where(Template.company_id == company.id)
+            .order_by(col(Template.updated_at).desc())
+        ).all()
 
 
 @app.post("/templates", response_model=TemplateRead, dependencies=[Depends(require_admin)])
-def create_template(template: TemplateCreate):
+def create_template(template: TemplateCreate, company: Company = Depends(get_current_company)):
     with Session(engine) as session:
         existing = session.exec(
             select(Template).where(
+                col(Template.company_id) == company.id,
                 col(Template.category_type) == template.category_type,
                 col(Template.name) == template.name,
                 col(Template.category) == template.category,
@@ -439,6 +623,7 @@ def create_template(template: TemplateCreate):
             category_type=template.category_type,
             category=template.category,
             subcategory=template.subcategory,
+            company_id=company.id,
             created_at=now,
             updated_at=now,
         )
@@ -449,25 +634,30 @@ def create_template(template: TemplateCreate):
 
 
 @app.get("/templates/{template_id}", response_model=TemplateRead)
-def get_template(template_id: int):
+def get_template(template_id: int, company: Company = Depends(get_current_company)):
     with Session(engine) as session:
         template = session.get(Template, template_id)
-        if not template:
+        if not template or template.company_id != company.id:
             raise HTTPException(status_code=404, detail="Template not found")
         return template
 
 
 @app.put("/templates/{template_id}", response_model=TemplateRead, dependencies=[Depends(require_admin)])
-def update_template(template_id: int, incoming: TemplateUpdate):
+def update_template(template_id: int, incoming: TemplateUpdate, company: Company = Depends(get_current_company)):
     with Session(engine) as session:
         existing = session.get(Template, template_id)
-        if not existing:
+        if not existing or existing.company_id != company.id:
             raise HTTPException(status_code=404, detail="Template not found")
-        existing.name = incoming.name
-        existing.body = incoming.body
-        existing.category_type = incoming.category_type
-        existing.category = incoming.category
-        existing.subcategory = incoming.subcategory
+        if incoming.name is not None:
+            existing.name = incoming.name
+        if incoming.body is not None:
+            existing.body = incoming.body
+        if incoming.category_type is not None:
+            existing.category_type = incoming.category_type
+        if incoming.category is not None:
+            existing.category = incoming.category
+        if incoming.subcategory is not None:
+            existing.subcategory = incoming.subcategory
         existing.updated_at = datetime.now(timezone.utc)
         session.add(existing)
         session.commit()
@@ -476,10 +666,10 @@ def update_template(template_id: int, incoming: TemplateUpdate):
 
 
 @app.delete("/templates/{template_id}", dependencies=[Depends(require_admin)])
-def delete_template(template_id: int):
+def delete_template(template_id: int, company: Company = Depends(get_current_company)):
     with Session(engine) as session:
         existing = session.get(Template, template_id)
-        if not existing:
+        if not existing or existing.company_id != company.id:
             raise HTTPException(status_code=404, detail="Template not found")
         session.delete(existing)
         session.commit()
@@ -487,15 +677,21 @@ def delete_template(template_id: int):
 
 
 @app.get("/export", response_model=List[TemplateRead])
-def export_templates():
+def export_templates(company: Company = Depends(get_current_company)):
     with Session(engine) as session:
-        return session.exec(select(Template).order_by(col(Template.updated_at).desc())).all()
+        return session.exec(
+            select(Template)
+            .where(Template.company_id == company.id)
+            .order_by(col(Template.updated_at).desc())
+        ).all()
 
 
 @app.post("/import", dependencies=[Depends(require_admin)])
-def import_templates(items: List[TemplateCreate]):
+def import_templates(items: List[TemplateCreate], company: Company = Depends(get_current_company)):
     with Session(engine) as session:
-        existing_templates = session.exec(select(Template)).all()
+        existing_templates = session.exec(
+            select(Template).where(Template.company_id == company.id)
+        ).all()
         seen = set(
             (
                 (t.category_type or "").strip().lower(),
@@ -526,6 +722,7 @@ def import_templates(items: List[TemplateCreate]):
                     category_type=item.category_type,
                     category=item.category,
                     subcategory=item.subcategory,
+                    company_id=company.id,
                     created_at=now,
                     updated_at=now,
                 )
@@ -540,9 +737,13 @@ def import_templates(items: List[TemplateCreate]):
 
 
 @app.post("/templates/deduplicate", dependencies=[Depends(require_admin)])
-def deduplicate_templates():
+def deduplicate_templates(company: Company = Depends(get_current_company)):
     with Session(engine) as session:
-        all_templates = session.exec(select(Template).order_by(col(Template.id).asc())).all()
+        all_templates = session.exec(
+            select(Template)
+            .where(Template.company_id == company.id)
+            .order_by(col(Template.id).asc())
+        ).all()
         seen = set()
         to_delete = []
         for t in all_templates:
@@ -571,13 +772,15 @@ def deduplicate_templates():
 
 # Agent endpoints
 @app.get("/agents", response_model=List[AgentRead])
-def list_agents():
+def list_agents(company: Company = Depends(get_current_company)):
     with Session(engine) as session:
-        return session.exec(select(Agent).order_by(col(Agent.id).asc())).all()
+        return session.exec(
+            select(Agent).where(Agent.company_id == company.id).order_by(col(Agent.id).asc())
+        ).all()
 
 
 @app.post("/agents", response_model=AgentRead, dependencies=[Depends(require_admin)])
-def create_agent(agent: AgentCreate):
+def create_agent(agent: AgentCreate, company: Company = Depends(get_current_company)):
     with Session(engine) as session:
         now = datetime.now(timezone.utc)
         db_agent = Agent(
@@ -586,6 +789,7 @@ def create_agent(agent: AgentCreate):
             agent_initials=agent.agent_initials.upper(),
             is_admin=agent.is_admin,
             pin=hash_pin(agent.pin or "0000"),
+            company_id=company.id,
             created_at=now,
             updated_at=now,
         )
@@ -596,10 +800,10 @@ def create_agent(agent: AgentCreate):
 
 
 @app.put("/agents/{agent_id}", response_model=AgentRead, dependencies=[Depends(require_admin)])
-def update_agent(agent_id: int, incoming: AgentUpdate):
+def update_agent(agent_id: int, incoming: AgentUpdate, company: Company = Depends(get_current_company)):
     with Session(engine) as session:
         existing = session.get(Agent, agent_id)
-        if not existing:
+        if not existing or existing.company_id != company.id:
             raise HTTPException(status_code=404, detail="Agent not found")
         if (existing.agent_initials == "SA" or existing.agent_name == "Sys_Admin") and incoming.is_admin is False:
             raise HTTPException(
@@ -624,10 +828,10 @@ def update_agent(agent_id: int, incoming: AgentUpdate):
 
 
 @app.delete("/agents/{agent_id}", dependencies=[Depends(require_admin)])
-def delete_agent(agent_id: int):
+def delete_agent(agent_id: int, company: Company = Depends(get_current_company)):
     with Session(engine) as session:
         existing = session.get(Agent, agent_id)
-        if not existing:
+        if not existing or existing.company_id != company.id:
             raise HTTPException(status_code=404, detail="Agent not found")
         if existing.agent_initials == "SA" or existing.agent_name == "Sys_Admin":
             raise HTTPException(
@@ -635,7 +839,9 @@ def delete_agent(agent_id: int):
                 detail="Security Protection: The System Admin profile (Sys_Admin / SA) cannot be deleted to ensure platform admin access remains available.",
             )
         if existing.is_admin:
-            admin_count = len(session.exec(select(Agent).where(Agent.is_admin == True)).all())
+            admin_count = len(
+                session.exec(select(Agent).where(Agent.company_id == company.id, Agent.is_admin == True)).all()
+            )
             if admin_count <= 1:
                 raise HTTPException(
                     status_code=400,
@@ -647,15 +853,25 @@ def delete_agent(agent_id: int):
 
 
 @app.post("/agents/verify-pin")
-def verify_agent_pin(req: PinVerifyRequest, request: Request):
+def verify_agent_pin(req: PinVerifyRequest, request: Request, company: Company = Depends(get_current_company)):
     client_ip = request.client.host if request.client else "unknown"
-    rate_key = f"{client_ip}:{req.agent_initials.upper()}"
+    rate_key = f"{client_ip}:{company.id}:{req.agent_initials.upper()}"
     check_pin_rate_limit(rate_key)
 
     with Session(engine) as session:
-        agent = session.exec(select(Agent).where(Agent.agent_initials == req.agent_initials.upper())).first()
+        agent = session.exec(
+            select(Agent).where(
+                Agent.company_id == company.id,
+                Agent.agent_initials == req.agent_initials.upper(),
+            )
+        ).first()
         if not agent:
-            agent = session.exec(select(Agent).where(Agent.is_admin == True)).first()
+            agent = session.exec(
+                select(Agent).where(
+                    Agent.company_id == company.id,
+                    Agent.is_admin == True,
+                )
+            ).first()
         if not agent:
             record_failed_pin_attempt(rate_key)
             raise HTTPException(status_code=404, detail="Agent profile not found")
@@ -686,15 +902,20 @@ def verify_agent_pin(req: PinVerifyRequest, request: Request):
 # --- SUGGESTION ENDPOINTS ---
 
 @app.get("/suggestions", response_model=List[SuggestionRead])
-def get_suggestions():
+def get_suggestions(company: Company = Depends(get_current_company)):
     with Session(engine) as session:
-        return session.exec(select(Suggestion).order_by(col(Suggestion.created_at).desc())).all()
+        return session.exec(
+            select(Suggestion)
+            .where(Suggestion.company_id == company.id)
+            .order_by(col(Suggestion.created_at).desc())
+        ).all()
 
 
 @app.post("/suggestions", response_model=SuggestionRead)
-def create_suggestion(payload: SuggestionCreate):
+def create_suggestion(payload: SuggestionCreate, company: Company = Depends(get_current_company)):
     with Session(engine) as session:
         suggestion = Suggestion.model_validate(payload)
+        suggestion.company_id = company.id
         session.add(suggestion)
         session.commit()
         session.refresh(suggestion)
@@ -702,10 +923,10 @@ def create_suggestion(payload: SuggestionCreate):
 
 
 @app.post("/suggestions/{suggestion_id}/approve", response_model=TemplateRead, dependencies=[Depends(require_admin)])
-def approve_suggestion(suggestion_id: int):
+def approve_suggestion(suggestion_id: int, company: Company = Depends(get_current_company)):
     with Session(engine) as session:
         sug = session.get(Suggestion, suggestion_id)
-        if not sug:
+        if not sug or sug.company_id != company.id:
             raise HTTPException(status_code=404, detail="Suggestion not found")
 
         new_tpl = Template(
@@ -714,6 +935,7 @@ def approve_suggestion(suggestion_id: int):
             category_type=sug.category_type,
             category=sug.category,
             subcategory=sug.subcategory,
+            company_id=company.id,
         )
         session.add(new_tpl)
 
@@ -727,10 +949,10 @@ def approve_suggestion(suggestion_id: int):
 
 
 @app.post("/suggestions/{suggestion_id}/reject", response_model=SuggestionRead, dependencies=[Depends(require_admin)])
-def reject_suggestion(suggestion_id: int):
+def reject_suggestion(suggestion_id: int, company: Company = Depends(get_current_company)):
     with Session(engine) as session:
         sug = session.get(Suggestion, suggestion_id)
-        if not sug:
+        if not sug or sug.company_id != company.id:
             raise HTTPException(status_code=404, detail="Suggestion not found")
         sug.status = "rejected"
         sug.updated_at = datetime.now(timezone.utc)
@@ -741,58 +963,70 @@ def reject_suggestion(suggestion_id: int):
 
 
 @app.delete("/suggestions/{suggestion_id}", dependencies=[Depends(require_admin)])
-def delete_suggestion(suggestion_id: int):
+def delete_suggestion(suggestion_id: int, company: Company = Depends(get_current_company)):
     with Session(engine) as session:
         sug = session.get(Suggestion, suggestion_id)
-        if not sug:
+        if not sug or sug.company_id != company.id:
             raise HTTPException(status_code=404, detail="Suggestion not found")
-        sug.status = "rejected"
-        sug.updated_at = datetime.now(timezone.utc)
-        session.add(sug)
+        session.delete(sug)
         session.commit()
-    return {"ok": True, "message": "Suggestion status updated to rejected"}
+    return {"ok": True, "message": "Suggestion permanently deleted"}
 
 
 # --- FAVORITES & HISTORY ENDPOINTS ---
 
 @app.get("/favorites/{agent_initials}")
-def get_agent_favorites(agent_initials: str):
+def get_agent_favorites(agent_initials: str, company: Company = Depends(get_current_company)):
     with Session(engine) as session:
         initials = agent_initials.upper()
-        favs = session.exec(select(Favorite).where(Favorite.agent_initials == initials)).all()
+        favs = session.exec(
+            select(Favorite).where(
+                Favorite.company_id == company.id,
+                Favorite.agent_initials == initials,
+            )
+        ).all()
         return [f.template_id for f in favs]
 
 
 @app.post("/favorites/{agent_initials}/{template_id}")
-def toggle_agent_favorite(agent_initials: str, template_id: int):
+def toggle_agent_favorite(agent_initials: str, template_id: int, company: Company = Depends(get_current_company)):
     with Session(engine) as session:
         initials = agent_initials.upper()
         existing = session.exec(
             select(Favorite).where(
+                Favorite.company_id == company.id,
                 Favorite.agent_initials == initials,
-                Favorite.template_id == template_id
+                Favorite.template_id == template_id,
             )
         ).first()
 
         if existing:
             session.delete(existing)
         else:
-            new_fav = Favorite(agent_initials=initials, template_id=template_id)
+            new_fav = Favorite(company_id=company.id, agent_initials=initials, template_id=template_id)
             session.add(new_fav)
 
         session.commit()
 
-        all_favs = session.exec(select(Favorite).where(Favorite.agent_initials == initials)).all()
+        all_favs = session.exec(
+            select(Favorite).where(
+                Favorite.company_id == company.id,
+                Favorite.agent_initials == initials,
+            )
+        ).all()
         return [f.template_id for f in all_favs]
 
 
 @app.get("/history/{agent_initials}")
-def get_agent_history(agent_initials: str):
+def get_agent_history(agent_initials: str, company: Company = Depends(get_current_company)):
     with Session(engine) as session:
         initials = agent_initials.upper()
         history = session.exec(
             select(UsageHistory)
-            .where(UsageHistory.agent_initials == initials)
+            .where(
+                UsageHistory.company_id == company.id,
+                UsageHistory.agent_initials == initials,
+            )
             .order_by(col(UsageHistory.copied_at).desc())
         ).all()
 
@@ -813,10 +1047,10 @@ def get_agent_history(agent_initials: str):
 
 
 @app.post("/history/{agent_initials}/{template_id}")
-def record_agent_copy_history(agent_initials: str, template_id: int):
+def record_agent_copy_history(agent_initials: str, template_id: int, company: Company = Depends(get_current_company)):
     with Session(engine) as session:
         initials = agent_initials.upper()
-        entry = UsageHistory(agent_initials=initials, template_id=template_id)
+        entry = UsageHistory(company_id=company.id, agent_initials=initials, template_id=template_id)
         session.add(entry)
         session.commit()
     return {"ok": True}
@@ -987,7 +1221,6 @@ def translate_text(req: TranslateRequest):
         REVERSE_SHONA if (src == "sn" and tgt == "en") else {}
     )
 
-    import re
     phrase = clean_text
     substituted = False
     for k in sorted(dict_map.keys(), key=len, reverse=True):

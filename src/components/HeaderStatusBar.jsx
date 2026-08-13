@@ -5,6 +5,9 @@ export default function HeaderStatusBar({
   currentAgent,
   statusMessage,
   error,
+  companies = [],
+  activeCompanyId = 1,
+  switchCompany = () => {},
 }) {
   return (
     <>
@@ -47,6 +50,27 @@ export default function HeaderStatusBar({
         </div>
 
         <div className="flex items-center gap-3 text-sm" style={{ color: "var(--header-muted)" }}>
+          {companies && companies.length > 0 ? (
+            <div
+              className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs"
+              style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--badge-bg)" }}
+            >
+              <span className="text-[#4cd34c] font-semibold">Org:</span>
+              <select
+                value={activeCompanyId}
+                onChange={(e) => switchCompany(e.target.value)}
+                className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer"
+                style={{ color: "var(--header-text)" }}
+              >
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id} style={{ backgroundColor: "#1e293b", color: "#f8fafc" }}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+
           <span
             className={`h-2.5 w-2.5 rounded-full ${
               apiStatus === "checking"
@@ -66,7 +90,7 @@ export default function HeaderStatusBar({
 
           {currentAgent ? (
             <div
-              className="ml-3 flex items-center gap-2 rounded-full border px-3 py-1 text-xs"
+              className="ml-2 flex items-center gap-2 rounded-full border px-3 py-1 text-xs"
               style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--badge-bg)" }}
             >
               <span>Signed in:</span>

@@ -15,14 +15,25 @@ export const THEME_KEY = "rea_theme_v1";
 export const AGENT_KEY = "rea_active_agent_v1";
 export const ADMIN_TOKEN_KEY = "rea_admin_token_v1";
 export const ADMIN_INITIALS_KEY = "rea_admin_initials_v1";
+export const COMPANY_KEY = "rea_active_company_id_v1";
+
+export function getCompanyHeaders() {
+  if (typeof window === "undefined") return {};
+  const companyId = localStorage.getItem(COMPANY_KEY);
+  const headers = {};
+  if (companyId) headers["X-Company-ID"] = companyId;
+  return headers;
+}
 
 export function getAdminHeaders() {
   if (typeof window === "undefined") return {};
   const token = localStorage.getItem(ADMIN_TOKEN_KEY);
   const initials = localStorage.getItem(ADMIN_INITIALS_KEY);
+  const companyId = localStorage.getItem(COMPANY_KEY);
   const headers = {};
   if (token) headers["X-Admin-Token"] = token;
   if (initials) headers["X-Admin-Initials"] = initials;
+  if (companyId) headers["X-Company-ID"] = companyId;
   return headers;
 }
 
@@ -178,7 +189,8 @@ export function getDateAutoValues() {
 
 // Helper fetch wrapper checking json content-type safely
 async function safeFetchJson(url, options = {}) {
-  const res = await fetch(url, options);
+  const headers = { ...getCompanyHeaders(), ...(options.headers || {}) };
+  const res = await fetch(url, { ...options, headers });
   if (res.ok) {
     const ct = res.headers.get("content-type");
     if (ct && ct.includes("application/json")) {
@@ -190,6 +202,36 @@ async function safeFetchJson(url, options = {}) {
 
 export async function fetchHealthApi() {
   return await safeFetchJson(`${API_BASE}/health`);
+}
+
+export async function fetchCompaniesApi() {
+  return await safeFetchJson(`${API_BASE}/companies`);
+}
+
+export async function createCompanyApi(payload) {
+  const res = await fetch(`${API_BASE}/companies`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAdminHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(errData?.detail || "Failed to create company");
+  }
+  return await res.json();
+}
+
+export async function updateCompanyApi(id, payload) {
+  const res = await fetch(`${API_BASE}/companies/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAdminHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(errData?.detail || "Failed to update company");
+  }
+  return await res.json();
 }
 
 export async function fetchTemplatesApi() {
@@ -292,7 +334,7 @@ export async function deleteAgentApi(id) {
 export async function verifyAgentPinApi(agentInitials, pin) {
   const res = await fetch(`${API_BASE}/agents/verify-pin`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getCompanyHeaders() },
     body: JSON.stringify({ agent_initials: agentInitials, pin }),
   });
   if (!res.ok) return { valid: false };
@@ -306,7 +348,7 @@ export async function fetchSuggestionsApi() {
 export async function createSuggestionApi(payload) {
   const res = await fetch(`${API_BASE}/suggestions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getCompanyHeaders() },
     body: JSON.stringify(payload),
   });
   if (!res.ok) {

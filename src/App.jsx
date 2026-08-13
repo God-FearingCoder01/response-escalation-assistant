@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AGENT_KEY, fetchHealthApi } from "./services/api";
 import { useTheme } from "./hooks/useTheme";
 import { useAgents } from "./hooks/useAgents";
+import { useCompany } from "./hooks/useCompany";
 import { useUserInteractions } from "./hooks/useUserInteractions";
 import { useTemplates } from "./hooks/useTemplates";
 import { useSuggestions } from "./hooks/useSuggestions";
@@ -22,6 +23,7 @@ import TranslatorScreen from "./screens/TranslatorScreen";
 
 export default function App() {
   const { themeMode, setThemeMode, themeConfig } = useTheme();
+  const { companies, activeCompanyId, switchCompany } = useCompany();
 
   const [loading, setLoading] = useState(true);
   const [saving] = useState(false);
@@ -257,6 +259,9 @@ export default function App() {
           currentAgent={currentAgent}
           statusMessage={statusMessage}
           error={error}
+          companies={companies}
+          activeCompanyId={activeCompanyId}
+          switchCompany={switchCompany}
         />
 
         <WelcomeScreen
