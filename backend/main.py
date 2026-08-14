@@ -315,7 +315,7 @@ DEFAULT_TEMPLATES = [
   # Customer Reply Templates
   {
     "name": "General Introduction",
-    "body": "Hello and welcome to WinBucks. My name is {agent_name}. How may I help you today?",
+    "body": "Hello and welcome. My name is {agent_name}. How may I help you today?",
     "category_type": "customer_reply",
     "category": "Agent Introductions",
     "subcategory": "General",
@@ -329,14 +329,14 @@ DEFAULT_TEMPLATES = [
   },
   {
     "name": "Ecocash",
-    "body": "To deposit using EcoCash, kindly follow these steps: \n1.	Click Deposit. \n2.	Select EcoCash as your payment method. \n3.	Enter the amount you wish to deposit. \n4.	Click Deposit again to proceed. \n5.	Confirm the payment request on your phone. \n6.	Once the payment is successful, refresh your WinBucks account. \n7.	Check your balance to confirm the funds have been credited.",
+    "body": "To deposit using EcoCash, kindly follow these steps: \n1.	Click Deposit. \n2.	Select EcoCash as your payment method. \n3.	Enter the amount you wish to deposit. \n4.	Click Deposit again to proceed. \n5.	Confirm the payment request on your phone. \n6.	Once the payment is successful, refresh your account. \n7.	Check your balance to confirm the funds have been credited.",
     "category_type": "customer_reply",
     "category": "Transactions",
     "subcategory": "Deposit",
   },
   {
     "name": "Withdrawal",
-    "body": "NB: We use InnBucks, EcoCash, and O'mari only for withdrawals. \n\nTo withdraw, kindly follow these steps: \n1.	Click the Menu button (☰) in the top-right corner of your screen. \n2.	Select Withdraw. \n3.	Choose your preferred withdrawal method. NB: Always double-check the withdrawal method before confirming the withdrawal. \n4.	Enter the amount you wish to withdraw. \n5.	Click Withdraw to submit your request. \n6.	Refresh your account and wait for a notification confirming the transaction. \n\nNB: Always ensure that you open an account with InnBucks, EcoCash, and O’mari using the same number registered with Winbucks for successful withdrawal in future.\n\nNB: Withdrawal requests of $100 or more will be placed under processing. This allows you to contact us so we can review and finalize your transaction in accordance with our policy.",
+    "body": "NB: We use InnBucks, EcoCash, and O'mari only for withdrawals. \n\nTo withdraw, kindly follow these steps: \n1.	Click the Menu button (☰) in the top-right corner of your screen. \n2.	Select Withdraw. \n3.	Choose your preferred withdrawal method. NB: Always double-check the withdrawal method before confirming the withdrawal. \n4.	Enter the amount you wish to withdraw. \n5.	Click Withdraw to submit your request. \n6.	Refresh your account and wait for a notification confirming the transaction. \n\nNB: Always ensure that you open an account with InnBucks, EcoCash, and O’mari using the same number registered with our organization for successful withdrawal in future.\n\nNB: Withdrawal requests of $100 or more will be placed under processing. This allows you to contact us so we can review and finalize your transaction in accordance with our policy.",
     "category_type": "customer_reply",
     "category": "Transactions",
     "subcategory": "How to Withdraw",
@@ -350,7 +350,7 @@ DEFAULT_TEMPLATES = [
   },
   {
     "name": "Error 146",
-    "body": "If you have received Error Code 146, please know that you need to verify your account. \n\nTo verify your account, please do the following: \n● Take 3 pictures \n\t○ First one while holding your national ID next to your face, with both your face and details on the ID very clear.\n\tNB: not a “selfie” but using the back/rear camera. \n\t○ Second one the front of you ID, with details clearly visible \n\t○ Third one the back of your ID, with details clearly visible \n● Send the pictures together with your phone number registered on WinBucks via WhatsApp on, +263713331227  or +263713331227.",
+    "body": "If you have received Error Code 146, please know that you need to verify your account. \n\nTo verify your account, please do the following: \n● Take 3 pictures \n\t○ First one while holding your national ID next to your face, with both your face and details on the ID very clear.\n\tNB: not a “selfie” but using the back/rear camera. \n\t○ Second one the front of you ID, with details clearly visible \n\t○ Third one the back of your ID, with details clearly visible \n● Send the pictures together with your registered phone number via WhatsApp support.",
     "category_type": "customer_reply",
     "category": "Registration, login, verification, and account access",
     "subcategory": "Account Verification",
@@ -762,7 +762,7 @@ def create_company(payload: CompanyCreate):
         raw_slug = payload.slug.strip() if payload.slug else payload.name.strip()
         slug = re.sub(r"[^a-z0-9\-]", "", raw_slug.lower())
         if not slug:
-            raise HTTPException(status_code=400, detail="Organization URL slug must contain alphanumeric characters (e.g. winbucks)")
+            raise HTTPException(status_code=400, detail="Organization URL slug must contain alphanumeric characters (e.g. corp-a)")
 
         existing = session.exec(select(Company).where(Company.slug == slug)).first()
         if existing:

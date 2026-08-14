@@ -262,7 +262,7 @@ export default function MonitorScreen({
               Organization Hub
             </h2>
             <p className="mt-2 text-sm max-w-2xl" style={{ color: "var(--header-muted)" }}>
-              Manage multi-tenant organizations, configure slug endpoints (e.g. <code className="text-[#4cd34c] bg-black/30 px-2 py-0.5 rounded font-mono">/winbucks</code>), monitor health metrics, and launch dedicated assistant environments.
+              Manage multi-tenant organizations, configure slug endpoints (e.g. <code className="text-[#4cd34c] bg-black/30 px-2 py-0.5 rounded font-mono">/corp-a</code>), monitor health metrics, and launch dedicated assistant environments.
             </p>
           </div>
 
@@ -592,7 +592,7 @@ export default function MonitorScreen({
                   type="text"
                   value={newOrgName}
                   onChange={handleNameChange}
-                  placeholder="e.g. Winbucks"
+                  placeholder="e.g. Corp A"
                   required
                   className="w-full rounded-2xl border p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#4cd34c]"
                   style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--neutral-bg)", color: "var(--app-text)" }}
@@ -609,7 +609,7 @@ export default function MonitorScreen({
                     type="text"
                     value={newOrgSlug}
                     onChange={(e) => setNewOrgSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"))}
-                    placeholder="e.g. winbucks"
+                    placeholder="e.g. corp-a"
                     required
                     className="w-full rounded-2xl border p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#4cd34c]"
                     style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--neutral-bg)", color: "var(--app-text)" }}

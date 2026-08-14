@@ -304,15 +304,15 @@ def test_multilingual_translate_endpoint():
 def test_support_request_flow():
     # 1. Public submission of support request
     res = client.post("/support-requests", json={
-        "org_name": "Winbucks",
+        "org_name": "Corp A",
         "requester_name": "John Doe",
-        "contact_email": "john@winbucks.com",
+        "contact_email": "john@corp-a.com",
         "request_type": "new_org_url",
-        "details": "Need dedicated URL endpoint /winbucks"
+        "details": "Need dedicated URL endpoint /corp-a"
     })
     assert res.status_code == 200
     data = res.json()
-    assert data["org_name"] == "Winbucks"
+    assert data["org_name"] == "Corp A"
     assert data["status"] == "pending"
     req_id = data["id"]
 
