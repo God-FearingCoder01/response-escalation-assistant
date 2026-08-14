@@ -666,6 +666,7 @@ def reset_company_admin_pin(payload: CompanyAdminPinReset):
         comp = session.get(Company, cid)
         if not comp:
             raise HTTPException(status_code=404, detail="Company not found")
+        assert comp.id is not None
 
         stmt = select(Agent).where(Agent.company_id == comp.id, Agent.is_admin == True)
         if payload.agent_id:
