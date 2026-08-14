@@ -176,6 +176,35 @@ class SuperAdminRead(SuperAdminBase):
     updated_at: datetime
 
 
+class SupportRequestBase(SQLModel):
+    org_name: str
+    requester_name: str
+    contact_email: str
+    request_type: str = "new_org_url"  # "new_org_url", "credential_reset", "technical_support"
+    details: str
+    status: str = "pending"  # "pending", "resolved"
+
+
+class SupportRequest(SupportRequestBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+
+
+class SupportRequestCreate(SupportRequestBase):
+    pass
+
+
+class SupportRequestUpdate(SQLModel):
+    status: Optional[str] = None
+
+
+class SupportRequestRead(SupportRequestBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
 
 
 

@@ -247,6 +247,10 @@ try:
         UsageHistory,
         SuperAdmin,
         SuperAdminRead,
+        SupportRequest,
+        SupportRequestCreate,
+        SupportRequestRead,
+        SupportRequestUpdate,
     )
 except ImportError:
     from backend.database import create_db_and_tables, engine, ping_database
@@ -271,6 +275,10 @@ except ImportError:
         UsageHistory,
         SuperAdmin,
         SuperAdminRead,
+        SupportRequest,
+        SupportRequestCreate,
+        SupportRequestRead,
+        SupportRequestUpdate,
     )
 
 
@@ -1234,6 +1242,55 @@ def delete_suggestion(suggestion_id: int, company: Company = Depends(get_current
         session.delete(sug)
         session.commit()
     return {"ok": True, "message": "Suggestion permanently deleted"}
+
+
+# --- SUPPORT REQUEST ENDPOINTS ---
+
+@app.post("/support-requests", response_model=SupportRequestRead)
+def create_support_request(payload: SupportRequestCreate):
+    ensure_db_initialized()
+    with Session(engine) as session:
+        if not payload.org_name.strip() or not payload.requester_name.strip() or not payload.contact_email.strip():
+            raise HTTPException(status_code=400, detail="Organization name, requester name, and contact email are required")
+        
+        now = datetime.now(timezone.utc)
+        req_obj = SupportRequest(
+            org_name=payload.org_name.strip(),
+            requester_name=payload.requester_name.strip(),
+            contact_email=payload.contact_email.strip(),
+            request_type=payload.request_type or "new_org_url",
+            details=payload.details.strip() if payload.details else "",
+            status="pending",
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(req_obj)
+        session.commit()
+        session.refresh(req_obj)
+        return req_obj
+
+
+@app.get("/support-requests", response_model=List[SupportRequestRead], dependencies=[Depends(require_admin)])
+def list_support_requests():
+    ensure_db_initialized()
+    with Session(engine) as session:
+        return session.exec(select(SupportRequest).order_by(col(SupportRequest.created_at).desc())).all()
+
+
+@app.patch("/support-requests/{request_id}", response_model=SupportRequestRead, dependencies=[Depends(require_admin)])
+def update_support_request_status(request_id: int, payload: SupportRequestUpdate):
+    ensure_db_initialized()
+    with Session(engine) as session:
+        req_obj = session.get(SupportRequest, request_id)
+        if not req_obj:
+            raise HTTPException(status_code=404, detail="Support request not found")
+        if payload.status:
+            req_obj.status = payload.status
+        req_obj.updated_at = datetime.now(timezone.utc)
+        session.add(req_obj)
+        session.commit()
+        session.refresh(req_obj)
+        return req_obj
 
 
 # --- FAVORITES & HISTORY ENDPOINTS ---

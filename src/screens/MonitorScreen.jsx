@@ -1,5 +1,10 @@
-import { useState } from "react";
-import { resetCompanyAdminPinApi, updateSuperAdminSettingsApi } from "../services/api";
+import { useEffect, useState } from "react";
+import {
+  resetCompanyAdminPinApi,
+  updateSuperAdminSettingsApi,
+  fetchSupportRequestsApi,
+  updateSupportRequestStatusApi,
+} from "../services/api";
 
 export default function MonitorScreen({
   activeScreen,
@@ -44,6 +49,42 @@ export default function MonitorScreen({
   const [saNewPin, setSaNewPin] = useState("");
   const [saSettingsError, setSaSettingsError] = useState("");
   const [isSavingSaSettings, setIsSavingSaSettings] = useState(false);
+
+  const [supportRequests, setSupportRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+
+  const loadSupportRequests = async () => {
+    setLoadingRequests(true);
+    try {
+      const data = await fetchSupportRequestsApi();
+      if (Array.isArray(data)) {
+        setSupportRequests(data);
+      }
+    } catch {
+      // Keep state
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeScreen === "monitor") {
+      loadSupportRequests();
+    }
+  }, [activeScreen]);
+
+  const handleToggleRequestStatus = async (reqId, currentStatus) => {
+    const nextStatus = currentStatus === "resolved" ? "pending" : "resolved";
+    try {
+      await updateSupportRequestStatusApi(reqId, nextStatus);
+      setSupportRequests((prev) =>
+        prev.map((r) => (r.id === reqId ? { ...r, status: nextStatus } : r))
+      );
+      showToast?.(`Request status updated to '${nextStatus}'`);
+    } catch (err) {
+      showToast?.(err.message || "Failed to update request status");
+    }
+  };
 
   if (activeScreen !== "monitor") return null;
 
@@ -415,6 +456,103 @@ export default function MonitorScreen({
             );
           })}
         </div>
+      </div>
+
+      {/* SUPPORT & ACCESS REQUESTS QUEUE */}
+      <div
+        className="rounded-3xl border p-6 md:p-8 shadow-2xl backdrop-blur space-y-5"
+        style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
+          <div>
+            <h3 className="text-xl font-bold flex items-center gap-2" style={{ color: "var(--app-text)" }}>
+              <span>📬</span> Support & Access Requests Queue ({supportRequests.length})
+            </h3>
+            <p className="text-xs mt-0.5" style={{ color: "var(--header-muted)" }}>
+              Organization URL setup, credential resets, and technical support requests submitted from the root portal.
+            </p>
+          </div>
+
+          <button
+            onClick={loadSupportRequests}
+            disabled={loadingRequests}
+            className="self-start sm:self-center px-3.5 py-2 rounded-xl border text-xs font-semibold hover:bg-[var(--neutral-bg)] transition cursor-pointer flex items-center gap-1.5"
+            style={{ borderColor: "var(--panel-border)", color: "var(--app-text)" }}
+          >
+            <span>🔄 {loadingRequests ? "Refreshing..." : "Refresh Queue"}</span>
+          </button>
+        </div>
+
+        {supportRequests.length === 0 ? (
+          <div className="p-8 text-center rounded-2xl border italic text-xs" style={{ borderColor: "var(--panel-border)", color: "var(--header-muted)" }}>
+            No incoming support requests found in the system queue.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {supportRequests.map((req) => (
+              <div
+                key={req.id}
+                className="rounded-2xl border p-5 space-y-3 shadow-sm relative overflow-hidden backdrop-blur"
+                style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--neutral-bg)" }}
+              >
+                <div className="flex items-start justify-between gap-2 border-b pb-3" style={{ borderColor: "var(--panel-border)" }}>
+                  <div>
+                    <h4 className="font-extrabold text-sm text-[#4cd34c]">{req.org_name}</h4>
+                    <p className="text-xs text-[var(--app-text)] font-semibold mt-0.5">
+                      {req.requester_name} &bull; <a href={`mailto:${req.contact_email}`} className="text-[#4cd34c] hover:underline">{req.contact_email}</a>
+                    </p>
+                  </div>
+
+                  <span
+                    className={`text-[10px] rounded-full border px-2.5 py-0.5 uppercase font-bold shrink-0 ${
+                      req.status === "resolved"
+                        ? "text-[#4cd34c] border-[#4cd34c]/40 bg-[#4cd34c]/10"
+                        : "text-[#f1c84b] border-[#f1c84b]/40 bg-[#f1c84b]/10"
+                    }`}
+                  >
+                    {req.status === "resolved" ? "Resolved ✅" : "Pending ⏳"}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--header-muted)]">
+                    <span>Category:</span>
+                    <span className="uppercase tracking-wider font-bold text-[#4cd34c]">
+                      {req.request_type === "new_org_url"
+                        ? "URL Setup"
+                        : req.request_type === "credential_reset"
+                        ? "PIN Reset"
+                        : "Tech Support"}
+                    </span>
+                  </div>
+
+                  {req.details && (
+                    <div className="rounded-xl border p-2.5 font-mono text-[11px] whitespace-pre-wrap leading-relaxed bg-black/20" style={{ borderColor: "var(--panel-border)", color: "var(--app-text)" }}>
+                      {req.details}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t text-[11px]" style={{ borderColor: "var(--panel-border)" }}>
+                  <span style={{ color: "var(--header-muted)" }}>
+                    {req.created_at ? new Date(req.created_at).toLocaleDateString() : "Recently"}
+                  </span>
+
+                  <button
+                    onClick={() => handleToggleRequestStatus(req.id, req.status)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                      req.status === "resolved"
+                        ? "border border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                        : "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] hover:opacity-90 shadow"
+                    }`}
+                  >
+                    {req.status === "resolved" ? "Reopen Request ⏳" : "Mark Resolved ✅"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* CREATE ORGANIZATION MODAL */}

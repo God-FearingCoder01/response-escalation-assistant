@@ -486,3 +486,35 @@ export async function fetchHistoryApi(initials) {
 export async function recordHistoryApi(initials, id) {
   return await safeFetchJson(`${API_BASE}/history/${initials}/${id}`, { method: "POST" });
 }
+
+export async function createSupportRequestApi(payload) {
+  const res = await fetch(`${API_BASE}/support-requests`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to submit support request"));
+  }
+  return await res.json();
+}
+
+export async function fetchSupportRequestsApi() {
+  return await safeFetchJson(`${API_BASE}/support-requests`, {
+    headers: { ...getAdminHeaders() },
+  });
+}
+
+export async function updateSupportRequestStatusApi(id, status) {
+  const res = await fetch(`${API_BASE}/support-requests/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getAdminHeaders() },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to update support request status"));
+  }
+  return await res.json();
+}

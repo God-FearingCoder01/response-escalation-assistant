@@ -301,3 +301,32 @@ def test_multilingual_translate_endpoint():
     assert data_dyn["translatedText"] != "Your request is being processed."
 
 
+def test_support_request_flow():
+    # 1. Public submission of support request
+    res = client.post("/support-requests", json={
+        "org_name": "Winbucks",
+        "requester_name": "John Doe",
+        "contact_email": "john@winbucks.com",
+        "request_type": "new_org_url",
+        "details": "Need dedicated URL endpoint /winbucks"
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["org_name"] == "Winbucks"
+    assert data["status"] == "pending"
+    req_id = data["id"]
+
+    # 2. Get support requests list (Admin authorization required)
+    admin_token = generate_admin_token("SA")
+    list_res = client.get("/support-requests", headers={"X-Admin-Token": admin_token})
+    assert list_res.status_code == 200
+    reqs = list_res.json()
+    assert any(r["id"] == req_id for r in reqs)
+
+    # 3. Patch status to resolved
+    patch_res = client.patch(f"/support-requests/{req_id}", json={"status": "resolved"}, headers={"X-Admin-Token": admin_token})
+    assert patch_res.status_code == 200
+    assert patch_res.json()["status"] == "resolved"
+
+
+

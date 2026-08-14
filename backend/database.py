@@ -56,6 +56,7 @@ def create_db_and_tables():
                 "ALTER TABLE template ADD COLUMN IF NOT EXISTS category VARCHAR",
                 "ALTER TABLE template ADD COLUMN IF NOT EXISTS subcategory VARCHAR",
                 "ALTER TABLE company ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+                "CREATE TABLE IF NOT EXISTS supportrequest (id SERIAL PRIMARY KEY, org_name VARCHAR, requester_name VARCHAR, contact_email VARCHAR, request_type VARCHAR, details VARCHAR, status VARCHAR DEFAULT 'pending', created_at TIMESTAMP, updated_at TIMESTAMP)",
             ]
             for statement in migrations:
                 try:
