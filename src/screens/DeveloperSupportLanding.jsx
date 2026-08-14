@@ -7,6 +7,19 @@ export default function DeveloperSupportLanding({
 }) {
   const [copied, setCopied] = useState(false);
   const developerEmail = "gfc.dev@proton.me";
+  const emailSubject = encodeURIComponent("[REA Support] Organization URL & Access Request");
+  const emailBody = encodeURIComponent(
+    `Hello Developer Support,
+
+I am requesting assistance regarding our organization on the Response & Escalation Assistant (REA) tool.
+
+• Organization Name: [Enter your Organization Name here]
+• Contact Person / Role: [Enter your Name & Role]
+• Request Details: [e.g., Need new organization URL endpoint, credential reset, or technical assistance]
+
+Thank you!`
+  );
+  const mailtoLink = `mailto:${developerEmail}?subject=${emailSubject}&body=${emailBody}`;
 
   const handleCopyEmail = () => {
     navigator.clipboard?.writeText(developerEmail);
@@ -102,7 +115,7 @@ export default function DeveloperSupportLanding({
 
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   <a
-                    href={`mailto:${developerEmail}?subject=REA%20Organization%20URL%20Request`}
+                    href={mailtoLink}
                     className="flex items-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] px-5 py-3 text-xs font-bold text-[#071007] shadow-lg hover:opacity-90 transition-all cursor-pointer"
                   >
                     <span>✉️ Email Developer Support</span>
@@ -128,7 +141,7 @@ export default function DeveloperSupportLanding({
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between border-b pb-2" style={{ borderColor: "var(--panel-border)" }}>
                     <span style={{ color: "var(--text-muted)" }}>Support Desk:</span>
-                    <span className="font-semibold text-[#4cd34c]">{developerEmail}</span>
+                    <a href={mailtoLink} className="font-semibold text-[#4cd34c] hover:underline cursor-pointer">{developerEmail}</a>
                   </div>
                   <div className="flex justify-between">
                     <span style={{ color: "var(--text-muted)" }}>System Architecture:</span>
