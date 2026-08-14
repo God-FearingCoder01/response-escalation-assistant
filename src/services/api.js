@@ -280,7 +280,7 @@ export async function resetSuperAdminPinApi(token, newPin) {
 export async function updateSuperAdminSettingsApi(payload) {
   const res = await fetch(`${API_BASE}/superadmin/update-settings`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getAdminHeaders() },
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -293,7 +293,7 @@ export async function updateSuperAdminSettingsApi(payload) {
 export async function resetCompanyAdminPinApi(companyId, agentId, newPin) {
   const res = await fetch(`${API_BASE}/superadmin/reset-company-admin-pin`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getAdminHeaders() },
     body: JSON.stringify({ company_id: companyId, agent_id: agentId, new_pin: newPin }),
   });
   if (!res.ok) {

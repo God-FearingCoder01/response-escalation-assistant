@@ -652,30 +652,60 @@ def update_superadmin_settings(payload: SuperAdminSettingsUpdate):
 
 @app.post("/superadmin/reset-company-admin-pin")
 def reset_company_admin_pin(payload: CompanyAdminPinReset):
+    ensure_db_initialized()
     with Session(engine) as session:
         clean_pin = payload.new_pin.strip()
         if len(clean_pin) != 4 or not clean_pin.isdigit():
             raise HTTPException(status_code=400, detail="PIN must be exactly 4 digits")
 
-        comp = session.get(Company, payload.company_id)
+        try:
+            cid = int(payload.company_id)
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="Invalid company_id")
+
+        comp = session.get(Company, cid)
         if not comp:
             raise HTTPException(status_code=404, detail="Company not found")
 
         stmt = select(Agent).where(Agent.company_id == comp.id, Agent.is_admin == True)
         if payload.agent_id:
-            stmt = stmt.where(Agent.id == payload.agent_id)
+            try:
+                aid = int(payload.agent_id)
+                stmt = stmt.where(Agent.id == aid)
+            except (ValueError, TypeError):
+                pass
 
         admin_agents = session.exec(stmt).all()
         if not admin_agents:
             admin_agents = session.exec(select(Agent).where(Agent.company_id == comp.id)).all()
 
-        if not admin_agents:
-            raise HTTPException(status_code=404, detail="No admin agent found for this company")
-
+        now = datetime.now(timezone.utc)
         hashed = hash_pin(clean_pin)
+
+        if not admin_agents:
+            # Auto-provision default Sys_Admin agent if company has no agent records yet
+            new_admin = Agent(
+                agent="System Administrator",
+                agent_name="Sys_Admin",
+                agent_initials="SA",
+                is_admin=True,
+                pin=hashed,
+                company_id=comp.id,
+                created_at=now,
+                updated_at=now,
+            )
+            session.add(new_admin)
+            session.commit()
+            return {
+                "status": "ok",
+                "message": f"Created and set Admin PIN to '{clean_pin}' for company '{comp.name}'",
+                "agents_updated": 1,
+            }
+
         for agent in admin_agents:
             agent.pin = hashed
-            agent.updated_at = datetime.now(timezone.utc)
+            agent.is_admin = True
+            agent.updated_at = now
             session.add(agent)
 
         session.commit()
