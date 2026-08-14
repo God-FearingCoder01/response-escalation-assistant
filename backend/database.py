@@ -39,8 +39,31 @@ else:
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
 
+from sqlmodel import text
+
+
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
+
+    # Run lightweight schema migrations for existing databases missing newly added columns
+    try:
+        with engine.begin() as conn:
+            migrations = [
+                "ALTER TABLE agent ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+                "ALTER TABLE agent ADD COLUMN IF NOT EXISTS pin VARCHAR",
+                "ALTER TABLE template ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+                "ALTER TABLE template ADD COLUMN IF NOT EXISTS category_type VARCHAR DEFAULT 'tech_escalation'",
+                "ALTER TABLE template ADD COLUMN IF NOT EXISTS category VARCHAR",
+                "ALTER TABLE template ADD COLUMN IF NOT EXISTS subcategory VARCHAR",
+                "ALTER TABLE company ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+            ]
+            for statement in migrations:
+                try:
+                    conn.execute(text(statement))
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
 
 def ping_database(session: Session) -> bool:
