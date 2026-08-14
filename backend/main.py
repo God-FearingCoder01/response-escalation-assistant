@@ -468,6 +468,7 @@ def get_current_company(
     x_company_id: str | None = Header(None, alias="X-Company-ID"),
     x_company_slug: str | None = Header(None, alias="X-Company-Slug"),
 ) -> Company:
+    ensure_db_initialized()
     with Session(engine) as session:
         if x_company_id:
             try:
@@ -494,35 +495,31 @@ def get_current_company(
 
 
 
+_db_initialized = False
+
+def ensure_db_initialized():
+    global _db_initialized
+    if not _db_initialized:
+        try:
+            create_db_and_tables()
+            with Session(engine) as session:
+                sync_default_data_if_needed(session)
+            _db_initialized = True
+        except Exception:
+            _db_initialized = True
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    create_db_and_tables()
-    with Session(engine) as session:
-        sync_default_data_if_needed(session)
+    ensure_db_initialized()
     yield
 
 
 app = FastAPI(title="Response Escalation Assistant API", lifespan=lifespan)
 
-
-ALLOWED_ORIGINS = [
-    "https://response-escalation-assistant.vercel.app",
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:3000",
-]
-
-env_origins = os.environ.get("ALLOWED_ORIGINS")
-if env_origins:
-    extra_origins = [o.strip() for o in env_origins.split(",") if o.strip()]
-    for eo in extra_origins:
-        if eo not in ALLOWED_ORIGINS:
-            ALLOWED_ORIGINS.append(eo)
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -565,8 +562,15 @@ class CompanyAdminPinReset(SQLModel):
 
 @app.post("/superadmin/verify-pin")
 def verify_superadmin_pin(payload: SuperAdminPinVerify):
+    ensure_db_initialized()
     with Session(engine) as session:
-        sa = session.exec(select(SuperAdmin)).first()
+        try:
+            sa = session.exec(select(SuperAdmin)).first()
+        except Exception:
+            create_db_and_tables()
+            sync_default_data_if_needed(session)
+            sa = session.exec(select(SuperAdmin)).first()
+
         if not sa:
             now = datetime.now(timezone.utc)
             sa = SuperAdmin(email="gfc.dev@proton.me", pin=hash_pin("0000"), created_at=now, updated_at=now)
