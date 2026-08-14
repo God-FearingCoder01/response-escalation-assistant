@@ -1,6 +1,15 @@
 import { useState } from "react";
 import { createSupportRequestApi } from "../services/api";
 
+const REQUEST_TYPE_TEMPLATES = {
+  new_org_url:
+    "Hello Developer Support,\n\nOur team is requesting access setup and a dedicated organization URL endpoint (e.g. /winbucks) for the Response & Escalation Assistant tool.\n\nPlease assist us with URL routing and company workspace initialization.\n\nThank you!",
+  credential_reset:
+    "Hello Developer Support,\n\nWe need to reset the Company Admin Security PIN / credentials for our organization workspace.\n\nPlease assist in updating or restoring admin access for our account.\n\nThank you!",
+  technical_support:
+    "Hello Developer Support,\n\nWe are encountering a technical issue / question regarding our organization environment on the REA platform.\n\nPlease review our request and provide technical support.\n\nThank you!",
+};
+
 export default function DeveloperSupportLanding({
   themeMode,
   setThemeMode,
@@ -12,7 +21,7 @@ export default function DeveloperSupportLanding({
   const [requesterName, setRequesterName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [requestType, setRequestType] = useState("new_org_url");
-  const [details, setDetails] = useState("Requesting organization URL endpoint and access configuration.");
+  const [details, setDetails] = useState(REQUEST_TYPE_TEMPLATES.new_org_url);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [formError, setFormError] = useState("");
@@ -36,6 +45,11 @@ Thank you!`
     navigator.clipboard?.writeText(developerEmail);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleRequestTypeChange = (newType) => {
+    setRequestType(newType);
+    setDetails(REQUEST_TYPE_TEMPLATES[newType] || "");
   };
 
   const onSubmitSupportForm = async (e) => {
@@ -128,7 +142,7 @@ Thank you!`
               }}
             >
               <div className="flex items-center gap-3">
-                <span className="text-2xl">⚠️</span>
+                <img src="/warning.png" alt="Warning" className="h-6 w-6 shrink-0 object-contain" />
                 <h3 className="text-lg font-bold">
                   Organization URL Required
                 </h3>
@@ -136,8 +150,9 @@ Thank you!`
               <p className="text-sm leading-relaxed opacity-90">
                 You have accessed the general root system URL. Response & Escalation Assistant (REA) operates multi-tenant organization environments, where each company has a dedicated URL.
               </p>
-              <p className="text-sm font-semibold">
-                👉 If you are looking for your organization's version of the tool, please contact <strong>System Support / Developer</strong> to receive the correct URL link associated with your company.
+              <p className="text-sm font-semibold flex items-center gap-2">
+                <img src="/right-hand.png" alt="Notice" className="h-5 w-5 shrink-0 object-contain inline-block align-middle" />
+                <span>If you are looking for your organization's version of the tool, please contact <strong>System Support / Developer</strong> to receive the correct URL link associated with your company.</span>
               </p>
             </div>
 
@@ -160,7 +175,8 @@ Thank you!`
                     }}
                     className="flex items-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] px-5 py-3 text-xs font-bold text-[#071007] shadow-lg hover:opacity-90 transition-all cursor-pointer"
                   >
-                    <span>✉️ Request Developer Support</span>
+                    <img src="/email.png" alt="Email" className="h-4 w-4 shrink-0 object-contain" />
+                    <span>Request Developer Support</span>
                   </button>
 
                   <button
@@ -168,7 +184,8 @@ Thank you!`
                     className="flex items-center gap-2 rounded-2xl border px-4 py-3 text-xs font-semibold hover:bg-[var(--neutral-bg)] transition-colors cursor-pointer"
                     style={{ borderColor: "var(--panel-border)", color: "var(--app-text)" }}
                   >
-                    <span>{copied ? "✓ Email Copied!" : "📋 Copy Email"}</span>
+                    <img src={copied ? "/signed.png" : "/clipboard.png"} alt="Copy" className="h-4 w-4 shrink-0 object-contain" />
+                    <span>{copied ? "Email Copied!" : "Copy Email"}</span>
                   </button>
                 </div>
               </div>
@@ -183,7 +200,10 @@ Thank you!`
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between border-b pb-2" style={{ borderColor: "var(--panel-border)" }}>
                     <span style={{ color: "var(--text-muted)" }}>Support Desk:</span>
-                    <a href={mailtoLink} className="font-semibold text-[#4cd34c] hover:underline cursor-pointer">{developerEmail}</a>
+                    <a href={mailtoLink} className="font-semibold text-[#4cd34c] hover:underline cursor-pointer flex items-center gap-1.5">
+                      <img src="/email.png" alt="Email" className="h-3.5 w-3.5 shrink-0 object-contain" />
+                      <span>{developerEmail}</span>
+                    </a>
                   </div>
                   <div className="flex justify-between">
                     <span style={{ color: "var(--text-muted)" }}>System Architecture:</span>
@@ -205,7 +225,8 @@ Thank you!`
               <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
                 <div>
                   <h3 className="text-xl font-bold flex items-center gap-2">
-                    <span>✉️</span> Request Developer Support
+                    <img src="/email.png" alt="Email" className="h-5 w-5 shrink-0 object-contain" />
+                    <span>Request Developer Support</span>
                   </h3>
                   <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
                     Submit a direct support request for your organization endpoint or credentials.
@@ -221,7 +242,7 @@ Thank you!`
 
               {submitSuccess ? (
                 <div className="p-6 rounded-2xl border bg-[#4cd34c]/10 border-[#4cd34c]/40 text-center space-y-4">
-                  <span className="text-4xl">🎉</span>
+                  <img src="/signed.png" alt="Success" className="h-12 w-12 mx-auto object-contain" />
                   <h4 className="text-lg font-bold text-[#4cd34c]">Support Request Submitted!</h4>
                   <p className="text-xs text-[var(--app-text)] leading-relaxed">
                     Your request for <strong>{orgName}</strong> has been logged into the developer support queue. Our support team will reach out to <strong>{contactEmail}</strong> shortly.
@@ -297,7 +318,7 @@ Thank you!`
                     </label>
                     <select
                       value={requestType}
-                      onChange={(e) => setRequestType(e.target.value)}
+                      onChange={(e) => handleRequestTypeChange(e.target.value)}
                       className="w-full rounded-xl border p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#4cd34c]"
                       style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                     >
@@ -309,10 +330,10 @@ Thank you!`
 
                   <div>
                     <label className="text-xs font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--text-muted)" }}>
-                      Request Details / Additional Context
+                      Request Details / Pre-filled Message Template
                     </label>
                     <textarea
-                      rows={4}
+                      rows={5}
                       value={details}
                       onChange={(e) => setDetails(e.target.value)}
                       className="w-full rounded-xl border p-3 text-sm font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#4cd34c]"
@@ -325,9 +346,10 @@ Thank you!`
                       href={mailtoLink}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-xs text-[#4cd34c] hover:underline"
+                      className="text-xs text-[#4cd34c] hover:underline flex items-center gap-1"
                     >
-                      Or open in email app ↗
+                      <span>Or open in email app</span>
+                      <img src="/out.png" alt="External" className="h-3 w-3 shrink-0 object-contain" />
                     </a>
 
                     <div className="flex gap-2">
@@ -342,9 +364,10 @@ Thank you!`
                       <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="px-5 py-2.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-bold shadow hover:opacity-90 transition cursor-pointer disabled:opacity-50"
+                        className="px-5 py-2.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-bold shadow hover:opacity-90 transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                       >
-                        {isSubmitting ? "Submitting..." : "Submit Support Request 🚀"}
+                        <img src="/email.png" alt="Send" className="h-3.5 w-3.5 shrink-0 object-contain" />
+                        <span>{isSubmitting ? "Submitting..." : "Submit Support Request"}</span>
                       </button>
                     </div>
                   </div>

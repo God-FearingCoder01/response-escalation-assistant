@@ -243,6 +243,8 @@ export default function CustomerReply({
                   const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
                   const isDateField = dateAuto[ph] !== undefined;
                   const isTimeUnitField = /^time_unit/i.test(ph);
+                  const isReasonField = ph.toLowerCase().includes("reason") || ph.toLowerCase().includes("details") || ph.toLowerCase().includes("note") || ph.toLowerCase().includes("description");
+
                   const autoVal = isAgentField
                     ? (ph === "agent_initials" ? currentAgent?.agent_initials : currentAgent?.agent_name)
                     : isDateField
@@ -253,7 +255,7 @@ export default function CustomerReply({
                   return (
                     <div key={ph}>
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs capitalize" style={{ color: "var(--text-muted)" }}>
+                        <span className="text-xs capitalize font-medium" style={{ color: "var(--text-muted)" }}>
                           {ph.replace("_", " ")}:
                         </span>
                         {isAgentField ? (
@@ -262,6 +264,8 @@ export default function CustomerReply({
                           <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from date</span>
                         ) : isTimeUnitField ? (
                           <span className="text-[10px] text-[#4cd34c] font-semibold">Preset dropdown</span>
+                        ) : isReasonField ? (
+                          <span className="text-[10px] text-[#4cd34c] font-semibold">Multi-line resizable text</span>
                         ) : null}
                       </div>
                       {isTimeUnitField ? (
@@ -274,6 +278,15 @@ export default function CustomerReply({
                           <option value="hour(s)">hour(s)</option>
                           <option value="minutes">minutes</option>
                         </select>
+                      ) : isReasonField ? (
+                        <textarea
+                          rows={3}
+                          value={valMap[ph] ?? autoVal}
+                          onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                          placeholder={`Enter ${ph.replace("_", " ")}...`}
+                          className="w-full rounded-xl border p-2.5 text-sm resize-y font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#4cd34c]"
+                          style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                        />
                       ) : (
                         <input
                           value={valMap[ph] ?? autoVal}

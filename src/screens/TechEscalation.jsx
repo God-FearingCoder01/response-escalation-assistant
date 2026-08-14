@@ -83,6 +83,8 @@ export default function TechEscalation({
                 const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
                 const isDateField = dateAuto[ph] !== undefined;
                 const isTimeUnitField = /^time_unit/i.test(ph);
+                const isReasonField = ph.toLowerCase().includes("reason") || ph.toLowerCase().includes("details") || ph.toLowerCase().includes("note") || ph.toLowerCase().includes("description");
+
                 const autoVal = isAgentField
                   ? (ph === "agent_initials" ? currentAgent?.agent_initials : currentAgent?.agent_name)
                   : isDateField
@@ -92,7 +94,7 @@ export default function TechEscalation({
                       : "";
 
                 return (
-                  <div key={ph}>
+                  <div key={ph} className={isReasonField ? "col-span-full md:col-span-2" : ""}>
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-xs capitalize font-medium" style={{ color: "var(--text-muted)" }}>
                         {ph.replace("_", " ")}:
@@ -103,6 +105,8 @@ export default function TechEscalation({
                         <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from date</span>
                       ) : isTimeUnitField ? (
                         <span className="text-[10px] text-[#4cd34c] font-semibold">Preset dropdown</span>
+                      ) : isReasonField ? (
+                        <span className="text-[10px] text-[#4cd34c] font-semibold">Multi-line resizable text</span>
                       ) : null}
                     </div>
 
@@ -118,11 +122,20 @@ export default function TechEscalation({
                         <option value="day(s)">day(s)</option>
                         <option value="week(s)">week(s)</option>
                       </select>
+                    ) : isReasonField ? (
+                      <textarea
+                        rows={3}
+                        value={values[ph] ?? autoVal}
+                        onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                        placeholder={autoVal ? `Auto: ${autoVal}` : `Enter ${ph.replace("_", " ")}...`}
+                        className="w-full rounded-xl border p-2.5 text-sm resize-y font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#4cd34c]"
+                        style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                      />
                     ) : (
                       <input
                         value={values[ph] ?? autoVal}
                         onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
-                        placeholder={autoVal ? `Auto: ${autoVal}` : `Enter ${ph}...`}
+                        placeholder={autoVal ? `Auto: ${autoVal}` : `Enter ${ph.replace("_", " ")}...`}
                         className="w-full rounded-xl border p-2.5 text-sm"
                         style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                       />
