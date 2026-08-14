@@ -735,11 +735,19 @@ def list_companies():
 
 @app.post("/companies", response_model=CompanyRead, dependencies=[Depends(require_admin)])
 def create_company(payload: CompanyCreate):
+    ensure_db_initialized()
     with Session(engine) as session:
-        slug = payload.slug.strip().lower()
+        if not payload.name or not payload.name.strip():
+            raise HTTPException(status_code=400, detail="Organization name cannot be empty")
+
+        raw_slug = payload.slug.strip() if payload.slug else payload.name.strip()
+        slug = re.sub(r"[^a-z0-9\-]", "", raw_slug.lower())
+        if not slug:
+            raise HTTPException(status_code=400, detail="Organization URL slug must contain alphanumeric characters (e.g. winbucks)")
+
         existing = session.exec(select(Company).where(Company.slug == slug)).first()
         if existing:
-            raise HTTPException(status_code=400, detail=f"Company with slug '{slug}' already exists")
+            raise HTTPException(status_code=400, detail=f"Organization with URL slug '{slug}' already exists")
 
         now = datetime.now(timezone.utc)
         comp = Company(
@@ -754,18 +762,20 @@ def create_company(payload: CompanyCreate):
         session.refresh(comp)
         assert comp.id is not None
 
-        # Seed default admin agent for new company
-        admin_agent = Agent(
-            agent="System Administrator",
-            agent_name="Sys_Admin",
-            agent_initials="SA",
-            is_admin=True,
-            pin=hash_pin("0000"),
-            company_id=comp.id,
-            created_at=now,
-            updated_at=now,
-        )
-        session.add(admin_agent)
+        # Seed default agents for new company (Sys_Admin and Chris Whyt)
+        for item in DEFAULT_AGENTS:
+            session.add(
+                Agent(
+                    agent=item["agent"],
+                    agent_name=item["agent_name"],
+                    agent_initials=item["agent_initials"],
+                    is_admin=item["is_admin"],
+                    pin=hash_pin(item["pin"]),
+                    company_id=comp.id,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
 
         # Seed default starter templates for new company
         for item in DEFAULT_TEMPLATES:

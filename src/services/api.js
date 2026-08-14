@@ -131,11 +131,8 @@ export const DEFAULT_TEMPLATES = [
 ];
 
 export const DEFAULT_AGENTS = [
-  { id: 1, agent: "Vuyolwenkosi Ndlovu", agent_name: "Vuyo", agent_initials: "VN", is_admin: false },
-  { id: 2, agent: "Kilian D", agent_name: "Kilian", agent_initials: "KD", is_admin: false },
-  { id: 3, agent: "Thembi Sibanda", agent_name: "Thembie", agent_initials: "TS", is_admin: false },
-  { id: 4, agent: "Kudzi Honde", agent_name: "Kudzie", agent_initials: "KH", is_admin: false },
-  { id: 5, agent: "System Admin", agent_name: "Sys_Admin", agent_initials: "SA", is_admin: true },
+  { id: 1, agent: "System Administrator", agent_name: "Sys_Admin", agent_initials: "SA", is_admin: true },
+  { id: 2, agent: "Chris Whyt", agent_name: "Chris", agent_initials: "CW", is_admin: false },
 ];
 
 export function generateInitials(name) {
