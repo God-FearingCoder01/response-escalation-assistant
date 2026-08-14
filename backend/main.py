@@ -655,68 +655,76 @@ def update_superadmin_settings(payload: SuperAdminSettingsUpdate):
 @app.post("/superadmin/reset-company-admin-pin")
 def reset_company_admin_pin(payload: CompanyAdminPinReset):
     ensure_db_initialized()
-    with Session(engine) as session:
-        clean_pin = payload.new_pin.strip()
-        if len(clean_pin) != 4 or not clean_pin.isdigit():
-            raise HTTPException(status_code=400, detail="PIN must be exactly 4 digits")
+    try:
+        with Session(engine) as session:
+            if not payload.new_pin or not isinstance(payload.new_pin, str):
+                raise HTTPException(status_code=400, detail="New PIN is required")
+            clean_pin = payload.new_pin.strip()
+            if len(clean_pin) != 4 or not clean_pin.isdigit():
+                raise HTTPException(status_code=400, detail="PIN must be exactly 4 digits")
 
-        try:
-            cid = int(payload.company_id)
-        except (ValueError, TypeError):
-            raise HTTPException(status_code=400, detail="Invalid company_id")
-
-        comp = session.get(Company, cid)
-        if not comp:
-            raise HTTPException(status_code=404, detail="Company not found")
-        assert comp.id is not None
-
-        stmt = select(Agent).where(Agent.company_id == comp.id, Agent.is_admin == True)
-        if payload.agent_id:
             try:
-                aid = int(payload.agent_id)
-                stmt = stmt.where(Agent.id == aid)
+                cid = int(payload.company_id)
             except (ValueError, TypeError):
-                pass
+                raise HTTPException(status_code=400, detail="Invalid company_id")
 
-        admin_agents = session.exec(stmt).all()
-        if not admin_agents:
-            admin_agents = session.exec(select(Agent).where(Agent.company_id == comp.id)).all()
+            comp = session.get(Company, cid)
+            if not comp or comp.id is None:
+                raise HTTPException(status_code=404, detail="Company not found")
 
-        now = datetime.now(timezone.utc)
-        hashed = hash_pin(clean_pin)
+            company_id_val = int(comp.id)
 
-        if not admin_agents:
-            # Auto-provision default Sys_Admin agent if company has no agent records yet
-            new_admin = Agent(
-                agent="System Administrator",
-                agent_name="Sys_Admin",
-                agent_initials="SA",
-                is_admin=True,
-                pin=hashed,
-                company_id=comp.id,
-                created_at=now,
-                updated_at=now,
-            )
-            session.add(new_admin)
+            stmt = select(Agent).where(Agent.company_id == company_id_val, Agent.is_admin == True)
+            if payload.agent_id:
+                try:
+                    aid = int(payload.agent_id)
+                    stmt = stmt.where(Agent.id == aid)
+                except (ValueError, TypeError):
+                    pass
+
+            admin_agents = session.exec(stmt).all()
+            if not admin_agents:
+                admin_agents = session.exec(select(Agent).where(Agent.company_id == company_id_val)).all()
+
+            now = datetime.now(timezone.utc)
+            hashed = hash_pin(clean_pin)
+
+            if not admin_agents:
+                # Auto-provision default Sys_Admin agent if company has no agent records yet
+                new_admin = Agent(
+                    agent="System Administrator",
+                    agent_name="Sys_Admin",
+                    agent_initials="SA",
+                    is_admin=True,
+                    pin=hashed,
+                    company_id=company_id_val,
+                    created_at=now,
+                    updated_at=now,
+                )
+                session.add(new_admin)
+                session.commit()
+                return {
+                    "status": "ok",
+                    "message": f"Created and set Admin PIN to '{clean_pin}' for company '{comp.name}'",
+                    "agents_updated": 1,
+                }
+
+            for agent in admin_agents:
+                agent.pin = hashed
+                agent.is_admin = True
+                agent.updated_at = now
+                session.add(agent)
+
             session.commit()
             return {
                 "status": "ok",
-                "message": f"Created and set Admin PIN to '{clean_pin}' for company '{comp.name}'",
-                "agents_updated": 1,
+                "message": f"Successfully reset Admin PIN to '{clean_pin}' for company '{comp.name}'",
+                "agents_updated": len(admin_agents),
             }
-
-        for agent in admin_agents:
-            agent.pin = hashed
-            agent.is_admin = True
-            agent.updated_at = now
-            session.add(agent)
-
-        session.commit()
-        return {
-            "status": "ok",
-            "message": f"Successfully reset Admin PIN to '{clean_pin}' for company '{comp.name}'",
-            "agents_updated": len(admin_agents),
-        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to reset PIN: {str(e)}")
 
 
 # --- COMPANY / ORGANIZATION ENDPOINTS ---
@@ -763,7 +771,9 @@ def create_company(payload: CompanyCreate):
         session.add(comp)
         session.commit()
         session.refresh(comp)
-        assert comp.id is not None
+        if comp.id is None:
+            raise HTTPException(status_code=500, detail="Failed to retrieve company ID after creation")
+        comp_id_val = int(comp.id)
 
         # Seed default agents for new company (Sys_Admin and Chris Whyt)
         for item in DEFAULT_AGENTS:
@@ -774,7 +784,7 @@ def create_company(payload: CompanyCreate):
                     agent_initials=item["agent_initials"],
                     is_admin=item["is_admin"],
                     pin=hash_pin(item["pin"]),
-                    company_id=comp.id,
+                    company_id=comp_id_val,
                     created_at=now,
                     updated_at=now,
                 )
@@ -789,7 +799,7 @@ def create_company(payload: CompanyCreate):
                     category_type=item["category_type"],
                     category=item.get("category"),
                     subcategory=item.get("subcategory"),
-                    company_id=comp.id,
+                    company_id=comp_id_val,
                     created_at=now,
                     updated_at=now,
                 )
