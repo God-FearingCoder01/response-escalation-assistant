@@ -11,7 +11,10 @@ import urllib.parse
 from pathlib import Path
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import List, TypedDict
+from typing import List, TypedDict, Optional
+from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi.middleware.cors import CORSMiddleware
+from sqlmodel import SQLModel, Field, Session, select, col
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "rea_admin_secret_key_v1_change_in_production").encode("utf-8")
 ADMIN_SESSION_EXPIRE_HOURS = int(os.environ.get("ADMIN_SESSION_EXPIRE_HOURS", "12"))
@@ -163,6 +166,11 @@ def require_admin(
             detail="Admin authorization required: missing X-Admin-Token or X-Admin-PIN header",
         )
 
+    if token_str:
+        payload = verify_admin_token(token_str)
+        if payload and payload.get("sub") == "SUPERADMIN":
+            return
+
     with Session(engine) as session:
         target_company_id = None
         if x_company_id:
@@ -235,6 +243,8 @@ try:
         SuggestionUpdate,
         Favorite,
         UsageHistory,
+        SuperAdmin,
+        SuperAdminRead,
     )
 except ImportError:
     from backend.database import create_db_and_tables, engine, ping_database
@@ -257,6 +267,8 @@ except ImportError:
         SuggestionUpdate,
         Favorite,
         UsageHistory,
+        SuperAdmin,
+        SuperAdminRead,
     )
 
 
@@ -345,25 +357,22 @@ class DefaultAgent(TypedDict):
 
 DEFAULT_AGENTS: List[DefaultAgent] = [
     { "agent": "System Administrator", "agent_name": "Sys_Admin", "agent_initials": "SA", "is_admin": True, "pin": "0000" },
-    { "agent": "Vuyolwenkosi Ndlovu", "agent_name": "Vuyo", "agent_initials": "VN", "is_admin": False, "pin": "0000" },
-    { "agent": "Kilian D", "agent_name": "Kilian", "agent_initials": "KD", "is_admin": False, "pin": "0000" },
-    { "agent": "Thembi Sibanda", "agent_name": "Thembie", "agent_initials": "TS", "is_admin": False, "pin": "0000" },
-    { "agent": "Kudzi Honde", "agent_name": "Kudzie", "agent_initials": "KH", "is_admin": False, "pin": "0000" },
+    { "agent": "Chris Whyt", "agent_name": "Chris", "agent_initials": "CW", "is_admin": False, "pin": "0000" },
 ]
 
 
 def sync_default_data_if_needed(session: Session) -> None:
     now = datetime.now(timezone.utc)
-    # 1. Default Company
+    # 1. Default Company (Corp A)
     default_company = session.exec(select(Company).where(Company.id == 1)).first()
     if not default_company:
-        default_company = session.exec(select(Company).where(Company.slug == "default")).first()
+        default_company = session.exec(select(Company).where(Company.slug == "corp-a")).first()
 
     if not default_company:
         default_company = Company(
             id=1,
-            name="Default Organization",
-            slug="default",
+            name="Corp A",
+            slug="corp-a",
             is_active=True,
             created_at=now,
             updated_at=now,
@@ -371,11 +380,24 @@ def sync_default_data_if_needed(session: Session) -> None:
         session.add(default_company)
         session.commit()
         session.refresh(default_company)
+    else:
+        if default_company.name == "Default Organization" or default_company.slug == "default":
+            default_company.name = "Corp A"
+            default_company.slug = "corp-a"
+            session.add(default_company)
+            session.commit()
 
     if default_company.id is None:
         return
 
-    # 2. Seed default agents associated with default_company.id
+    # 2. Ensure default_company (ID #1) has ONLY 2 profiles (SA and VN)
+    allowed_initials = [item["agent_initials"] for item in DEFAULT_AGENTS]
+    existing_agents = session.exec(select(Agent).where(Agent.company_id == default_company.id)).all()
+    for ag in existing_agents:
+        if ag.agent_initials not in allowed_initials:
+            session.delete(ag)
+    session.commit()
+
     for item in DEFAULT_AGENTS:
         existing = session.exec(
             select(Agent).where(
@@ -422,6 +444,24 @@ def sync_default_data_if_needed(session: Session) -> None:
                 )
             )
         session.commit()
+
+    # 4. Seed default SuperAdmin if not exists
+    superadmin = session.exec(select(SuperAdmin)).first()
+    if not superadmin:
+        session.add(
+            SuperAdmin(
+                email="gfc.dev@proton.me",
+                pin=hash_pin("0000"),
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        session.commit()
+    else:
+        if superadmin.email == "admin@support.com":
+            superadmin.email = "gfc.dev@proton.me"
+            session.add(superadmin)
+            session.commit()
 
 
 def get_current_company(
@@ -496,7 +536,162 @@ def health_check():
     return {"status": "ok", "database": "connected", "message": "Backend is ready"}
 
 
+# --- SUPER ADMIN MODELS & ENDPOINTS ---
+
+class SuperAdminPinVerify(SQLModel):
+    pin: str
+
+
+class SuperAdminPinResetRequest(SQLModel):
+    email: str
+
+
+class SuperAdminPinResetConfirm(SQLModel):
+    token: str
+    new_pin: str
+
+
+class SuperAdminSettingsUpdate(SQLModel):
+    email: Optional[str] = None
+    pin: Optional[str] = None
+    current_pin: str
+
+
+class CompanyAdminPinReset(SQLModel):
+    company_id: int
+    agent_id: Optional[int] = None
+    new_pin: str
+
+
+@app.post("/superadmin/verify-pin")
+def verify_superadmin_pin(payload: SuperAdminPinVerify):
+    with Session(engine) as session:
+        sa = session.exec(select(SuperAdmin)).first()
+        if not sa:
+            now = datetime.now(timezone.utc)
+            sa = SuperAdmin(email="gfc.dev@proton.me", pin=hash_pin("0000"), created_at=now, updated_at=now)
+            session.add(sa)
+            session.commit()
+            session.refresh(sa)
+        if verify_pin_hash(payload.pin, sa.pin):
+            token = generate_admin_token(agent_initials="SUPERADMIN", pin_hash=sa.pin)
+            return {"status": "ok", "token": token, "email": sa.email}
+        raise HTTPException(status_code=401, detail="Invalid Super Admin 4-digit PIN")
+
+
+@app.post("/superadmin/request-pin-reset")
+def request_superadmin_pin_reset(payload: SuperAdminPinResetRequest):
+    with Session(engine) as session:
+        sa = session.exec(select(SuperAdmin)).first()
+        if not sa:
+            raise HTTPException(status_code=404, detail="Super Admin configuration not found")
+
+        input_email = payload.email.strip().lower()
+        if input_email != sa.email.strip().lower():
+            raise HTTPException(status_code=400, detail="Provided email does not match registered Super Admin email.")
+
+        reset_token = secrets.token_hex(16)
+        sa.reset_token = reset_token
+        session.add(sa)
+        session.commit()
+
+        return {
+            "status": "ok",
+            "message": f"PIN reset authorized for Super Admin email {sa.email}.",
+            "reset_token": reset_token,
+        }
+
+
+@app.post("/superadmin/reset-pin")
+def reset_superadmin_pin(payload: SuperAdminPinResetConfirm):
+    with Session(engine) as session:
+        sa = session.exec(select(SuperAdmin).where(SuperAdmin.reset_token == payload.token)).first()
+        if not sa or not payload.token:
+            raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+        clean_pin = payload.new_pin.strip()
+        if len(clean_pin) != 4 or not clean_pin.isdigit():
+            raise HTTPException(status_code=400, detail="Super Admin PIN must be exactly 4 digits")
+
+        sa.pin = hash_pin(clean_pin)
+        sa.reset_token = None
+        sa.updated_at = datetime.now(timezone.utc)
+        session.add(sa)
+        session.commit()
+        return {"status": "ok", "message": "Super Admin PIN reset successfully!"}
+
+
+@app.post("/superadmin/update-settings")
+def update_superadmin_settings(payload: SuperAdminSettingsUpdate):
+    with Session(engine) as session:
+        sa = session.exec(select(SuperAdmin)).first()
+        if not sa:
+            raise HTTPException(status_code=404, detail="Super Admin record not found")
+
+        if not verify_pin_hash(payload.current_pin, sa.pin):
+            raise HTTPException(status_code=401, detail="Current Super Admin PIN is incorrect")
+
+        if payload.email and payload.email.strip():
+            sa.email = payload.email.strip().lower()
+
+        if payload.pin and payload.pin.strip():
+            clean_pin = payload.pin.strip()
+            if len(clean_pin) != 4 or not clean_pin.isdigit():
+                raise HTTPException(status_code=400, detail="New Super Admin PIN must be exactly 4 digits")
+            sa.pin = hash_pin(clean_pin)
+
+        sa.updated_at = datetime.now(timezone.utc)
+        session.add(sa)
+        session.commit()
+        return {"status": "ok", "message": "Super Admin settings updated successfully!", "email": sa.email}
+
+
+@app.post("/superadmin/reset-company-admin-pin")
+def reset_company_admin_pin(payload: CompanyAdminPinReset):
+    with Session(engine) as session:
+        clean_pin = payload.new_pin.strip()
+        if len(clean_pin) != 4 or not clean_pin.isdigit():
+            raise HTTPException(status_code=400, detail="PIN must be exactly 4 digits")
+
+        comp = session.get(Company, payload.company_id)
+        if not comp:
+            raise HTTPException(status_code=404, detail="Company not found")
+
+        stmt = select(Agent).where(Agent.company_id == comp.id, Agent.is_admin == True)
+        if payload.agent_id:
+            stmt = stmt.where(Agent.id == payload.agent_id)
+
+        admin_agents = session.exec(stmt).all()
+        if not admin_agents:
+            admin_agents = session.exec(select(Agent).where(Agent.company_id == comp.id)).all()
+
+        if not admin_agents:
+            raise HTTPException(status_code=404, detail="No admin agent found for this company")
+
+        hashed = hash_pin(clean_pin)
+        for agent in admin_agents:
+            agent.pin = hashed
+            agent.updated_at = datetime.now(timezone.utc)
+            session.add(agent)
+
+        session.commit()
+        return {
+            "status": "ok",
+            "message": f"Successfully reset Admin PIN to '{clean_pin}' for company '{comp.name}'",
+            "agents_updated": len(admin_agents),
+        }
+
+
 # --- COMPANY / ORGANIZATION ENDPOINTS ---
+
+@app.get("/companies/by-slug/{slug}", response_model=CompanyRead)
+def get_company_by_slug(slug: str):
+    with Session(engine) as session:
+        comp = session.exec(select(Company).where(Company.slug == slug.strip().lower())).first()
+        if not comp:
+            raise HTTPException(status_code=404, detail="Company not found")
+        return CompanyRead.model_validate(comp)
+
 
 @app.get("/companies", response_model=List[CompanyRead])
 def list_companies():

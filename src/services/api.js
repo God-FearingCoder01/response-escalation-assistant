@@ -234,6 +234,75 @@ export async function updateCompanyApi(id, payload) {
   return await res.json();
 }
 
+export async function fetchCompanyBySlugApi(slug) {
+  return await safeFetchJson(`${API_BASE}/companies/by-slug/${encodeURIComponent(slug)}`);
+}
+
+export async function verifySuperAdminPinApi(pin) {
+  const res = await fetch(`${API_BASE}/superadmin/verify-pin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pin }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(errData?.detail || "Invalid Super Admin PIN");
+  }
+  return await res.json();
+}
+
+export async function requestSuperAdminPinResetApi(email) {
+  const res = await fetch(`${API_BASE}/superadmin/request-pin-reset`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(errData?.detail || "Email verification failed");
+  }
+  return await res.json();
+}
+
+export async function resetSuperAdminPinApi(token, newPin) {
+  const res = await fetch(`${API_BASE}/superadmin/reset-pin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, new_pin: newPin }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(errData?.detail || "Failed to reset Super Admin PIN");
+  }
+  return await res.json();
+}
+
+export async function updateSuperAdminSettingsApi(payload) {
+  const res = await fetch(`${API_BASE}/superadmin/update-settings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(errData?.detail || "Failed to update Super Admin settings");
+  }
+  return await res.json();
+}
+
+export async function resetCompanyAdminPinApi(companyId, agentId, newPin) {
+  const res = await fetch(`${API_BASE}/superadmin/reset-company-admin-pin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ company_id: companyId, agent_id: agentId, new_pin: newPin }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(errData?.detail || "Failed to reset Company Admin PIN");
+  }
+  return await res.json();
+}
+
 export async function fetchTemplatesApi() {
   return await safeFetchJson(`${API_BASE}/templates`);
 }

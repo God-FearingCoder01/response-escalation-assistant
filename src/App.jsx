@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { AGENT_KEY, fetchHealthApi } from "./services/api";
 import { useTheme } from "./hooks/useTheme";
 import { useAgents } from "./hooks/useAgents";
@@ -10,6 +10,7 @@ import { useTranslator } from "./hooks/useTranslator";
 
 import Sidebar from "./components/Sidebar";
 import PinModal from "./components/PinModal";
+import SuperAdminPinModal from "./components/SuperAdminPinModal";
 import Toast from "./components/Toast";
 import HeaderStatusBar from "./components/HeaderStatusBar";
 
@@ -20,10 +21,19 @@ import AdminDashboard from "./screens/AdminDashboard";
 import SuggestionsHub from "./screens/SuggestionsHub";
 import QuickAccess from "./screens/QuickAccess";
 import TranslatorScreen from "./screens/TranslatorScreen";
+import MonitorScreen from "./screens/MonitorScreen";
+import DeveloperSupportLanding from "./screens/DeveloperSupportLanding";
 
 export default function App() {
   const { themeMode, setThemeMode, themeConfig } = useTheme();
-  const { companies, activeCompanyId, switchCompany } = useCompany();
+  const {
+    companies,
+    activeCompanyId,
+    activeCompany,
+    switchCompany,
+    handleCreateCompany,
+    handleUpdateCompany,
+  } = useCompany();
 
   const [loading, setLoading] = useState(true);
   const [saving] = useState(false);
@@ -31,6 +41,15 @@ export default function App() {
   const [apiStatus, setApiStatus] = useState("checking");
   const [statusMessage, setStatusMessage] = useState("");
   const [values, setValues] = useState({});
+
+  // Super Admin Authentication State
+  const [isSuperAdminAuth, setIsSuperAdminAuth] = useState(false);
+  const [superAdminEmail, setSuperAdminEmail] = useState("gfc.dev@proton.me");
+
+  // Track current location path
+  const [currentPath, setCurrentPath] = useState(() => {
+    return typeof window !== "undefined" ? window.location.pathname : "/";
+  });
 
   // 1. Agents hook
   const agentState = useAgents({
@@ -79,7 +98,66 @@ export default function App() {
     handleDeleteAgent,
   } = agentState || {};
 
-  // 2. User Interactions hook (toasts, favorites, history, copy actions)
+  // URL route sync effect
+  const syncRouteWithState = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const path = window.location.pathname;
+    setCurrentPath(path);
+
+    if (path === "/monitor" || path.startsWith("/monitor")) {
+      setActiveScreen("monitor");
+    } else {
+      setIsSuperAdminAuth(false);
+      if (path !== "/" && activeCompany) {
+        const parts = path.split("/").filter(Boolean);
+        if (parts.length >= 2) {
+          const subRoute = parts[1];
+          if (["tech-escalation", "customer-reply", "suggestions", "quick-access", "admin", "translator"].includes(subRoute)) {
+            const mapRoute = subRoute.replace("-", "_");
+            setActiveScreen(mapRoute);
+          }
+        }
+      }
+    }
+  }, [activeCompany, setActiveScreen]);
+
+  useEffect(() => {
+    syncRouteWithState();
+    window.addEventListener("popstate", syncRouteWithState);
+    return () => window.removeEventListener("popstate", syncRouteWithState);
+  }, [syncRouteWithState]);
+
+  // Navigate helper that syncs URL history
+  const handleNavigate = (screen) => {
+    if (screen !== "monitor") {
+      setIsSuperAdminAuth(false);
+    }
+    setActiveScreen(screen);
+    if (typeof window !== "undefined") {
+      let newPath = "/";
+      if (screen === "monitor") {
+        newPath = "/monitor";
+      } else if (screen === "root" || screen === "landing") {
+        newPath = "/";
+      } else {
+        const slug = activeCompany?.slug || "corp-a";
+        newPath = `/${slug}`;
+      }
+      if (window.location.pathname !== newPath) {
+        window.history.pushState({}, "", newPath);
+        setCurrentPath(newPath);
+      }
+    }
+  };
+
+  const handleSwitchCompanyAndEnter = (companyIdOrSlug) => {
+    switchCompany(companyIdOrSlug);
+    if (activeScreen === "monitor") {
+      setActiveScreen(currentAgent ? "tech_escalation" : "welcome");
+    }
+  };
+
+  // 2. User Interactions hook
   const userInteractions = useUserInteractions({ currentAgent, apiStatus });
   const {
     showToast = () => {},
@@ -91,7 +169,7 @@ export default function App() {
     copyText = () => {},
   } = userInteractions || {};
 
-  // 3. Templates hook (templates, category filtering, placeholder extraction, message generation, template CRUD)
+  // 3. Templates hook
   const templateState = useTemplates({
     apiStatus,
     activeScreen,
@@ -157,7 +235,7 @@ export default function App() {
     generateMessage = () => "",
   } = templateState || {};
 
-  // 4. Suggestions hook (suggestions, live 5s polling, submissions, approvals, rejections)
+  // 4. Suggestions hook
   const suggestionState = useSuggestions({
     activeScreen,
     apiStatus,
@@ -217,10 +295,68 @@ export default function App() {
     try {
       window.localStorage.removeItem(AGENT_KEY);
     } catch (e) {}
-    setActiveScreen("welcome");
+    handleNavigate("welcome");
   };
 
   const generatedMsg = generateMessage(values);
+
+  // Route matching analysis
+  const pathParts = currentPath.split("/").filter(Boolean);
+  const isRoot = currentPath === "/" || pathParts.length === 0;
+  const isMonitorRoute = currentPath === "/monitor" || pathParts[0] === "monitor";
+
+  // Check if current URL slug matches a known company
+  const slugFromUrl = pathParts.length > 0 && !isMonitorRoute ? pathParts[0].toLowerCase() : null;
+  const matchedCompany = slugFromUrl ? companies.find((c) => c.slug.toLowerCase() === slugFromUrl) : null;
+  const isCompanyRoute = !!matchedCompany;
+  const isCompanyInactive = matchedCompany && matchedCompany.is_active === false;
+
+  // Render Root or Unregistered URL Landing page
+  if (isRoot || (!isMonitorRoute && !isCompanyRoute)) {
+    return (
+      <DeveloperSupportLanding
+        themeMode={themeMode}
+        setThemeMode={setThemeMode}
+        themeConfig={themeConfig}
+      />
+    );
+  }
+
+  // Render Inactive Organization Page if company is deactivated
+  if (isCompanyRoute && isCompanyInactive) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-black/80 backdrop-blur animate-fade-in text-center">
+        <div className="max-w-xl w-full rounded-3xl border border-red-500/30 p-8 shadow-2xl space-y-6 bg-[#12121a]">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/10 text-3xl text-red-400 border border-red-500/30">
+            🚫
+          </div>
+          <h2 className="text-2xl font-black text-white">
+            Organization Space Inactive
+          </h2>
+          <p className="text-sm text-gray-300 leading-relaxed">
+            The organization space for <strong className="text-red-400">/{matchedCompany.name}</strong> (<code className="text-white font-mono">/{matchedCompany.slug}</code>) is currently set to <strong>Inactive</strong> by the system super administrator.
+          </p>
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-xs text-red-300">
+            Please contact <strong>System Support / Developer</strong> to reactivate this organization space or update your company URL.
+          </div>
+          <div className="flex justify-center gap-3 pt-2">
+            <button
+              onClick={() => handleNavigate("monitor")}
+              className="rounded-xl border border-gray-700 px-4 py-2.5 text-xs font-semibold text-gray-300 hover:bg-gray-800 cursor-pointer"
+            >
+              Super Admin Dashboard (/monitor)
+            </button>
+            <a
+              href="mailto:gfc.dev@proton.me"
+              className="rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] px-5 py-2.5 text-xs font-bold text-[#071007] hover:opacity-90 shadow-md cursor-pointer"
+            >
+              Contact Developer
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -234,7 +370,7 @@ export default function App() {
       <Sidebar
         currentAgent={currentAgent}
         activeScreen={activeScreen}
-        setActiveScreen={setActiveScreen}
+        setActiveScreen={handleNavigate}
         themeMode={themeMode}
         setThemeMode={setThemeMode}
         handleLogout={handleLogout}
@@ -251,7 +387,20 @@ export default function App() {
         verifyPin={verifyPin}
       />
 
-      <div className={`flex-1 p-6 transition-all duration-300 ${currentAgent && activeScreen !== "welcome" ? "ml-16" : ""}`}>
+      {/* Super Admin 4-digit PIN lock for /monitor */}
+      {activeScreen === "monitor" && !isSuperAdminAuth && (
+        <SuperAdminPinModal
+          isOpen={true}
+          onAuthenticated={(token, email) => {
+            setIsSuperAdminAuth(true);
+            if (email) setSuperAdminEmail(email);
+          }}
+          onCancel={() => handleNavigate("root")}
+          showToast={showToast}
+        />
+      )}
+
+      <div className={`flex-1 p-6 transition-all duration-300 ${currentAgent && activeScreen !== "welcome" && activeScreen !== "monitor" ? "ml-16" : ""}`}>
         <HeaderStatusBar
           activeScreen={activeScreen}
           apiStatus={apiStatus}
@@ -261,8 +410,26 @@ export default function App() {
           error={error}
           companies={companies}
           activeCompanyId={activeCompanyId}
-          switchCompany={switchCompany}
+          switchCompany={handleSwitchCompanyAndEnter}
+          handleNavigate={handleNavigate}
         />
+
+        {activeScreen === "monitor" && isSuperAdminAuth && (
+          <MonitorScreen
+            activeScreen={activeScreen}
+            currentAgent={currentAgent}
+            companies={companies}
+            activeCompanyId={activeCompanyId}
+            switchCompany={handleSwitchCompanyAndEnter}
+            handleCreateCompany={handleCreateCompany}
+            handleUpdateCompany={handleUpdateCompany}
+            handleNavigate={handleNavigate}
+            superAdminEmail={superAdminEmail}
+            themeMode={themeMode}
+            setThemeMode={setThemeMode}
+            showToast={showToast}
+          />
+        )}
 
         <WelcomeScreen
           activeScreen={activeScreen}

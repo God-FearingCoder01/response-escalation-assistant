@@ -8,6 +8,7 @@ export default function HeaderStatusBar({
   companies = [],
   activeCompanyId = 1,
   switchCompany = () => {},
+  handleNavigate = () => {},
 }) {
   return (
     <>
@@ -36,15 +37,19 @@ export default function HeaderStatusBar({
             <h1 className="text-2xl font-bold md:text-3xl" style={{ color: "var(--header-text)" }}>
               {activeScreen === "welcome"
                 ? "Welcome Portal"
-                : activeScreen === "tech_escalation"
-                  ? "Tech Escalation Builder"
-                  : activeScreen === "customer_reply"
-                    ? "Customer Reply Center"
-                    : activeScreen === "quick_access"
-                      ? "Quick Access & Favorites"
-                      : activeScreen === "suggestions"
-                        ? "Template Suggestions Hub"
-                        : "System Admin Dashboard"}
+                : activeScreen === "monitor"
+                  ? "Organization Monitor"
+                  : activeScreen === "tech_escalation"
+                    ? "Tech Escalation Builder"
+                    : activeScreen === "customer_reply"
+                      ? "Customer Reply Center"
+                      : activeScreen === "quick_access"
+                        ? "Quick Access & Favorites"
+                        : activeScreen === "suggestions"
+                          ? "Template Suggestions Hub"
+                          : activeScreen === "translator"
+                            ? "Translator Center"
+                            : "System Admin Dashboard"}
             </h1>
           </div>
         </div>
@@ -56,18 +61,9 @@ export default function HeaderStatusBar({
               style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--badge-bg)" }}
             >
               <span className="text-[#4cd34c] font-semibold">Org:</span>
-              <select
-                value={activeCompanyId}
-                onChange={(e) => switchCompany(e.target.value)}
-                className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer"
-                style={{ color: "var(--header-text)" }}
-              >
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id} style={{ backgroundColor: "#1e293b", color: "#f8fafc" }}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <span className="font-bold" style={{ color: "var(--header-text)" }}>
+                {(companies.find((c) => c.id === activeCompanyId) || companies[0])?.name}
+              </span>
             </div>
           ) : null}
 

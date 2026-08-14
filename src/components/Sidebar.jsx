@@ -39,6 +39,7 @@ export default function Sidebar({
 
         {/* Nav links */}
         <nav className="space-y-2">
+
           <button
             onClick={() => {
               setActiveScreen("tech_escalation");

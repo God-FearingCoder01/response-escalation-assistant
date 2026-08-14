@@ -117,7 +117,7 @@ def test_agent_isolation_per_company():
     comp_a = client.post(
         "/companies",
         headers=headers_admin,
-        json={"name": "Corp A", "slug": "corp-a", "is_active": True}
+        json={"name": "Corp X", "slug": "corp-x", "is_active": True}
     ).json()
 
     # Create agent in Corp A

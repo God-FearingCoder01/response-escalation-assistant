@@ -159,5 +159,23 @@ class UsageHistory(SQLModel, table=True):
     copied_at: datetime = Field(default_factory=get_utc_now, nullable=False)
 
 
+class SuperAdminBase(SQLModel):
+    email: str = Field(index=True)
+
+
+class SuperAdmin(SuperAdminBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    pin: str
+    reset_token: Optional[str] = None
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+
+
+class SuperAdminRead(SuperAdminBase):
+    id: int
+    updated_at: datetime
+
+
+
 
 
