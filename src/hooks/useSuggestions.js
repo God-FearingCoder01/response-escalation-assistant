@@ -5,6 +5,7 @@ import {
   createSuggestionApi,
   approveSuggestionApi,
   rejectSuggestionApi,
+  deleteSuggestionApi,
 } from "../services/api";
 
 export function useSuggestions({ activeScreen, apiStatus, currentAgent, refreshTemplates, showToast, setError }) {
@@ -169,6 +170,38 @@ export function useSuggestions({ activeScreen, apiStatus, currentAgent, refreshT
     }
   }
 
+  async function handleDeleteSuggestion(sugId) {
+    setError("");
+    try {
+      if (apiStatus !== "offline") {
+        try {
+          await deleteSuggestionApi(sugId);
+          await refreshSuggestions();
+          showToast("Suggestion deleted 🗑️");
+          return;
+        } catch (err) {
+          if (err instanceof Error && err.message === "Failed to fetch") {
+            // Fallback to local offline mode
+          } else {
+            const msg = err instanceof Error ? err.message : "Failed to delete suggestion";
+            setError(msg);
+            showToast(`Error: ${msg} ⚠️`);
+            return;
+          }
+        }
+      }
+
+      setSuggestions((curr) => {
+        const list = curr.filter((s) => s.id !== sugId);
+        try { localStorage.setItem("REA_SUGGESTIONS", JSON.stringify(list)); } catch (e) {}
+        return list;
+      });
+      showToast("Suggestion deleted locally 🗑️");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete suggestion");
+    }
+  }
+
   return {
     suggestions,
     setSuggestions,
@@ -189,5 +222,6 @@ export function useSuggestions({ activeScreen, apiStatus, currentAgent, refreshT
     handleSubmitSuggestion,
     handleApproveSuggestion,
     handleRejectSuggestion,
+    handleDeleteSuggestion,
   };
 }

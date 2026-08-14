@@ -454,7 +454,19 @@ export async function rejectSuggestionApi(id) {
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
-    throw new Error(errData?.detail || "Rejection failed");
+    throw new Error(parseApiError(errData, "Rejection failed"));
+  }
+  return await res.json();
+}
+
+export async function deleteSuggestionApi(id) {
+  const res = await fetch(`${API_BASE}/suggestions/${id}`, {
+    method: "DELETE",
+    headers: { ...getAdminHeaders() },
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Deletion failed"));
   }
   return await res.json();
 }

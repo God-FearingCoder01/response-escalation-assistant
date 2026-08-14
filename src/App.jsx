@@ -263,6 +263,7 @@ export default function App() {
     handleSubmitSuggestion,
     handleApproveSuggestion,
     handleRejectSuggestion,
+    handleDeleteSuggestion,
   } = suggestionState || {};
 
   // 5. Translator hook
@@ -555,6 +556,7 @@ export default function App() {
           handleSubmitSuggestion={handleSubmitSuggestion}
           handleApproveSuggestion={handleApproveSuggestion}
           handleRejectSuggestion={handleRejectSuggestion}
+          handleDeleteSuggestion={handleDeleteSuggestion}
         />
 
         <QuickAccess

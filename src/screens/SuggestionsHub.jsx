@@ -51,6 +51,7 @@ export default function SuggestionsHub({
   handleSubmitSuggestion,
   handleApproveSuggestion,
   handleRejectSuggestion,
+  handleDeleteSuggestion,
 }) {
   const [groupingMode, setGroupingMode] = useState("date"); // 'date' | 'category'
   const [expandedGroups, setExpandedGroups] = useState({});
@@ -363,29 +364,42 @@ export default function SuggestionsHub({
                                 Suggested by <strong className="text-[#4cd34c] font-semibold">{sug.suggested_by_name} ({sug.suggested_by_initials})</strong>
                               </span>
 
-                              {currentAgent?.is_admin ? (
-                                <div className="flex gap-2 self-end sm:self-center">
-                                  {sug.status !== "approved" ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleApproveSuggestion(sug.id)}
-                                      className="px-3 py-1 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-semibold shadow transition hover:opacity-90"
-                                    >
-                                      Approve & Add
-                                    </button>
-                                  ) : null}
-                                  {sug.status !== "rejected" ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRejectSuggestion(sug.id)}
-                                      className="px-3 py-1 rounded-xl border text-xs font-semibold hover:bg-[#b83838]/20 transition"
-                                      style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
-                                    >
-                                      Reject
-                                    </button>
-                                  ) : null}
-                                </div>
-                              ) : null}
+                              <div className="flex gap-2 self-end sm:self-center">
+                                {currentAgent?.is_admin && sug.status !== "approved" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleApproveSuggestion(sug.id)}
+                                    className="px-3 py-1 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-semibold shadow transition hover:opacity-90 cursor-pointer"
+                                  >
+                                    Approve & Add
+                                  </button>
+                                )}
+                                {currentAgent?.is_admin && sug.status !== "rejected" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRejectSuggestion(sug.id)}
+                                    className="px-3 py-1 rounded-xl border text-xs font-semibold hover:bg-[#b83838]/20 transition cursor-pointer"
+                                    style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
+                                  >
+                                    Reject
+                                  </button>
+                                )}
+                                {(currentAgent?.is_admin || (currentAgent?.agent_initials && sug.suggested_by_initials === currentAgent?.agent_initials)) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (window.confirm(`Delete suggestion "${sug.name}"?`)) {
+                                        handleDeleteSuggestion(sug.id);
+                                      }
+                                    }}
+                                    className="px-3 py-1 rounded-xl border text-xs font-semibold hover:bg-[#b83838]/20 transition cursor-pointer flex items-center gap-1"
+                                    style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
+                                    title="Permanently delete template suggestion"
+                                  >
+                                    🗑️ Delete
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))}
