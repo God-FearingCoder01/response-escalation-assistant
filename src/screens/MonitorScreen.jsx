@@ -15,6 +15,8 @@ export default function MonitorScreen({
   setThemeMode,
   showToast = () => {},
 }) {
+  const siteOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost:5173";
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgSlug, setNewOrgSlug] = useState("");
@@ -476,7 +478,7 @@ export default function MonitorScreen({
                   />
                 </div>
                 <p className="mt-1 text-[11px] text-gray-400">
-                  Access URL will be: <code className="text-[#4cd34c] font-mono">http://localhost:5173/{newOrgSlug || "slug"}</code>
+                  Access URL will be: <code className="text-[#4cd34c] font-mono">{siteOrigin}/{newOrgSlug || "slug"}</code>
                 </p>
               </div>
 
@@ -580,6 +582,9 @@ export default function MonitorScreen({
                     style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--neutral-bg)", color: "var(--app-text)" }}
                   />
                 </div>
+                <p className="mt-1 text-[11px] text-gray-400">
+                  Access URL will be: <code className="text-[#4cd34c] font-mono">{siteOrigin}/{editOrgSlug || "slug"}</code>
+                </p>
               </div>
 
               <div className="flex items-center gap-3 pt-2">

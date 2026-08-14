@@ -21,8 +21,9 @@ if DATABASE_URL:
         pool_pre_ping=True,
     )
 elif IS_VERCEL:
-    # Serverless Vercel fallback if DATABASE_URL is not set yet in Vercel environment variables
-    # Uses writable /tmp directory to keep the application 100% online without crashing
+    # Serverless Vercel fallback if DATABASE_URL is not set yet in Vercel environment variables.
+    # NOTE: /tmp SQLite storage is ephemeral on serverless platforms. For permanent persistence 
+    # of company renames, PIN resets, and templates across deployments, set DATABASE_URL (e.g., PostgreSQL/Neon).
     tmp_db = Path("/tmp") / "rea_prod.db"
     DATABASE_URL = f"sqlite:///{tmp_db}"
     engine = create_engine(

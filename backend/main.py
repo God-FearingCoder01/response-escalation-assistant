@@ -18,6 +18,8 @@ from sqlmodel import SQLModel, Field, Session, select, col
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "rea_admin_secret_key_v1_change_in_production").encode("utf-8")
 ADMIN_SESSION_EXPIRE_HOURS = int(os.environ.get("ADMIN_SESSION_EXPIRE_HOURS", "12"))
+DEFAULT_COMPANY_NAME = os.environ.get("DEFAULT_COMPANY_NAME", "Corp A").strip()
+DEFAULT_COMPANY_SLUG = os.environ.get("DEFAULT_COMPANY_SLUG", "corp-a").strip().lower()
 PBKDF2_ITERATIONS = 100000
 
 PIN_FAILED_ATTEMPTS: dict[str, list[float]] = {}
@@ -363,16 +365,16 @@ DEFAULT_AGENTS: List[DefaultAgent] = [
 
 def sync_default_data_if_needed(session: Session) -> None:
     now = datetime.now(timezone.utc)
-    # 1. Default Company (Corp A)
+    # 1. Default Company
     default_company = session.exec(select(Company).where(Company.id == 1)).first()
     if not default_company:
-        default_company = session.exec(select(Company).where(Company.slug == "corp-a")).first()
+        default_company = session.exec(select(Company).where(Company.slug == DEFAULT_COMPANY_SLUG)).first()
 
     if not default_company:
         default_company = Company(
             id=1,
-            name="Corp A",
-            slug="corp-a",
+            name=DEFAULT_COMPANY_NAME,
+            slug=DEFAULT_COMPANY_SLUG,
             is_active=True,
             created_at=now,
             updated_at=now,
@@ -382,8 +384,8 @@ def sync_default_data_if_needed(session: Session) -> None:
         session.refresh(default_company)
     else:
         if default_company.name == "Default Organization" or default_company.slug == "default":
-            default_company.name = "Corp A"
-            default_company.slug = "corp-a"
+            default_company.name = DEFAULT_COMPANY_NAME
+            default_company.slug = DEFAULT_COMPANY_SLUG
             session.add(default_company)
             session.commit()
 

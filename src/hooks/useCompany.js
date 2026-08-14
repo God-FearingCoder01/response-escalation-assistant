@@ -32,12 +32,25 @@ export function useCompany() {
 
         // Check if URL specifies an organization slug
         const urlSlug = getSlugFromUrl();
+        let matched = false;
         if (urlSlug) {
           const matchedComp = data.find((c) => c.slug.toLowerCase() === urlSlug);
           if (matchedComp) {
+            matched = true;
             setActiveCompanyId(matchedComp.id);
             if (typeof window !== "undefined") {
               localStorage.setItem(COMPANY_KEY, String(matchedComp.id));
+            }
+          }
+        }
+        
+        if (!matched) {
+          // Verify if activeCompanyId exists in fetched company list
+          const currentExist = data.some((c) => c.id === activeCompanyId);
+          if (!currentExist && data[0] && data[0].id) {
+            setActiveCompanyId(data[0].id);
+            if (typeof window !== "undefined") {
+              localStorage.setItem(COMPANY_KEY, String(data[0].id));
             }
           }
         }

@@ -205,6 +205,17 @@ export async function fetchCompaniesApi() {
   return await safeFetchJson(`${API_BASE}/companies`);
 }
 
+export function parseApiError(errData, fallback = "Operation failed") {
+  if (!errData) return fallback;
+  if (typeof errData.detail === "string") return errData.detail;
+  if (Array.isArray(errData.detail) && errData.detail.length > 0) {
+    const first = errData.detail[0];
+    if (typeof first?.msg === "string") return first.msg;
+  }
+  if (typeof errData.message === "string") return errData.message;
+  return fallback;
+}
+
 export async function createCompanyApi(payload) {
   const res = await fetch(`${API_BASE}/companies`, {
     method: "POST",
@@ -213,7 +224,7 @@ export async function createCompanyApi(payload) {
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
-    throw new Error(errData?.detail || "Failed to create company");
+    throw new Error(parseApiError(errData, "Failed to create company"));
   }
   return await res.json();
 }
@@ -226,7 +237,7 @@ export async function updateCompanyApi(id, payload) {
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
-    throw new Error(errData?.detail || "Failed to update company");
+    throw new Error(parseApiError(errData, "Failed to update company"));
   }
   return await res.json();
 }
@@ -243,7 +254,7 @@ export async function verifySuperAdminPinApi(pin) {
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
-    throw new Error(errData?.detail || "Invalid Super Admin PIN");
+    throw new Error(parseApiError(errData, "Invalid Super Admin PIN"));
   }
   return await res.json();
 }
@@ -256,7 +267,7 @@ export async function requestSuperAdminPinResetApi(email) {
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
-    throw new Error(errData?.detail || "Email verification failed");
+    throw new Error(parseApiError(errData, "Email verification failed"));
   }
   return await res.json();
 }
@@ -269,7 +280,7 @@ export async function resetSuperAdminPinApi(token, newPin) {
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
-    throw new Error(errData?.detail || "Failed to reset Super Admin PIN");
+    throw new Error(parseApiError(errData, "Failed to reset Super Admin PIN"));
   }
   return await res.json();
 }
@@ -282,7 +293,7 @@ export async function updateSuperAdminSettingsApi(payload) {
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
-    throw new Error(errData?.detail || "Failed to update Super Admin settings");
+    throw new Error(parseApiError(errData, "Failed to update Super Admin settings"));
   }
   return await res.json();
 }
@@ -295,7 +306,7 @@ export async function resetCompanyAdminPinApi(companyId, agentId, newPin) {
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
-    throw new Error(errData?.detail || "Failed to reset Company Admin PIN");
+    throw new Error(parseApiError(errData, "Failed to reset Company Admin PIN"));
   }
   return await res.json();
 }
