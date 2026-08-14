@@ -15,12 +15,20 @@
   ],
   "routes": [
     {
-      "src": "/(health|templates|agents|suggestions|favorites|history|export|import|translate)(.*)",
+      "src": "/(health|companies|superadmin|templates|agents|suggestions|favorites|history|export|import|translate)(.*)",
       "dest": "backend/main.py"
     },
     {
-      "src": "/(.*)",
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1"
+    },
+    {
+      "src": "/(.*\\.(png|jpg|jpeg|svg|ico|json|css|js))",
       "dest": "/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
