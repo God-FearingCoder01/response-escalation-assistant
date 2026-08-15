@@ -111,7 +111,7 @@ export default function SuggestionsHub({
       <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: "var(--app-text)" }}>
-            <span className="text-2xl">💡</span>
+            <img src="/bulb.png" alt="Lightbulb" className="h-6 w-6 object-contain" />
             Template Suggestions Hub
           </h2>
           <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
@@ -214,9 +214,10 @@ export default function SuggestionsHub({
             <button
               type="submit"
               disabled={sugSubmitting || !sugName.trim() || !sugBody.trim()}
-              className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3 font-semibold text-[#071007] shadow-lg disabled:opacity-50 transition hover:opacity-90"
+              className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3 font-semibold text-[#071007] shadow-lg disabled:opacity-50 transition hover:opacity-90 flex items-center justify-center gap-2"
             >
-              {sugSubmitting ? "Submitting..." : "Submit Template Suggestion 💡"}
+              <span>{sugSubmitting ? "Submitting..." : "Submit Template Suggestion"}</span>
+              <img src="/bulb.png" alt="Bulb" className="h-4 w-4 object-contain" />
             </button>
           </form>
         </div>
@@ -245,20 +246,22 @@ export default function SuggestionsHub({
                 <button
                   type="button"
                   onClick={() => setGroupingMode("date")}
-                  className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 ${
+                  className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1.5 ${
                     groupingMode === "date" ? "bg-[#4cd34c] text-[#071007]" : "opacity-70 hover:opacity-100"
                   }`}
                 >
-                  📅 By Date
+                  <img src="/calendar.png" alt="Calendar" className="h-3.5 w-3.5 object-contain" />
+                  <span>By Date</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setGroupingMode("category")}
-                  className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 ${
+                  className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1.5 ${
                     groupingMode === "category" ? "bg-[#4cd34c] text-[#071007]" : "opacity-70 hover:opacity-100"
                   }`}
                 >
-                  📁 By Category
+                  <img src="/folder.png" alt="Folder" className="h-3.5 w-3.5 object-contain" />
+                  <span>By Category</span>
                 </button>
               </div>
 
@@ -304,7 +307,11 @@ export default function SuggestionsHub({
                       className="p-4 flex items-center justify-between cursor-pointer hover:bg-[var(--neutral-bg)] transition select-none"
                     >
                       <div className="flex items-center gap-2.5">
-                        <span className="text-base">{section.type === "date" ? "📅" : "📁"}</span>
+                        {section.type === "date" ? (
+                          <img src="/calendar.png" alt="Calendar" className="h-4 w-4 object-contain" />
+                        ) : (
+                          <img src="/folder.png" alt="Folder" className="h-4 w-4 object-contain" />
+                        )}
                         <h4 className="font-bold text-sm tracking-wide" style={{ color: "var(--app-text)" }}>
                           {section.title}
                         </h4>
@@ -343,7 +350,7 @@ export default function SuggestionsHub({
 
                               {/* Status Badge */}
                               <span
-                                className={`text-[10px] rounded-full border px-2.5 py-0.5 uppercase font-bold shrink-0 ${
+                                className={`text-[10px] rounded-full border px-2.5 py-0.5 uppercase font-bold shrink-0 flex items-center gap-1 ${
                                   sug.status === "approved"
                                     ? "text-[#4cd34c] border-[#4cd34c]/40 bg-[#4cd34c]/10"
                                     : sug.status === "rejected"
@@ -351,7 +358,22 @@ export default function SuggestionsHub({
                                       : "text-[#f1c84b] border-[#f1c84b]/40 bg-[#f1c84b]/10"
                                 }`}
                               >
-                                {sug.status === "approved" ? "Approved ✅" : sug.status === "rejected" ? "Rejected ❌" : "Pending ⏳"}
+                                {sug.status === "approved" ? (
+                                  <>
+                                    <img src="/signed.png" alt="Approved" className="h-3 w-3 object-contain" />
+                                    Approved
+                                  </>
+                                ) : sug.status === "rejected" ? (
+                                  <>
+                                    <img src="/warning.png" alt="Rejected" className="h-3 w-3 object-contain" />
+                                    Rejected
+                                  </>
+                                ) : (
+                                  <>
+                                    <img src="/clock.png" alt="Pending" className="h-3 w-3 object-contain" />
+                                    Pending
+                                  </>
+                                )}
                               </span>
                             </div>
 
@@ -392,11 +414,12 @@ export default function SuggestionsHub({
                                         handleDeleteSuggestion(sug.id);
                                       }
                                     }}
-                                    className="px-3 py-1 rounded-xl border text-xs font-semibold hover:bg-[#b83838]/20 transition cursor-pointer flex items-center gap-1"
+                                    className="px-3 py-1 rounded-xl border text-xs font-semibold hover:bg-[#b83838]/20 transition cursor-pointer flex items-center gap-1.5"
                                     style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
                                     title="Permanently delete template suggestion"
                                   >
-                                    🗑️ Delete
+                                    <img src="/warning.png" alt="Delete" className="h-3.5 w-3.5 object-contain" />
+                                    <span>Delete</span>
                                   </button>
                                 )}
                               </div>

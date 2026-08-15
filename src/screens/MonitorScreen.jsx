@@ -256,7 +256,7 @@ export default function MonitorScreen({
                 color: "#4cd34c",
               }}
             >
-              <span>🏢</span> ORGANIZATION MONITOR & MANAGEMENT
+              <img src="/building.png" alt="Building" className="h-4 w-4 object-contain" /> ORGANIZATION MONITOR & MANAGEMENT
             </div>
             <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl" style={{ color: "var(--app-text)" }}>
               Organization Hub
@@ -289,21 +289,23 @@ export default function MonitorScreen({
               style={{ borderColor: "var(--panel-border)", color: "var(--app-text)" }}
               title="Return to Root Portal (/)"
             >
-              <span>🏠 Root Portal (/)</span>
+              <img src="/building.png" alt="Portal" className="h-4 w-4 object-contain" />
+              <span>Root Portal (/)</span>
             </button>
 
             <button
               onClick={handleOpenSaSettings}
               className="flex items-center gap-2 rounded-2xl border px-4 py-3 font-semibold text-[#4cd34c] border-[#4cd34c]/40 hover:bg-[#4cd34c]/10 active:scale-95 transition-all cursor-pointer"
             >
-              <span>⚙️ Super Admin Settings</span>
+              <img src="/admin.png" alt="Admin" className="h-4 w-4 object-contain" />
+              <span>Super Admin Settings</span>
             </button>
 
             <button
               onClick={() => setShowCreateModal(true)}
               className="flex items-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] px-5 py-3 font-semibold text-[#071007] shadow-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
             >
-              <span className="text-lg">✨</span>
+              <img src="/building.png" alt="Create" className="h-4 w-4 object-contain" />
               <span>Create Organization</span>
             </button>
           </div>
@@ -334,7 +336,8 @@ export default function MonitorScreen({
       <div>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold flex items-center gap-2" style={{ color: "var(--app-text)" }}>
-            <span>🏢</span> Managed Organizations
+            <img src="/building.png" alt="Organizations" className="h-5 w-5 object-contain" />
+            Managed Organizations
           </h3>
           <span className="text-xs font-medium text-gray-400">
             Click any organization card to launch its environment
@@ -440,7 +443,7 @@ export default function MonitorScreen({
                     className="p-2.5 rounded-xl border border-amber-500/30 text-amber-400 text-xs font-semibold hover:bg-amber-500/10 transition-colors cursor-pointer"
                     title="Reset Company Admin PIN"
                   >
-                    🔑
+                    <img src="/lock.png" alt="Reset PIN" className="h-4 w-4 object-contain" />
                   </button>
 
                   <button
@@ -449,7 +452,7 @@ export default function MonitorScreen({
                     style={{ borderColor: "var(--panel-border)", color: "var(--app-text)" }}
                     title="Edit Organization Settings"
                   >
-                    ⚙️
+                    <img src="/admin.png" alt="Edit" className="h-4 w-4 object-contain" />
                   </button>
                 </div>
               </div>
@@ -466,7 +469,8 @@ export default function MonitorScreen({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
           <div>
             <h3 className="text-xl font-bold flex items-center gap-2" style={{ color: "var(--app-text)" }}>
-              <span>📬</span> Support & Access Requests Queue ({supportRequests.length})
+              <img src="/email.png" alt="Queue" className="h-5 w-5 object-contain" />
+              Support & Access Requests Queue ({supportRequests.length})
             </h3>
             <p className="text-xs mt-0.5" style={{ color: "var(--header-muted)" }}>
               Organization URL setup, credential resets, and technical support requests submitted from the root portal.
@@ -479,7 +483,8 @@ export default function MonitorScreen({
             className="self-start sm:self-center px-3.5 py-2 rounded-xl border text-xs font-semibold hover:bg-[var(--neutral-bg)] transition cursor-pointer flex items-center gap-1.5"
             style={{ borderColor: "var(--panel-border)", color: "var(--app-text)" }}
           >
-            <span>🔄 {loadingRequests ? "Refreshing..." : "Refresh Queue"}</span>
+            <img src="/refresh.png" alt="Refresh" className="h-3.5 w-3.5 object-contain" />
+            <span>{loadingRequests ? "Refreshing..." : "Refresh Queue"}</span>
           </button>
         </div>
 
@@ -504,13 +509,23 @@ export default function MonitorScreen({
                   </div>
 
                   <span
-                    className={`text-[10px] rounded-full border px-2.5 py-0.5 uppercase font-bold shrink-0 ${
+                    className={`text-[10px] rounded-full border px-2.5 py-0.5 uppercase font-bold shrink-0 flex items-center gap-1 ${
                       req.status === "resolved"
                         ? "text-[#4cd34c] border-[#4cd34c]/40 bg-[#4cd34c]/10"
                         : "text-[#f1c84b] border-[#f1c84b]/40 bg-[#f1c84b]/10"
                     }`}
                   >
-                    {req.status === "resolved" ? "Resolved ✅" : "Pending ⏳"}
+                    {req.status === "resolved" ? (
+                      <>
+                        <img src="/signed.png" alt="Resolved" className="h-3 w-3 object-contain" />
+                        Resolved
+                      </>
+                    ) : (
+                      <>
+                        <img src="/clock.png" alt="Pending" className="h-3 w-3 object-contain" />
+                        Pending
+                      </>
+                    )}
                   </span>
                 </div>
 
@@ -540,13 +555,23 @@ export default function MonitorScreen({
 
                   <button
                     onClick={() => handleToggleRequestStatus(req.id, req.status)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
                       req.status === "resolved"
                         ? "border border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
                         : "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] hover:opacity-90 shadow"
                     }`}
                   >
-                    {req.status === "resolved" ? "Reopen Request ⏳" : "Mark Resolved ✅"}
+                    {req.status === "resolved" ? (
+                      <>
+                        <img src="/clock.png" alt="Reopen" className="h-3.5 w-3.5 object-contain" />
+                        Reopen Request
+                      </>
+                    ) : (
+                      <>
+                        <img src="/signed.png" alt="Resolve" className="h-3.5 w-3.5 object-contain" />
+                        Mark Resolved
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -634,7 +659,10 @@ export default function MonitorScreen({
               </div>
 
               <div className="rounded-2xl border p-3 text-xs bg-black/20 space-y-1" style={{ borderColor: "var(--panel-border)" }}>
-                <span className="font-bold text-[#4cd34c]">⚡ Automatic Provisioning:</span>
+                <span className="font-bold text-[#4cd34c] flex items-center gap-1">
+                  <img src="/Lightning.png" alt="Lightning" className="h-4 w-4 object-contain" />
+                  Automatic Provisioning:
+                </span>
                 <p className="text-gray-400">
                   Creating a new organization automatically seeds starter escalation & reply templates as well as a System Administrator profile (<code className="text-white">SA</code> / default PIN: <code className="text-white">0000</code>).
                 </p>
@@ -671,7 +699,7 @@ export default function MonitorScreen({
           >
             <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
               <div className="flex items-center gap-2">
-                <span className="text-2xl">⚙️</span>
+                <img src="/admin.png" alt="Edit" className="h-6 w-6 object-contain" />
                 <h3 className="text-xl font-bold" style={{ color: "var(--app-text)" }}>
                   Edit Organization #{editCompany.id}
                 </h3>
@@ -769,7 +797,7 @@ export default function MonitorScreen({
           >
             <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
               <div className="flex items-center gap-2">
-                <span className="text-2xl">🔑</span>
+                <img src="/lock.png" alt="Lock" className="h-6 w-6 object-contain" />
                 <h3 className="text-xl font-bold" style={{ color: "var(--app-text)" }}>
                   Reset Admin PIN
                 </h3>
@@ -840,7 +868,7 @@ export default function MonitorScreen({
           >
             <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
               <div className="flex items-center gap-2">
-                <span className="text-2xl">⚙️</span>
+                <img src="/admin.png" alt="Admin" className="h-6 w-6 object-contain" />
                 <h3 className="text-xl font-bold" style={{ color: "var(--app-text)" }}>
                   Super Admin Credentials
                 </h3>
