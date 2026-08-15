@@ -14,10 +14,12 @@ export default function DeveloperSupportLanding({
   themeMode,
   setThemeMode,
   themeConfig,
+  autoOpenSupportModal = false,
+  presetOrgName = "",
 }) {
   const [copied, setCopied] = useState(false);
-  const [showSupportModal, setShowSupportModal] = useState(false);
-  const [orgName, setOrgName] = useState("");
+  const [showSupportModal, setShowSupportModal] = useState(autoOpenSupportModal);
+  const [orgName, setOrgName] = useState(presetOrgName);
   const [requesterName, setRequesterName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [requestType, setRequestType] = useState("new_org_url");

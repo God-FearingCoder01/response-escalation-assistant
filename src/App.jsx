@@ -45,11 +45,8 @@ export default function App() {
   // Super Admin Authentication State
   const [isSuperAdminAuth, setIsSuperAdminAuth] = useState(false);
   const [superAdminEmail, setSuperAdminEmail] = useState("gfc.dev@proton.me");
-
-  // Track current location path
-  const [currentPath, setCurrentPath] = useState(() => {
-    return typeof window !== "undefined" ? window.location.pathname : "/";
-  });
+  const [currentPath, setCurrentPath] = useState(typeof window !== "undefined" ? window.location.pathname : "/");
+  const [openSupportModalOnRoot, setOpenSupportModalOnRoot] = useState(false);
 
   // 1. Agents hook
   const agentState = useAgents({
@@ -319,6 +316,7 @@ export default function App() {
         themeMode={themeMode}
         setThemeMode={setThemeMode}
         themeConfig={themeConfig}
+        autoOpenSupportModal={openSupportModalOnRoot}
       />
     );
   }
@@ -342,17 +340,30 @@ export default function App() {
           </div>
           <div className="flex justify-center gap-3 pt-2">
             <button
-              onClick={() => handleNavigate("monitor")}
-              className="rounded-xl border border-gray-700 px-4 py-2.5 text-xs font-semibold text-gray-300 hover:bg-gray-800 cursor-pointer"
+              onClick={() => {
+                setOpenSupportModalOnRoot(false);
+                if (typeof window !== "undefined") {
+                  window.history.pushState({}, "", "/");
+                  setCurrentPath("/");
+                }
+              }}
+              className="rounded-xl border border-gray-700 px-4 py-2.5 text-xs font-semibold text-gray-300 hover:bg-gray-800 cursor-pointer flex items-center gap-1.5"
             >
-              Super Admin Dashboard (/monitor)
+              <span>🏠 Return to Root Page (/)</span>
             </button>
-            <a
-              href="mailto:gfc.dev@proton.me"
-              className="rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] px-5 py-2.5 text-xs font-bold text-[#071007] hover:opacity-90 shadow-md cursor-pointer"
+            <button
+              onClick={() => {
+                setOpenSupportModalOnRoot(true);
+                if (typeof window !== "undefined") {
+                  window.history.pushState({}, "", "/");
+                  setCurrentPath("/");
+                }
+              }}
+              className="rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] px-5 py-2.5 text-xs font-bold text-[#071007] hover:opacity-90 shadow-md cursor-pointer flex items-center gap-1.5"
             >
-              Contact Developer
-            </a>
+              <img src="/email.png" alt="Support" className="h-3.5 w-3.5 object-contain" />
+              <span>Contact Developer</span>
+            </button>
           </div>
         </div>
       </div>
