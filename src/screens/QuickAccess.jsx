@@ -244,6 +244,8 @@ export default function QuickAccess({
                 const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
                 const isDateField = dateAuto[ph] !== undefined;
                 const isTimeUnitField = /^time_unit/i.test(ph);
+                const isReasonField = ph.toLowerCase().includes("reason") || ph.toLowerCase().includes("details") || ph.toLowerCase().includes("note") || ph.toLowerCase().includes("description");
+
                 const autoVal = isAgentField
                   ? (ph === "agent_initials" ? currentAgent?.agent_initials : currentAgent?.agent_name)
                   : isDateField
@@ -254,7 +256,7 @@ export default function QuickAccess({
                 return (
                   <div key={ph}>
                     <div className="flex justify-between items-center mb-0.5">
-                      <span className="text-xs capitalize" style={{ color: "var(--text-muted)" }}>
+                      <span className="text-xs capitalize font-medium" style={{ color: "var(--text-muted)" }}>
                         {ph.replace("_", " ")}:
                       </span>
                     </div>
@@ -268,6 +270,15 @@ export default function QuickAccess({
                         <option value="hour(s)">hour(s)</option>
                         <option value="minutes">minutes</option>
                       </select>
+                    ) : isReasonField ? (
+                      <textarea
+                        rows={3}
+                        value={values[ph] ?? autoVal}
+                        onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                        placeholder={`Enter ${ph.replace("_", " ")}...`}
+                        className="w-full rounded-xl border p-2.5 text-sm resize-y font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#4cd34c]"
+                        style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                      />
                     ) : (
                       <input
                         value={values[ph] ?? autoVal}
@@ -284,7 +295,7 @@ export default function QuickAccess({
           ) : null}
 
           <div
-            className="rounded-2xl border p-4 min-h-[10rem] whitespace-pre-wrap font-mono text-sm leading-relaxed"
+            className="rounded-2xl border p-4 min-h-[10rem] max-h-[22rem] overflow-y-auto break-words [overflow-wrap:anywhere] font-mono text-sm leading-relaxed"
             style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
           >
             {generatedMsg || <span style={{ color: "var(--field-placeholder)" }}>Select a template from Quick Access...</span>}

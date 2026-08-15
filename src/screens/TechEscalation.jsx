@@ -154,16 +154,16 @@ export default function TechEscalation({
 
       {/* Right Panel: Output & Instant Copy */}
       <div
-        className="lg:col-span-5 rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur flex flex-col justify-between"
+        className="lg:col-span-5 rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur flex flex-col justify-between min-w-0"
         style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}
       >
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           <h2 className="text-xl font-bold" style={{ color: "var(--app-text)" }}>
             Telegram Escalation Preview
           </h2>
 
           <div
-            className="rounded-2xl border p-4 min-h-[12rem] whitespace-pre-wrap font-mono text-sm leading-relaxed"
+            className="rounded-2xl border p-4 min-h-[12rem] max-h-[22rem] overflow-y-auto break-words [overflow-wrap:anywhere] font-mono text-sm leading-relaxed"
             style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
           >
             {generatedMsg || <span style={{ color: "var(--field-placeholder)" }}>Select an escalation template...</span>}

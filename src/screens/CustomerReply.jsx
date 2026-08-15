@@ -307,10 +307,10 @@ export default function CustomerReply({
 
       {/* Right Panel: Live Message Preview */}
       <div
-        className="lg:col-span-5 rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur flex flex-col justify-between"
+        className="lg:col-span-5 rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur flex flex-col justify-between min-w-0"
         style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}
       >
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold" style={{ color: "var(--app-text)" }}>
               Customer Reply Preview
@@ -351,7 +351,7 @@ export default function CustomerReply({
           </div>
 
           <div
-            className="rounded-2xl border p-4 min-h-[12rem] whitespace-pre-wrap font-mono text-sm leading-relaxed"
+            className="rounded-2xl border p-4 min-h-[12rem] max-h-[22rem] overflow-y-auto break-words [overflow-wrap:anywhere] font-mono text-sm leading-relaxed"
             style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
           >
             {viewMode === "translated" && translatedText
