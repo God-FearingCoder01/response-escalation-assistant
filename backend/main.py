@@ -18,8 +18,8 @@ from sqlmodel import SQLModel, Field, Session, select, col
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "rea_admin_secret_key_v1_change_in_production").encode("utf-8")
 ADMIN_SESSION_EXPIRE_HOURS = int(os.environ.get("ADMIN_SESSION_EXPIRE_HOURS", "12"))
-DEFAULT_COMPANY_NAME = os.environ.get("DEFAULT_COMPANY_NAME", "Corp A").strip()
-DEFAULT_COMPANY_SLUG = os.environ.get("DEFAULT_COMPANY_SLUG", "corp-a").strip().lower()
+DEFAULT_COMPANY_NAME = os.environ.get("DEFAULT_COMPANY_NAME", "Default").strip()
+DEFAULT_COMPANY_SLUG = os.environ.get("DEFAULT_COMPANY_SLUG", "default").strip().lower()
 PBKDF2_ITERATIONS = 100000
 
 PIN_FAILED_ATTEMPTS: dict[str, list[float]] = {}
@@ -391,7 +391,7 @@ def sync_default_data_if_needed(session: Session) -> None:
         session.commit()
         session.refresh(default_company)
     else:
-        if default_company.name == "Default Organization" or default_company.slug == "default":
+        if default_company.name in ["Corp A", "Default Organization"] or default_company.slug in ["corp-a", "default-organization"]:
             default_company.name = DEFAULT_COMPANY_NAME
             default_company.slug = DEFAULT_COMPANY_SLUG
             session.add(default_company)

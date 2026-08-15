@@ -15,7 +15,7 @@
 - **Dedicated Organization Endpoints**: Each company operates in its own dedicated space accessed via a custom URL ending (`/{company_name}`, e.g., `/corp-a`, `/corp-x`).
 - **Complete Tenant Isolation**: Templates, agent rosters, suggestions, usage history, and favorites are strictly isolated per company via database foreign keys (`company_id`).
 - **Fixed Company Workspace**: Once inside an organization's space, agents work indefinitely within that company environment without inline organization switching.
-- **Default Organization**: Initial system startup automatically seeds `Corp A` (`/corp-a`) with starter escalation templates and agent profiles (`SA` System Administrator and `CW` Chris Whyt).
+- **Default Organization**: Initial system startup automatically seeds `Default` (`/default`) with starter escalation templates and agent profiles (`SA` System Administrator and `CW` Chris Whyt).
 
 ### 🏢 Super Admin Dashboard (`/monitor`)
 - **Protected Access**: Guarded by 4-digit PIN authentication with email recovery (`gfc.dev@proton.me`).
@@ -133,7 +133,7 @@ The frontend will be available at `http://localhost:5173` and the backend API at
 | Path | Screen / Description | Access / Protection |
 | :--- | :--- | :--- |
 | `/` | **Developer & System Support Portal** | Public root portal with contact info & theme toggle. |
-| `/{company_slug}` | **Organization Space** (e.g. `/corp-a`, `/corp-x`) | Dedicated tenant workspace for agents and company admins. |
+| `/{company_slug}` | **Organization Space** (e.g. `/default`, `/corp-x`) | Dedicated tenant workspace for agents and company admins. |
 | `/monitor` | **Super Admin Dashboard** | Multi-tenant management, PIN reset, & org creation (Guarded by 4-digit PIN). |
 
 ---

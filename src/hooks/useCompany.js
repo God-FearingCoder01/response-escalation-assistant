@@ -3,7 +3,7 @@ import { COMPANY_KEY, fetchCompaniesApi, createCompanyApi, updateCompanyApi } fr
 
 export function useCompany() {
   const [companies, setCompanies] = useState([
-    { id: 1, name: "Corp A", slug: "corp-a", is_active: true },
+    { id: 1, name: "Default", slug: "default", is_active: true },
   ]);
 
   const [activeCompanyId, setActiveCompanyId] = useState(() => {

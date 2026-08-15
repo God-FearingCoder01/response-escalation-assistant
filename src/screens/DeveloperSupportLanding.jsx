@@ -3,7 +3,7 @@ import { createSupportRequestApi } from "../services/api";
 
 const REQUEST_TYPE_TEMPLATES = {
   new_org_url:
-    "Hello Developer Support,\n\nOur team is requesting access setup and a dedicated organization URL endpoint (e.g. /corp-a) for the Response & Escalation Assistant tool.\n\nPlease assist us with URL routing and company workspace initialization.\n\nThank you!",
+    "Hello Developer Support,\n\nOur team is requesting access setup and organization account initialization for the Response & Escalation Assistant tool.\n\nPlease assist us with system provisioning and workspace access.\n\nThank you!",
   credential_reset:
     "Hello Developer Support,\n\nWe need to reset the Company Admin Security PIN / credentials for our organization workspace.\n\nPlease assist in updating or restoring admin access for our account.\n\nThank you!",
   technical_support:
@@ -273,7 +273,7 @@ Thank you!`
                       type="text"
                       value={orgName}
                       onChange={(e) => setOrgName(e.target.value)}
-                      placeholder="e.g. Corp A or Corp X"
+                      placeholder="e.g. Default or Acme Corp"
                       required
                       className="w-full rounded-xl border p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#4cd34c]"
                       style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
@@ -304,7 +304,7 @@ Thank you!`
                         type="email"
                         value={contactEmail}
                         onChange={(e) => setContactEmail(e.target.value)}
-                        placeholder="e.g. support@corp-a.com"
+                        placeholder="e.g. support@example.com"
                         required
                         className="w-full rounded-xl border p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#4cd34c]"
                         style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
@@ -322,7 +322,7 @@ Thank you!`
                       className="w-full rounded-xl border p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#4cd34c]"
                       style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                     >
-                      <option value="new_org_url">Retrieve Organization URL / Setup</option>
+                      <option value="new_org_url">Retrieve Organization Setup / Access</option>
                       <option value="credential_reset">Reset Admin Credentials / PIN</option>
                       <option value="technical_support">General Technical Support</option>
                     </select>

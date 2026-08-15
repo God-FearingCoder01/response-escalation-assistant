@@ -140,7 +140,7 @@ export default function App() {
       } else if (screen === "root" || screen === "landing") {
         newPath = "/";
       } else {
-        const slug = activeCompany?.slug || "corp-a";
+        const slug = activeCompany?.slug || "default";
         newPath = `/${slug}`;
       }
       if (window.location.pathname !== newPath) {
