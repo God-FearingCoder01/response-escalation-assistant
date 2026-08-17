@@ -247,7 +247,7 @@ export default function TranslatorScreen({
         <div className="flex items-center gap-2">
           <span className="text-lg">💡</span>
           <h2 className="text-sm font-bold uppercase tracking-wider">
-            Preset Telecom & Support Phrases
+            Preset Customer Support Phrases
           </h2>
         </div>
 

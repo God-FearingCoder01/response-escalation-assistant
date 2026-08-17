@@ -264,11 +264,24 @@ function matchCase(original, translated) {
 
 // Default preset common support phrases
 export const DEFAULT_PRESET_PHRASES = [
-  { label: "Greeting", en: "Hello, thank you for contacting technical support. How can I assist you today?", sn: "Mhoroi, tinokutendai nekutibata pane rutsigiro rweunyanzvi. Ndingagone kukubatsirai sei nhasi?", nd: "Salibonani, siyabonga ukuxhumana nosizo lwethekhinikhali. Ngingakusiza njani lamuhla?" },
-  { label: "Ticket Escalation", en: "Your ticket has been escalated to our senior technical team for investigation.", sn: "Tikiti renyu rakwidziridzwa kune chikwata chedu chikuru cheunyanzvi kuti vakuferefete.", nd: "Itikiti lakho lisiwe eqenjini lethu eliphezulu lethekhinikhali ukuba lihlolisiswe." },
-  { label: "Restart Router", en: "Please restart your router by turning it off for 30 seconds and turning it back on.", sn: "Ndapota dzimurayi router yenyu kwemasekonzi makumi matatu uyezve moidzidzisa zvakare.", nd: "Cela ucime i-router yakho okwemizuzwana engamashumi amathathu uyivuse njalo." },
-  { label: "Request Account ID", en: "Please provide your account number or registered phone number.", sn: "Ndapota ipai nhamba yeakaundi yenyu kana nhamba yerunhare yakanyoreswa.", nd: "Cela unikeze inombolo yakho ye-akhawunti loba inombolo yocingo ebhalisiweyo." },
-  { label: "Issue Resolved", en: "We are pleased to inform you that your connection issue has been resolved.", sn: "Tinofara kukuzivisai kuti dambudziko renyu rekubatana kwewebhu ragadziriswa.", nd: "Siyathokoza ukukubikela ukuthi inkinga yakho yokuxhumana ilungisisiwe." },
+  {
+    label: "Issue Escalation",
+    en: "Your query has been escalated to our senior technical support team for investigation.",
+    sn: "Mubvunzo wenyu watumirwa kune chikwata chedu chikuru cheunyanzvi kuti uferefetiwe.",
+    nd: "Umbuzo wakho usiwe eqenjini lethu eliphezulu lethekhinikhali ukuba lihlolisiswe.",
+  },
+  {
+    label: "Request Account no.",
+    en: "Please provide your registered account number or phone number.",
+    sn: "Ndapota ipai nhamba yeakaundi yenyu yakanyoreswa kana nhamba yerunhare.",
+    nd: "Cela unikeze inombolo yakho ye-akhawunti ebhalisiweyo loba inombolo yocingo.",
+  },
+  {
+    label: "Issue Resolved",
+    en: "We are pleased to inform you that your reported issue has been resolved.",
+    sn: "Tinofara kukuzivisai kuti dambudziko ramakataura ragadziriswa.",
+    nd: "Siyathokoza ukukubikela ukuthi inkinga oyibikileyo ilungisisiwe.",
+  },
 ];
 
 export const PRESET_PHRASES_KEY = "rea_preset_phrases_v1";

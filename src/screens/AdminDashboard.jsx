@@ -923,16 +923,16 @@ export default function AdminDashboard({
         </form>
       </div>
 
-      {/* SECTION 4: PRESET TELECOM & SUPPORT PHRASES MANAGEMENT */}
+      {/* SECTION 4: PRESET CUSTOMER SUPPORT PHRASES MANAGEMENT */}
       <div className="rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-6" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: "var(--app-text)" }}>
               <img src="/globe.png" alt="Globe" className="h-5 w-5 shrink-0 object-contain" />
-              4. Preset Telecom & Support Phrases Control
+              4. Preset Customer Support Phrases Control
             </h3>
             <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-              Configure quick preset phrases displayed on the English ⇄ Shona Translator screen.
+              Configure quick preset phrases displayed on the English ⇄ Shona / Ndebele Translation Center.
             </p>
           </div>
           <button
@@ -958,7 +958,7 @@ export default function AdminDashboard({
               <input
                 value={presetLabel}
                 onChange={(e) => setPresetLabel(e.target.value)}
-                placeholder="e.g. Billing Query"
+                placeholder="e.g. Request Account no."
                 className="w-full rounded-xl border p-2.5 text-sm font-medium"
                 style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                 required
@@ -969,7 +969,7 @@ export default function AdminDashboard({
               <input
                 value={presetEn}
                 onChange={(e) => setPresetEn(e.target.value)}
-                placeholder="e.g. Please provide your invoice number."
+                placeholder="e.g. Please provide your registered account number."
                 className="w-full rounded-xl border p-2.5 text-sm font-medium"
                 style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                 required
