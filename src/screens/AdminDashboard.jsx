@@ -89,11 +89,11 @@ export default function AdminDashboard({
   const {
     shifts = [],
     escalationTargets = [],
-    handleCreateShift = () => {},
-    handleUpdateShift = () => {},
-    handleDeleteShift = () => {},
-    handleCreateTarget = () => {},
-    handleDeleteTarget = () => {},
+    handleCreateShift = () => { },
+    handleUpdateShift = () => { },
+    handleDeleteShift = () => { },
+    handleCreateTarget = () => { },
+    handleDeleteTarget = () => { },
   } = sirState || {};
 
   const [shiftName, setShiftName] = useState("");
@@ -1232,7 +1232,7 @@ export default function AdminDashboard({
               required
               value={newTargetName}
               onChange={(e) => setNewTargetName(e.target.value)}
-              placeholder="e.g. Core Network Engineering / NOC"
+              placeholder="e.g. Technical Team / Risk Team"
               className="flex-1 rounded-xl border p-2.5 text-sm font-medium"
               style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
             />
