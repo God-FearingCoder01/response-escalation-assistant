@@ -29,6 +29,7 @@ export default function ShiftRegisterScreen({
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [editIssueId, setEditIssueId] = useState(null);
+  const [viewDetailIssue, setViewDetailIssue] = useState(null);
 
   // Form Fields
   const [title, setTitle] = useState("");
@@ -548,12 +549,33 @@ export default function ShiftRegisterScreen({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredIssues.map((issue) => {
-                const shiftIcon = getShiftIcon(issue.shift_name);
+                const statusDot = issue.status === "Resolved" ? "🟢" : issue.status === "Monitoring" ? "🟠" : "🔴";
+                const shiftCleanName = (issue.shift_name || "Shift").replace(/shift/i, "").trim();
+
+                let cardDate = "";
+                if (issue.created_at) {
+                  try {
+                    const d = new Date(issue.created_at);
+                    cardDate = d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
+                  } catch (e) {
+                    cardDate = "Today";
+                  }
+                } else {
+                  cardDate = "Today";
+                }
+
+                const escalatedLabel = issue.escalated_to && issue.escalated_to !== "None"
+                  ? `Reported to ${issue.escalated_to}`
+                  : "Logged for shift monitoring";
+
+                const deptLabel = issue.escalated_to && issue.escalated_to !== "None"
+                  ? issue.escalated_to.split(" ")[0]
+                  : "Support";
 
                 return (
                   <div
                     key={issue.id}
-                    className={`rounded-2xl border p-4 shadow-md backdrop-blur transition-all space-y-3 flex flex-col justify-between ${
+                    className={`rounded-2xl border p-5 shadow-md backdrop-blur transition-all space-y-3 flex flex-col justify-between hover:scale-[1.01] ${
                       issue.carry_forward && issue.status !== "Resolved"
                         ? "border-[#f1c84b]/50 bg-gradient-to-r from-[#f1c84b]/5 via-transparent to-transparent"
                         : ""
@@ -563,98 +585,45 @@ export default function ShiftRegisterScreen({
                       backgroundColor: "var(--panel-bg)",
                     }}
                   >
-                    {/* Compact Card Header */}
-                    <div className="space-y-2">
+                    {/* Top Row: Status Dot + Title */}
+                    <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-[#4cd34c]/15 text-[#4cd34c] border border-[#4cd34c]/30 shadow-sm">
-                          {issue.reference_no || `#SIR-${issue.id}`}
-                        </span>
-
-                        <div className="flex items-center gap-1.5">
-                          {issue.carry_forward && (
-                            <span className="rounded-full border px-2 py-0.5 text-[10px] font-bold border-[#ff6b6b]/40 bg-[#ff6b6b]/10 text-[#ff6b6b]">
-                              Priority ⚡
-                            </span>
-                          )}
-
-                          <span
-                            className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
-                              issue.status === "Resolved"
-                                ? "border-[#4cd34c]/40 bg-[#4cd34c]/10 text-[#4cd34c]"
-                                : issue.status === "Monitoring"
-                                  ? "border-[#f1c84b]/40 bg-[#f1c84b]/10 text-[#f1c84b]"
-                                  : "border-[#ff6b6b]/40 bg-[#ff6b6b]/10 text-[#ff6b6b]"
-                            }`}
-                          >
-                            ● {issue.status}
+                        <h3 className="font-bold text-base flex items-center gap-2 text-[var(--app-text)] line-clamp-1">
+                          <span>{statusDot}</span>
+                          <span>{issue.title}</span>
+                        </h3>
+                        {issue.carry_forward && (
+                          <span className="rounded-full border px-2 py-0.5 text-[9px] font-bold border-[#ff6b6b]/40 bg-[#ff6b6b]/10 text-[#ff6b6b] shrink-0">
+                            Priority ⚡
                           </span>
-                        </div>
+                        )}
                       </div>
 
-                      <h3 className="font-bold text-base line-clamp-2" style={{ color: "var(--app-text)" }}>
-                        {issue.title}
-                      </h3>
+                      {/* Second Line: Morning · 17 Aug · 10:35 */}
+                      <div className="text-xs font-semibold text-[var(--text-muted)]">
+                        {shiftCleanName} · {cardDate} · {issue.time_noticed}
+                      </div>
 
-                      <div className="flex items-center gap-2 text-[11px] font-medium text-[var(--text-muted)]">
-                        <span>{shiftIcon} {issue.shift_name || "General Shift"}</span>
-                        <span>•</span>
-                        <span>Noticed: <strong>{issue.time_noticed}</strong></span>
+                      {/* Third Line: Reported to Technical Support */}
+                      <div className="text-xs font-semibold text-[#4cd34c]">
+                        {escalatedLabel}
                       </div>
                     </div>
 
-                    {/* Compact Description & Actions */}
-                    <div className="space-y-2 text-xs">
-                      <div className="rounded-xl border p-2.5 space-y-0.5" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
-                        <span className="font-bold text-[#4cd34c] uppercase text-[9px] block">Description</span>
-                        <p className="line-clamp-3 font-medium text-[var(--app-text)]">
-                          {issue.description}
-                        </p>
+                    {/* Footer Row: User Initials & Department + View Details Button */}
+                    <div className="flex items-center justify-between pt-3 border-t border-[var(--panel-border)] text-xs">
+                      <div className="font-semibold text-[var(--text-muted)] flex items-center gap-1.5">
+                        <span>👤</span>
+                        <span>{issue.logged_by_initials || "Agent"} · {deptLabel}</span>
                       </div>
 
-                      <div className="rounded-xl border p-2.5 space-y-0.5" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
-                        <span className="font-bold text-[#4cd34c] uppercase text-[9px] block">Actions Taken</span>
-                        <p className="line-clamp-2 font-medium text-[var(--app-text)]">
-                          {issue.actions_taken}
-                        </p>
-                      </div>
-
-                      {issue.customer_response && (
-                        <div className="rounded-xl border p-2 text-xs bg-[#4cd34c]/5 border-[#4cd34c]/30">
-                          <span className="font-bold text-[#4cd34c] uppercase text-[9px] block">💬 Customer Response:</span>
-                          <p className="line-clamp-2 font-medium text-emerald-300">"{issue.customer_response}"</p>
-                        </div>
-                      )}
-
-                      {issue.next_shift_instructions && (
-                        <div className="rounded-xl border p-2 text-xs bg-[#ff6b6b]/10 border-[#ff6b6b]/30 text-[#ff8080]">
-                          <strong className="block text-[9px] text-[#ff6b6b] uppercase font-bold">Next Shift Action:</strong>
-                          <p className="line-clamp-2">{issue.next_shift_instructions}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Compact Footer */}
-                    <div className="flex items-center justify-between pt-2 border-t border-[var(--panel-border)] text-[11px] text-[var(--text-muted)]">
-                      <div>
-                        <span>Logged by: <strong>{issue.logged_by_initials || issue.logged_by_name}</strong></span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleOpenEditModal(issue)}
-                          className="px-2 py-0.5 rounded-lg border text-[11px] font-semibold hover:opacity-80 transition"
-                          style={{ borderColor: "var(--badge-border)" }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteIssue(issue.id)}
-                          className="px-2 py-0.5 rounded-lg border text-[11px] font-semibold hover:bg-[#ff6b6b]/10 hover:text-[#ff6b6b] transition"
-                          style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
-                        >
-                          Delete
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => setViewDetailIssue(issue)}
+                        className="text-xs font-extrabold text-[#4cd34c] hover:underline flex items-center gap-1 transition"
+                      >
+                        <span>View Details</span>
+                        <span>→</span>
+                      </button>
                     </div>
                   </div>
                 );
@@ -663,6 +632,114 @@ export default function ShiftRegisterScreen({
           )}
         </div>
       </div>
+
+      {/* VIEW DETAILS MODAL */}
+      {viewDetailIssue && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+          <div
+            className="w-full max-w-2xl rounded-3xl border p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
+            style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
+          >
+            <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
+              <div className="flex items-center gap-3">
+                <span className="text-xl">
+                  {viewDetailIssue.status === "Resolved" ? "🟢" : viewDetailIssue.status === "Monitoring" ? "🟠" : "🔴"}
+                </span>
+                <div>
+                  <span className="font-mono text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#4cd34c]/15 text-[#4cd34c] border border-[#4cd34c]/30">
+                    {viewDetailIssue.reference_no || `#SIR-${viewDetailIssue.id}`}
+                  </span>
+                  <h3 className="text-lg font-extrabold mt-1">{viewDetailIssue.title}</h3>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewDetailIssue(null)}
+                className="text-lg font-bold opacity-60 hover:opacity-100 transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+              <div className="rounded-xl border p-2.5" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                <span className="text-[10px] font-semibold text-[var(--text-muted)] block">Status:</span>
+                <span className="font-bold text-[#4cd34c]">{viewDetailIssue.status}</span>
+              </div>
+              <div className="rounded-xl border p-2.5" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                <span className="text-[10px] font-semibold text-[var(--text-muted)] block">Shift & Time:</span>
+                <span className="font-bold">{viewDetailIssue.shift_name} ({viewDetailIssue.time_noticed})</span>
+              </div>
+              <div className="rounded-xl border p-2.5" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                <span className="text-[10px] font-semibold text-[var(--text-muted)] block">Escalated To:</span>
+                <span className="font-bold">{viewDetailIssue.escalated_to || "None"}</span>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="rounded-2xl border p-4 space-y-1" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                <span className="font-bold text-[#4cd34c] uppercase text-[10px]">Description of Issue</span>
+                <p className="whitespace-pre-wrap leading-relaxed font-medium">{viewDetailIssue.description}</p>
+              </div>
+
+              <div className="rounded-2xl border p-4 space-y-1" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                <span className="font-bold text-[#4cd34c] uppercase text-[10px]">Actions Taken</span>
+                <p className="whitespace-pre-wrap leading-relaxed font-medium">{viewDetailIssue.actions_taken}</p>
+              </div>
+
+              {viewDetailIssue.customer_response && (
+                <div className="rounded-2xl border p-4 bg-[#4cd34c]/5 border-[#4cd34c]/30 text-xs">
+                  <span className="font-bold text-[#4cd34c] uppercase text-[10px] block mb-1">💬 Customer Given Response:</span>
+                  <p className="whitespace-pre-wrap font-medium text-emerald-300">"{viewDetailIssue.customer_response}"</p>
+                </div>
+              )}
+
+              {viewDetailIssue.next_shift_instructions && (
+                <div className="rounded-2xl border p-4 bg-[#ff6b6b]/10 border-[#ff6b6b]/30 text-[#ff8080] text-xs">
+                  <strong className="block text-[10px] text-[#ff6b6b] uppercase font-bold mb-1">What Next Shift Should Know / Do:</strong>
+                  <p className="whitespace-pre-wrap font-semibold">{viewDetailIssue.next_shift_instructions}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: "var(--panel-border)" }}>
+              <div className="text-xs text-[var(--text-muted)]">
+                Logged by: <strong className="text-[#4cd34c]">{viewDetailIssue.logged_by_name} ({viewDetailIssue.logged_by_initials})</strong>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const item = viewDetailIssue;
+                    setViewDetailIssue(null);
+                    handleOpenEditModal(item);
+                  }}
+                  className="px-4 py-2 rounded-xl border text-xs font-semibold hover:opacity-80 transition"
+                  style={{ borderColor: "var(--badge-border)" }}
+                >
+                  Edit Issue
+                </button>
+                <button
+                  onClick={() => {
+                    const id = viewDetailIssue.id;
+                    setViewDetailIssue(null);
+                    handleDeleteIssue(id);
+                  }}
+                  className="px-4 py-2 rounded-xl border text-xs font-semibold hover:bg-[#ff6b6b]/10 hover:text-[#ff6b6b] transition"
+                  style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
+                >
+                  Delete
+                </button>
+                <button
+                  onClick={() => setViewDetailIssue(null)}
+                  className="px-4 py-2 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-bold shadow-md"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
