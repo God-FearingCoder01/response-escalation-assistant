@@ -697,10 +697,11 @@ export default function AdminDashboard({
           <button
             type="button"
             onClick={handleResetPresetDefaults}
-            className="px-3 py-1.5 rounded-xl border text-xs font-semibold hover:opacity-90"
+            className="px-3 py-1.5 rounded-xl border text-xs font-semibold hover:opacity-90 flex items-center gap-1.5 transition"
             style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
           >
-            Reset Default Presets 🔄
+            <img src="/refresh.png" alt="Refresh" className="h-3.5 w-3.5 object-contain shrink-0" />
+            Reset Default Presets
           </button>
         </div>
 
