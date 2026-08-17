@@ -169,6 +169,18 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
     console.warn("Backend translation API unavailable, trying client fallback:", err);
   }
 
+export function truncateToMaxBytes(str, maxBytes = 500) {
+  if (!str) return "";
+  if (typeof TextEncoder !== "undefined" && typeof TextDecoder !== "undefined") {
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(str);
+    if (bytes.length <= maxBytes) return str;
+    const decoder = new TextDecoder("utf-8");
+    return decoder.decode(bytes.slice(0, maxBytes));
+  }
+  return str.slice(0, maxBytes);
+}
+
   // 3. Fallback: Call MyMemory API directly from client (with Zulu fallback for IsiNdebele)
   const langPairsToTry = [
     `${src}|${tgt}`,
@@ -176,9 +188,11 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
     ...(src === "nd" ? [`zu|${tgt}`, `nr|${tgt}`] : []),
   ];
 
+  const queryText = truncateToMaxBytes(cleanText, 500);
+
   for (const langpair of langPairsToTry) {
     try {
-      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleanText)}&langpair=${langpair}`;
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(queryText)}&langpair=${langpair}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();

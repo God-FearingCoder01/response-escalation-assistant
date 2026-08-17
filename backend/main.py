@@ -1509,9 +1509,12 @@ def translate_text(req: TranslateRequest):
     elif src == "nd":
         lang_pairs.extend([f"zu|{tgt}", f"nr|{tgt}"])
 
+    # Enforce MyMemory 500-byte limit on q parameter
+    query_500_bytes = clean_text.encode("utf-8")[:500].decode("utf-8", errors="ignore")
+
     for lp in lang_pairs:
         try:
-            encoded_query = urllib.parse.quote(clean_text)
+            encoded_query = urllib.parse.quote(query_500_bytes)
             url = f"https://api.mymemory.translated.net/get?q={encoded_query}&langpair={lp}"
             req_obj = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(req_obj, timeout=5) as resp:
