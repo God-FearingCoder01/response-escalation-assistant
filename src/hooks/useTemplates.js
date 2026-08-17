@@ -345,10 +345,16 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
           showToast("Template deleted 🗑️");
           return;
         } catch (err) {
-          if (err instanceof Error && err.message === "Failed to fetch") {
-            // Fallback to local offline mode
+          const errMsg = err instanceof Error ? err.message : "";
+          if (errMsg.includes("Template not found") || errMsg.includes("404")) {
+            setTemplates((curr) => curr.filter((t) => t.id !== templateId));
+            showToast("Template deleted 🗑️");
+            return;
+          }
+          if (errMsg.toLowerCase().includes("fetch") || errMsg.toLowerCase().includes("networkerror")) {
+            // Fallback to local offline mode below
           } else {
-            showToast(`Error: ${err instanceof Error ? err.message : "Failed to delete template"} ⚠️`);
+            showToast(`Error: ${errMsg || "Failed to delete template"} ⚠️`);
             return;
           }
         }
