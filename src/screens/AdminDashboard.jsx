@@ -275,10 +275,11 @@ export default function AdminDashboard({
                 <button
                   type="button"
                   onClick={handleResetTemplateForm}
-                  className="px-4 py-2 rounded-xl border text-sm font-medium transition hover:bg-[#b83838]/10 hover:border-[#b83838]/40 hover:text-[#ff6b6b]"
+                  className="px-4 py-2 rounded-xl border text-sm font-medium transition hover:bg-[#b83838]/10 hover:border-[#b83838]/40 hover:text-[#ff6b6b] flex items-center gap-1.5"
                   style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
                 >
-                  🔄 Reset Form
+                  <img src="/refresh.png" alt="Reset" className="h-3.5 w-3.5 object-contain shrink-0" />
+                  Reset Form
                 </button>
               ) : null}
               <button
@@ -519,10 +520,11 @@ export default function AdminDashboard({
               <button
                 type="button"
                 onClick={handleResetAgentForm}
-                className="px-4 py-2 rounded-xl border text-sm font-medium transition hover:bg-[#b83838]/10 hover:border-[#b83838]/40 hover:text-[#ff6b6b]"
+                className="px-4 py-2 rounded-xl border text-sm font-medium transition hover:bg-[#b83838]/10 hover:border-[#b83838]/40 hover:text-[#ff6b6b] flex items-center gap-1.5"
                 style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
               >
-                🔄 Reset Form
+                <img src="/refresh.png" alt="Reset" className="h-3.5 w-3.5 object-contain shrink-0" />
+                Reset Form
               </button>
             ) : null}
             <button
