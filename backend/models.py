@@ -42,6 +42,7 @@ class TemplateBase(SQLModel):
     category_type: str = "tech_escalation"  # "tech_escalation" or "customer_reply"
     category: Optional[str] = None
     subcategory: Optional[str] = None
+    placeholder_config: Optional[str] = None  # JSON string of custom placeholder input configs
     company_id: int = Field(default=1, foreign_key="company.id", index=True)
 
 
@@ -61,6 +62,7 @@ class TemplateUpdate(SQLModel):
     category_type: Optional[str] = None
     category: Optional[str] = None
     subcategory: Optional[str] = None
+    placeholder_config: Optional[str] = None
     company_id: Optional[int] = None
 
 
@@ -203,6 +205,109 @@ class SupportRequestRead(SupportRequestBase):
     id: int
     created_at: datetime
     updated_at: datetime
+
+
+# --- SHIFT ISSUE REGISTER (SIR) MODELS ---
+
+class ShiftConfigBase(SQLModel):
+    name: str
+    start_time: str = "07:00"  # HH:mm format
+    end_time: str = "15:00"    # HH:mm format (can span overnight e.g. 23:00 to 07:00)
+    is_active: bool = True
+    company_id: int = Field(default=1, foreign_key="company.id", index=True)
+
+
+class ShiftConfig(ShiftConfigBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+
+
+class ShiftConfigCreate(ShiftConfigBase):
+    company_id: int = 1
+
+
+class ShiftConfigUpdate(SQLModel):
+    name: Optional[str] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class ShiftConfigRead(ShiftConfigBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class EscalationTargetBase(SQLModel):
+    name: str
+    company_id: int = Field(default=1, foreign_key="company.id", index=True)
+
+
+class EscalationTarget(EscalationTargetBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+
+
+class EscalationTargetCreate(EscalationTargetBase):
+    company_id: int = 1
+
+
+class EscalationTargetRead(EscalationTargetBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class ShiftIssueBase(SQLModel):
+    title: str
+    time_noticed: str
+    description: str
+    actions_taken: str
+    customer_response: Optional[str] = None
+    status: str = "Ongoing"  # "Resolved", "Ongoing", "Monitoring"
+    escalated_to: str = "None"
+    additional_notes: Optional[str] = None
+    carry_forward: bool = False
+    next_shift_instructions: Optional[str] = None
+    logged_by_name: str
+    logged_by_initials: str
+    shift_name: Optional[str] = None
+    company_id: int = Field(default=1, foreign_key="company.id", index=True)
+
+
+class ShiftIssue(ShiftIssueBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    reference_no: Optional[str] = Field(default=None, index=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+
+
+class ShiftIssueCreate(ShiftIssueBase):
+    company_id: int = 1
+
+
+class ShiftIssueUpdate(SQLModel):
+    title: Optional[str] = None
+    time_noticed: Optional[str] = None
+    description: Optional[str] = None
+    actions_taken: Optional[str] = None
+    customer_response: Optional[str] = None
+    status: Optional[str] = None
+    escalated_to: Optional[str] = None
+    additional_notes: Optional[str] = None
+    carry_forward: Optional[bool] = None
+    next_shift_instructions: Optional[str] = None
+
+
+class ShiftIssueRead(ShiftIssueBase):
+    id: int
+    reference_no: str
+    created_at: datetime
+    updated_at: datetime
+
 
 
 

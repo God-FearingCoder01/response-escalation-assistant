@@ -240,26 +240,58 @@ export default function CustomerReply({
               <div className="space-y-3">
                 {placeholderList.map((ph) => {
                   const dateAuto = getDateAutoValues();
+                  let customCfg = null;
+                  if (activeTemplate?.placeholder_config) {
+                    try {
+                      const parsed = typeof activeTemplate.placeholder_config === "string"
+                        ? JSON.parse(activeTemplate.placeholder_config)
+                        : activeTemplate.placeholder_config;
+                      customCfg = parsed[ph] || null;
+                    } catch (e) {
+                      customCfg = null;
+                    }
+                  }
+
                   const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
                   const isDateField = dateAuto[ph] !== undefined;
                   const isTimeUnitField = /^time_unit/i.test(ph);
                   const isReasonField = ph.toLowerCase().includes("reason") || ph.toLowerCase().includes("details") || ph.toLowerCase().includes("note") || ph.toLowerCase().includes("description");
+                  const isDayField = ph === "day" || ph === "day_number" || ph === "day_num" || ph === "dd";
+                  const isMonthNumberField = ph === "month_number" || ph === "month_num" || ph === "month" || ph === "mm";
 
-                  const autoVal = isAgentField
-                    ? (ph === "agent_initials" ? currentAgent?.agent_initials : currentAgent?.agent_name)
-                    : isDateField
-                      ? dateAuto[ph]
-                      : isTimeUnitField
-                        ? "hour(s)"
-                        : "";
+                  let controlType = customCfg?.control_type || (
+                    isReasonField ? "textarea" :
+                    isTimeUnitField ? "time_units_select" :
+                    isDayField || isMonthNumberField ? "number" :
+                    "text"
+                  );
+
+                  let autoVal = "";
+                  if (customCfg?.auto_fill_type === "date_day") autoVal = dateAuto.day;
+                  else if (customCfg?.auto_fill_type === "date_month") autoVal = dateAuto.month_number;
+                  else if (customCfg?.auto_fill_type === "date_year") autoVal = dateAuto.year;
+                  else if (customCfg?.auto_fill_type === "date_time") autoVal = dateAuto.time;
+                  else if (customCfg?.auto_fill_type === "agent_name") autoVal = currentAgent?.agent_name ?? "";
+                  else if (customCfg?.auto_fill_type === "agent_initials") autoVal = currentAgent?.agent_initials ?? "";
+                  else if (customCfg?.auto_fill_type === "custom") autoVal = customCfg.custom_default ?? "";
+                  else if (isAgentField) autoVal = ph === "agent_initials" ? currentAgent?.agent_initials : currentAgent?.agent_name;
+                  else if (isDateField) autoVal = dateAuto[ph];
+                  else if (isTimeUnitField) autoVal = "hour(s)";
+
+                  const options = Array.isArray(customCfg?.options) ? customCfg.options : [];
+
                   return (
                     <div key={ph}>
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-xs capitalize font-medium" style={{ color: "var(--text-muted)" }}>
                           {ph.replace("_", " ")}:
                         </span>
-                        {isAgentField ? (
+                        {customCfg ? (
+                          <span className="text-[10px] text-[#4cd34c] font-semibold">Configured: {controlType}</span>
+                        ) : isAgentField ? (
                           <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from profile</span>
+                        ) : isDayField || isMonthNumberField ? (
+                          <span className="text-[10px] text-[#4cd34c] font-semibold">Numeric up/down (Auto-filled)</span>
                         ) : isDateField ? (
                           <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from date</span>
                         ) : isTimeUnitField ? (
@@ -268,7 +300,60 @@ export default function CustomerReply({
                           <span className="text-[10px] text-[#4cd34c] font-semibold">Multi-line resizable text</span>
                         ) : null}
                       </div>
-                      {isTimeUnitField ? (
+
+                      {controlType === "combobox" ? (
+                        <select
+                          value={valMap[ph] ?? (options[0] || autoVal)}
+                          onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                          className="w-full rounded-xl border p-2.5 text-sm font-medium"
+                          style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                        >
+                          {options.length > 0 ? (
+                            options.map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))
+                          ) : (
+                            <option value={autoVal || "Default"}>{autoVal || "Default"}</option>
+                          )}
+                        </select>
+                      ) : controlType === "number" ? (
+                        <input
+                          type="number"
+                          min={1}
+                          max={isDayField ? 31 : isMonthNumberField ? 12 : 999999}
+                          value={valMap[ph] ?? autoVal}
+                          onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                          placeholder={`Enter ${ph.replace("_", " ")}`}
+                          className="w-full rounded-xl border p-2.5 text-sm font-semibold"
+                          style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                        />
+                      ) : controlType === "date" ? (
+                        <input
+                          type="date"
+                          value={valMap[ph] ?? autoVal}
+                          onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                          className="w-full rounded-xl border p-2.5 text-sm font-medium"
+                          style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                        />
+                      ) : controlType === "time" ? (
+                        <input
+                          type="time"
+                          value={valMap[ph] ?? autoVal}
+                          onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                          className="w-full rounded-xl border p-2.5 text-sm font-medium"
+                          style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                        />
+                      ) : controlType === "datetime" ? (
+                        <input
+                          type="datetime-local"
+                          value={valMap[ph] ?? autoVal}
+                          onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                          className="w-full rounded-xl border p-2.5 text-sm font-medium"
+                          style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                        />
+                      ) : controlType === "time_units_select" ? (
                         <select
                           value={valMap[ph] ?? "hour(s)"}
                           onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
@@ -278,7 +363,7 @@ export default function CustomerReply({
                           <option value="hour(s)">hour(s)</option>
                           <option value="minutes">minutes</option>
                         </select>
-                      ) : isReasonField ? (
+                      ) : controlType === "textarea" ? (
                         <textarea
                           rows={3}
                           value={valMap[ph] ?? autoVal}

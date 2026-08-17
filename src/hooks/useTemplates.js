@@ -7,6 +7,7 @@ import {
   deleteTemplateApi,
   importTemplatesApi,
   getDateAutoValues,
+  formatDateTimeString,
 } from "../services/api";
 
 export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteIds, usageCounts, recentlyUsed, showToast }) {
@@ -37,6 +38,7 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
   const [editTplType, setEditTplType] = useState("tech_escalation");
   const [editTplCat, setEditTplCat] = useState("");
   const [editTplSubcat, setEditTplSubcat] = useState("");
+  const [placeholderConfigs, setPlaceholderConfigs] = useState({});
 
   const refreshTemplates = async () => {
     try {
@@ -210,10 +212,45 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
       ...dateAuto,
     };
 
-    const allKeys = new Set([...Object.keys(autoMap), ...Object.keys(values)]);
+    // Parse custom placeholder_config if present
+    let parsedConfig = {};
+    if (activeTemplate?.placeholder_config) {
+      try {
+        parsedConfig = typeof activeTemplate.placeholder_config === "string"
+          ? JSON.parse(activeTemplate.placeholder_config)
+          : activeTemplate.placeholder_config;
+      } catch (e) {
+        parsedConfig = {};
+      }
+    }
+
+    // Apply custom configured auto-fill defaults if value is not manually overridden
+    const customConfigAutoMap = {};
+    if (parsedConfig && typeof parsedConfig === "object") {
+      Object.keys(parsedConfig).forEach((key) => {
+        const cfg = parsedConfig[key];
+        if (!cfg) return;
+
+        if (cfg.auto_fill_type === "date_day") customConfigAutoMap[key] = dateAuto.day;
+        else if (cfg.auto_fill_type === "date_month") customConfigAutoMap[key] = dateAuto.month_number;
+        else if (cfg.auto_fill_type === "date_year") customConfigAutoMap[key] = dateAuto.year;
+        else if (cfg.auto_fill_type === "date_time") customConfigAutoMap[key] = dateAuto.time;
+        else if (cfg.auto_fill_type === "agent_name") customConfigAutoMap[key] = currentAgent?.agent_name ?? "";
+        else if (cfg.auto_fill_type === "agent_initials") customConfigAutoMap[key] = currentAgent?.agent_initials ?? "";
+        else if (cfg.auto_fill_type === "custom" && cfg.custom_default !== undefined) customConfigAutoMap[key] = cfg.custom_default;
+        else if (cfg.control_type === "combobox" && Array.isArray(cfg.options) && cfg.options.length > 0) {
+          customConfigAutoMap[key] = cfg.options[0];
+        }
+      });
+    }
+
+    const allKeys = new Set([...Object.keys(autoMap), ...Object.keys(customConfigAutoMap), ...Object.keys(values)]);
     for (const key of allKeys) {
-      const val = values[key] ?? autoMap[key] ?? "";
-      out = out.split(`{${key}}`).join(val);
+      let rawVal = values[key] ?? customConfigAutoMap[key] ?? autoMap[key] ?? "";
+      const cfg = parsedConfig[key];
+      const ctrlType = cfg?.control_type || (key === "date" ? "date" : key === "time" ? "time" : "datetime");
+      let formattedVal = formatDateTimeString(rawVal, ctrlType, cfg?.date_format);
+      out = out.split(`{${key}}`).join(formattedVal);
     }
 
     // Tech Escalation rule: Always ends with #{agent_name}
@@ -246,6 +283,17 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
     setEditTplType(template.category_type || "customer_reply");
     setEditTplCat(template.category || "");
     setEditTplSubcat(template.subcategory || "");
+    let parsedConfig = {};
+    if (template.placeholder_config) {
+      try {
+        parsedConfig = typeof template.placeholder_config === "string"
+          ? JSON.parse(template.placeholder_config)
+          : template.placeholder_config;
+      } catch (e) {
+        parsedConfig = {};
+      }
+    }
+    setPlaceholderConfigs(parsedConfig);
   };
 
   const handleResetTemplateForm = () => {
@@ -255,6 +303,7 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
     setEditTplType("customer_reply");
     setEditTplCat("");
     setEditTplSubcat("");
+    setPlaceholderConfigs({});
   };
 
   const handleCreateOrUpdateTemplate = async (e) => {
@@ -270,6 +319,7 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
       category_type: editTplType,
       category: editTplCat.trim() || null,
       subcategory: editTplSubcat.trim() || null,
+      placeholder_config: Object.keys(placeholderConfigs).length > 0 ? JSON.stringify(placeholderConfigs) : null,
     };
 
     try {
@@ -460,6 +510,8 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
     setEditTplCat,
     editTplSubcat,
     setEditTplSubcat,
+    placeholderConfigs,
+    setPlaceholderConfigs,
     handleEditTemplateClick,
     handleResetTemplateForm,
     handleCreateOrUpdateTemplate,

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { getPresetPhrases, savePresetPhrases, DEFAULT_PRESET_PHRASES } from "../services/translationService";
 
 export default function AdminDashboard({
@@ -21,6 +21,8 @@ export default function AdminDashboard({
   setEditTplCat,
   editTplSubcat,
   setEditTplSubcat,
+  placeholderConfigs = {},
+  setPlaceholderConfigs,
   handleEditTemplateClick,
   handleResetTemplateForm,
   handleCreateOrUpdateTemplate,
@@ -57,6 +59,7 @@ export default function AdminDashboard({
   pinErrorMsg,
   setPinErrorMsg,
   handleChangeAdminPin,
+  sirState,
 }) {
   const fileRef = useRef(null);
   const templateFormRef = useRef(null);
@@ -81,6 +84,63 @@ export default function AdminDashboard({
   const [presetEn, setPresetEn] = useState("");
   const [presetSn, setPresetSn] = useState("");
   const [presetNd, setPresetNd] = useState("");
+
+  // SECTION 5: SIR SHIFT & ESCALATION TARGET CONTROL STATES
+  const {
+    shifts = [],
+    escalationTargets = [],
+    handleCreateShift = () => {},
+    handleUpdateShift = () => {},
+    handleDeleteShift = () => {},
+    handleCreateTarget = () => {},
+    handleDeleteTarget = () => {},
+  } = sirState || {};
+
+  const [shiftName, setShiftName] = useState("");
+  const [shiftStart, setShiftStart] = useState("07:00");
+  const [shiftEnd, setShiftEnd] = useState("15:00");
+  const [editShiftId, setEditShiftId] = useState(null);
+
+  const [newTargetName, setNewTargetName] = useState("");
+
+  const handleSaveShiftForm = async (e) => {
+    e.preventDefault();
+    if (!shiftName.trim()) return;
+
+    if (editShiftId) {
+      await handleUpdateShift(editShiftId, {
+        name: shiftName.trim(),
+        start_time: shiftStart,
+        end_time: shiftEnd,
+      });
+    } else {
+      await handleCreateShift({
+        name: shiftName.trim(),
+        start_time: shiftStart,
+        end_time: shiftEnd,
+        is_active: true,
+      });
+    }
+
+    setEditShiftId(null);
+    setShiftName("");
+    setShiftStart("07:00");
+    setShiftEnd("15:00");
+  };
+
+  const handleEditShiftClick = (s) => {
+    setEditShiftId(s.id);
+    setShiftName(s.name);
+    setShiftStart(s.start_time || "07:00");
+    setShiftEnd(s.end_time || "15:00");
+  };
+
+  const handleAddTargetSubmit = async (e) => {
+    e.preventDefault();
+    if (!newTargetName.trim()) return;
+    await handleCreateTarget(newTargetName.trim());
+    setNewTargetName("");
+  };
 
   const handleSavePreset = (e) => {
     e.preventDefault();
@@ -132,6 +192,25 @@ export default function AdminDashboard({
     setPresetEn("");
     setPresetSn("");
     setPresetNd("");
+  };
+
+  const extractedPlaceholders = useMemo(() => {
+    if (!editTplBody) return [];
+    const set = new Set();
+    const re = /\{([^}]+)\}/g;
+    let m;
+    while ((m = re.exec(editTplBody))) set.add(m[1]);
+    return Array.from(set);
+  }, [editTplBody]);
+
+  const updatePlaceholderConfig = (phKey, updates) => {
+    setPlaceholderConfigs?.((prev) => {
+      const current = prev[phKey] || { control_type: "text", auto_fill_type: "none" };
+      return {
+        ...prev,
+        [phKey]: { ...current, ...updates },
+      };
+    });
   };
 
   useEffect(() => {
@@ -268,6 +347,166 @@ export default function AdminDashboard({
                   style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                 />
               </div>
+
+              {/* Placeholder Configuration Section */}
+              {extractedPlaceholders.length > 0 && (
+                <div className="md:col-span-3 rounded-xl border p-4 space-y-3 mt-1 bg-[#4cd34c]/5 border-[#4cd34c]/30">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-xs uppercase font-bold text-[#4cd34c] flex items-center gap-1.5">
+                      <span>⚙️ Configure Placeholder Controls & Auto-Fill</span>
+                      <span className="text-[10px] font-medium text-[var(--text-muted)] lowercase font-mono">
+                        ({extractedPlaceholders.length} detected: {extractedPlaceholders.map(p => `{${p}}`).join(", ")})
+                      </span>
+                    </h5>
+                    <span className="text-[10px] text-[var(--text-muted)]">Customize UI capture type & default auto-fill source</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {extractedPlaceholders.map((ph) => {
+                      const cfg = placeholderConfigs[ph] || { control_type: "text", auto_fill_type: "none" };
+                      const isCombobox = cfg.control_type === "combobox";
+                      const isCustomAuto = cfg.auto_fill_type === "custom";
+
+                      return (
+                        <div
+                          key={ph}
+                          className="rounded-xl border p-3 space-y-2 backdrop-blur bg-[var(--panel-bg)] border-[var(--field-border)]"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-[#4cd34c]">
+                              {`{${ph}}`}
+                            </span>
+                            <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">
+                              Parameter Control
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] block mb-1 font-medium text-[var(--text-muted)]">Control Type:</label>
+                              <select
+                                value={cfg.control_type || "text"}
+                                onChange={(e) => updatePlaceholderConfig(ph, { control_type: e.target.value })}
+                                className="w-full rounded-lg border p-1.5 text-xs font-semibold focus:outline-none focus:border-[#4cd34c]"
+                                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                              >
+                                <option value="text">Single-Line Text Input</option>
+                                <option value="textarea">Multi-Line Text Area</option>
+                                <option value="number">Numeric Up/Down (Number)</option>
+                                <option value="combobox">Select Combobox (Dropdown)</option>
+                                <option value="date">Date Picker (Date Only)</option>
+                                <option value="time">Time Picker (Time Only)</option>
+                                <option value="datetime">Date / Time Picker (Combined)</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] block mb-1 font-medium text-[var(--text-muted)]">Auto-Fill Source:</label>
+                              <select
+                                value={cfg.auto_fill_type || "none"}
+                                onChange={(e) => updatePlaceholderConfig(ph, { auto_fill_type: e.target.value })}
+                                className="w-full rounded-lg border p-1.5 text-xs font-semibold focus:outline-none focus:border-[#4cd34c]"
+                                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                              >
+                                <option value="none">None (Manual Entry)</option>
+                                <option value="date_day">System Day (DD)</option>
+                                <option value="date_month">System Month (MM)</option>
+                                <option value="date_year">System Year (YYYY)</option>
+                                <option value="date_time">System Time (HH:mm)</option>
+                                <option value="agent_name">Agent Full Name</option>
+                                <option value="agent_initials">Agent Initials</option>
+                                <option value="custom">Custom Default Value</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Date/Time Format Configurator */}
+                          {(cfg.control_type === "date" || cfg.control_type === "time" || cfg.control_type === "datetime") && (
+                            <div>
+                              <label className="text-[10px] block mb-1 font-bold text-[#4cd34c]">
+                                Output Date/Time Format *
+                              </label>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <select
+                                  value={cfg.date_format || "default"}
+                                  onChange={(e) => updatePlaceholderConfig(ph, { date_format: e.target.value })}
+                                  className="w-full rounded-lg border p-1.5 text-xs font-semibold focus:outline-none focus:border-[#4cd34c]"
+                                  style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                                >
+                                  <option value="default">Default Slashes (2026/08/12 07:29)</option>
+                                  <option value="YYYY/MM/DD HH:mm">YYYY/MM/DD HH:mm (2026/08/12 07:29)</option>
+                                  <option value="DD/MM/YYYY HH:mm">DD/MM/YYYY HH:mm (12/08/2026 07:29)</option>
+                                  <option value="YYYY-MM-DD HH:mm">YYYY-MM-DD HH:mm (2026-08-12 07:29)</option>
+                                  <option value="YYYY/MM/DD">YYYY/MM/DD (2026/08/12)</option>
+                                  <option value="DD/MM/YYYY">DD/MM/YYYY (12/08/2026)</option>
+                                  <option value="YYYY-MM-DD">YYYY-MM-DD (2026-08-12)</option>
+                                  <option value="HH:mm">HH:mm (07:29)</option>
+                                  <option value="custom">Custom Format Pattern...</option>
+                                </select>
+
+                                {cfg.date_format === "custom" && (
+                                  <input
+                                    type="text"
+                                    value={cfg.custom_date_format || ""}
+                                    onChange={(e) => updatePlaceholderConfig(ph, { custom_date_format: e.target.value, date_format: e.target.value })}
+                                    placeholder="e.g. DD/MM/YYYY HH:mm"
+                                    className="w-full rounded-lg border p-1.5 text-xs focus:outline-none focus:border-[#4cd34c]"
+                                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Combobox Options Input */}
+                          {isCombobox && (
+                            <div>
+                              <label className="text-[10px] block mb-1 font-bold text-[#4cd34c]">
+                                Predefined Options (Comma Separated) *
+                              </label>
+                              <input
+                                type="text"
+                                value={cfg.options_raw !== undefined ? cfg.options_raw : (Array.isArray(cfg.options) ? cfg.options.join(", ") : "")}
+                                onChange={(e) => {
+                                  const rawVal = e.target.value;
+                                  const parsedArr = rawVal
+                                    .split(",")
+                                    .map((s) => s.trim())
+                                    .filter(Boolean);
+                                  updatePlaceholderConfig(ph, {
+                                    options_raw: rawVal,
+                                    options: parsedArr,
+                                  });
+                                }}
+                                placeholder="e.g. EcoCash, Zipit, InnBucks, Bank Transfer"
+                                className="w-full rounded-lg border p-1.5 text-xs focus:outline-none focus:border-[#4cd34c]"
+                                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                              />
+                            </div>
+                          )}
+
+                          {/* Custom Default Input */}
+                          {isCustomAuto && (
+                            <div>
+                              <label className="text-[10px] block mb-1 font-bold text-[#4cd34c]">
+                                Custom Default Value
+                              </label>
+                              <input
+                                type="text"
+                                value={cfg.custom_default || ""}
+                                onChange={(e) => updatePlaceholderConfig(ph, { custom_default: e.target.value })}
+                                placeholder="Enter default fallback value..."
+                                className="w-full rounded-lg border p-1.5 text-xs focus:outline-none focus:border-[#4cd34c]"
+                                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2 justify-end">
@@ -833,6 +1072,195 @@ export default function AdminDashboard({
                     Delete
                   </button>
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION 5: SHIFT ISSUE REGISTER (SIR) CONTROL */}
+      <div
+        className="rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-8"
+        style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}
+      >
+        <div className="border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
+          <h3 className="text-lg font-bold flex items-center gap-2.5" style={{ color: "var(--app-text)" }}>
+            <img src="/clipboard.png" alt="Register" className="h-6 w-6 shrink-0 object-contain" />
+            5. Shift Issue Register (SIR) Company Control
+          </h3>
+          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+            Define custom shift hours (including overnight shifts) and predefine escalation target options for support agents.
+          </p>
+        </div>
+
+        {/* SUBSECTION A: SHIFT DEFINITIONS */}
+        <div className="space-y-4">
+          <h4 className="text-sm font-bold uppercase tracking-wider text-[#4cd34c]">
+            A. Shift Hours & Naming Control ({shifts.length})
+          </h4>
+
+          <form onSubmit={handleSaveShiftForm} className="rounded-2xl border p-4 space-y-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
+            <span className="text-xs uppercase font-semibold text-sky-400 block">
+              {editShiftId ? `Edit Shift Definition #${editShiftId}` : "Create New Shift Definition"}
+            </span>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-[11px] block mb-1 font-bold" style={{ color: "var(--text-muted)" }}>
+                  Shift Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={shiftName}
+                  onChange={(e) => setShiftName(e.target.value)}
+                  placeholder="e.g. Graveyard Night Shift"
+                  className="w-full rounded-xl border p-2.5 text-sm font-medium"
+                  style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] block mb-1 font-bold" style={{ color: "var(--text-muted)" }}>
+                  Start Time *
+                </label>
+                <input
+                  type="time"
+                  required
+                  value={shiftStart}
+                  onChange={(e) => setShiftStart(e.target.value)}
+                  className="w-full rounded-xl border p-2.5 text-sm font-medium"
+                  style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] block mb-1 font-bold" style={{ color: "var(--text-muted)" }}>
+                  End Time (Supports Overnight) *
+                </label>
+                <input
+                  type="time"
+                  required
+                  value={shiftEnd}
+                  onChange={(e) => setShiftEnd(e.target.value)}
+                  className="w-full rounded-xl border p-2.5 text-sm font-medium"
+                  style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              {editShiftId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditShiftId(null);
+                    setShiftName("");
+                    setShiftStart("07:00");
+                    setShiftEnd("15:00");
+                  }}
+                  className="px-4 py-2 rounded-xl border text-xs font-semibold hover:opacity-80"
+                  style={{ borderColor: "var(--badge-border)" }}
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={!shiftName.trim()}
+                className="px-5 py-2 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-bold shadow-md disabled:opacity-50"
+              >
+                {editShiftId ? "Update Shift" : "Add Shift Definition"}
+              </button>
+            </div>
+          </form>
+
+          {/* Active Shift List */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {shifts.map((s) => (
+              <div
+                key={s.id}
+                className="rounded-2xl border p-4 flex flex-col justify-between gap-3 shadow-sm"
+                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <strong className="text-sm" style={{ color: "var(--app-text)" }}>
+                      {s.name}
+                    </strong>
+                    <span className="text-[10px] uppercase font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2 py-0.5 rounded-full">
+                      Active
+                    </span>
+                  </div>
+                  <p className="text-xs mt-1 font-mono font-medium" style={{ color: "var(--text-muted)" }}>
+                    ⏰ {s.start_time} ➔ {s.end_time}
+                  </p>
+                </div>
+
+                <div className="flex gap-2 justify-end pt-2 border-t" style={{ borderColor: "var(--panel-border)" }}>
+                  <button
+                    type="button"
+                    onClick={() => handleEditShiftClick(s)}
+                    className="px-3 py-1 rounded-xl border text-xs font-semibold hover:opacity-80"
+                    style={{ borderColor: "var(--badge-border)" }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteShift(s.id)}
+                    className="px-3 py-1 rounded-xl border text-xs font-semibold hover:bg-[#ff6b6b]/20"
+                    style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* SUBSECTION B: ESCALATION TARGETS */}
+        <div className="space-y-4 pt-4 border-t" style={{ borderColor: "var(--panel-border)" }}>
+          <h4 className="text-sm font-bold uppercase tracking-wider text-[#4cd34c]">
+            B. Predefined Escalation Targets Control ({escalationTargets.length})
+          </h4>
+
+          <form onSubmit={handleAddTargetSubmit} className="flex gap-3 items-center">
+            <input
+              type="text"
+              required
+              value={newTargetName}
+              onChange={(e) => setNewTargetName(e.target.value)}
+              placeholder="e.g. Core Network Engineering / NOC"
+              className="flex-1 rounded-xl border p-2.5 text-sm font-medium"
+              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+            />
+            <button
+              type="submit"
+              disabled={!newTargetName.trim()}
+              className="px-5 py-2.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-bold shadow-md disabled:opacity-50 whitespace-nowrap"
+            >
+              + Add Escalation Target
+            </button>
+          </form>
+
+          <div className="flex flex-wrap gap-2.5">
+            {escalationTargets.map((t) => (
+              <div
+                key={t.id}
+                className="flex items-center gap-2 rounded-2xl border px-3.5 py-1.5 text-xs font-semibold shadow-sm"
+                style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--field-bg)" }}
+              >
+                <span style={{ color: "var(--app-text)" }}>{t.name}</span>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteTarget(t.id)}
+                  className="ml-1 text-xs font-bold text-[#ff6b6b] hover:opacity-100 opacity-70"
+                  title="Remove target"
+                >
+                  ✕
+                </button>
               </div>
             ))}
           </div>

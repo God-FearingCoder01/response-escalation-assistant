@@ -7,6 +7,7 @@ import { useUserInteractions } from "./hooks/useUserInteractions";
 import { useTemplates } from "./hooks/useTemplates";
 import { useSuggestions } from "./hooks/useSuggestions";
 import { useTranslator } from "./hooks/useTranslator";
+import { useShiftRegister } from "./hooks/useShiftRegister";
 
 import Sidebar from "./components/Sidebar";
 import PinModal from "./components/PinModal";
@@ -21,6 +22,7 @@ import AdminDashboard from "./screens/AdminDashboard";
 import SuggestionsHub from "./screens/SuggestionsHub";
 import QuickAccess from "./screens/QuickAccess";
 import TranslatorScreen from "./screens/TranslatorScreen";
+import ShiftRegisterScreen from "./screens/ShiftRegisterScreen";
 import MonitorScreen from "./screens/MonitorScreen";
 import DeveloperSupportLanding from "./screens/DeveloperSupportLanding";
 
@@ -111,7 +113,7 @@ export default function App() {
         const parts = path.split("/").filter(Boolean);
         if (parts.length >= 2) {
           const subRoute = parts[1];
-          if (["tech-escalation", "customer-reply", "suggestions", "quick-access", "admin", "translator"].includes(subRoute)) {
+          if (["tech-escalation", "customer-reply", "suggestions", "quick-access", "admin", "translator", "shift-register"].includes(subRoute)) {
             const mapRoute = subRoute.replace("-", "_");
             setActiveScreen(mapRoute);
           }
@@ -225,6 +227,8 @@ export default function App() {
     setEditTplCat,
     editTplSubcat = "",
     setEditTplSubcat,
+    placeholderConfigs = {},
+    setPlaceholderConfigs,
     handleEditTemplateClick,
     handleResetTemplateForm,
     handleCreateOrUpdateTemplate,
@@ -278,6 +282,14 @@ export default function App() {
 
   // 5. Translator hook
   const translatorState = useTranslator({ currentAgent, showToast });
+
+  // 6. Shift Issue Register (SIR) hook
+  const sirState = useShiftRegister({
+    currentAgent,
+    activeCompanyId,
+    apiStatus,
+    showToast,
+  });
 
   // Check health status on app initialization
   useEffect(() => {
@@ -525,6 +537,8 @@ export default function App() {
           setEditTplCat={setEditTplCat}
           editTplSubcat={editTplSubcat}
           setEditTplSubcat={setEditTplSubcat}
+          placeholderConfigs={placeholderConfigs}
+          setPlaceholderConfigs={setPlaceholderConfigs}
           handleEditTemplateClick={handleEditTemplateClick}
           handleResetTemplateForm={handleResetTemplateForm}
           handleCreateOrUpdateTemplate={handleCreateOrUpdateTemplate}
@@ -561,6 +575,7 @@ export default function App() {
           pinErrorMsg={pinErrorMsg}
           setPinErrorMsg={setPinErrorMsg}
           handleChangeAdminPin={handleChangeAdminPin}
+          sirState={sirState}
         />
 
         <SuggestionsHub
@@ -612,6 +627,14 @@ export default function App() {
             translatorState={translatorState}
             copyText={copyText}
             showToast={showToast}
+          />
+        )}
+
+        {activeScreen === "shift_register" && (
+          <ShiftRegisterScreen
+            activeScreen={activeScreen}
+            currentAgent={currentAgent}
+            sirState={sirState}
           />
         )}
       </div>

@@ -147,6 +147,35 @@ export function escapeForTelegramMarkdownV2(text) {
   return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
 }
 
+export function formatDateTimeString(val, controlType = "datetime", dateFormat = "") {
+  if (!val || typeof val !== "string") return val || "";
+
+  if (controlType === "time" || /^\d{2}:\d{2}$/.test(val)) {
+    return val;
+  }
+
+  const dtMatch = val.match(/^(\d{4})[-/](\d{2})[-/](\d{2})(?:[T\s](\d{2}):(\d{2}))?/);
+  if (!dtMatch) return val;
+
+  const [, YYYY, MM, DD, HH = "00", mm = "00"] = dtMatch;
+
+  if (dateFormat && dateFormat !== "default") {
+    let out = dateFormat;
+    out = out.replace(/YYYY/g, YYYY);
+    out = out.replace(/MM/g, MM);
+    out = out.replace(/DD/g, DD);
+    out = out.replace(/HH/g, HH);
+    out = out.replace(/mm/g, mm);
+    return out;
+  }
+
+  if (controlType === "date") {
+    return `${YYYY}/${MM}/${DD}`;
+  }
+
+  return `${YYYY}/${MM}/${DD} ${HH}:${mm}`;
+}
+
 export function getDateAutoValues() {
   const now = new Date();
   const d = String(now.getDate()).padStart(2, "0");
@@ -515,6 +544,121 @@ export async function updateSupportRequestStatusApi(id, status) {
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
     throw new Error(parseApiError(errData, "Failed to update support request status"));
+  }
+  return await res.json();
+}
+
+// --- SHIFT ISSUE REGISTER (SIR) API ---
+
+export async function fetchSirShiftsApi() {
+  return await safeFetchJson(`${API_BASE}/sir/shifts`, { headers: getCompanyHeaders() });
+}
+
+export async function createSirShiftApi(payload) {
+  const res = await fetch(`${API_BASE}/sir/shifts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getCompanyHeaders(), ...getAdminHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to create shift configuration"));
+  }
+  return await res.json();
+}
+
+export async function updateSirShiftApi(id, payload) {
+  const res = await fetch(`${API_BASE}/sir/shifts/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getCompanyHeaders(), ...getAdminHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to update shift configuration"));
+  }
+  return await res.json();
+}
+
+export async function deleteSirShiftApi(id) {
+  const res = await fetch(`${API_BASE}/sir/shifts/${id}`, {
+    method: "DELETE",
+    headers: { ...getCompanyHeaders(), ...getAdminHeaders() },
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to delete shift configuration"));
+  }
+  return await res.json();
+}
+
+export async function fetchSirTargetsApi() {
+  return await safeFetchJson(`${API_BASE}/sir/targets`, { headers: getCompanyHeaders() });
+}
+
+export async function createSirTargetApi(payload) {
+  const res = await fetch(`${API_BASE}/sir/targets`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getCompanyHeaders(), ...getAdminHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to create escalation target"));
+  }
+  return await res.json();
+}
+
+export async function deleteSirTargetApi(id) {
+  const res = await fetch(`${API_BASE}/sir/targets/${id}`, {
+    method: "DELETE",
+    headers: { ...getCompanyHeaders(), ...getAdminHeaders() },
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to delete escalation target"));
+  }
+  return await res.json();
+}
+
+export async function fetchSirIssuesApi() {
+  return await safeFetchJson(`${API_BASE}/sir/issues`, { headers: getCompanyHeaders() });
+}
+
+export async function createSirIssueApi(payload) {
+  const res = await fetch(`${API_BASE}/sir/issues`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getCompanyHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to record shift issue"));
+  }
+  return await res.json();
+}
+
+export async function updateSirIssueApi(id, payload) {
+  const res = await fetch(`${API_BASE}/sir/issues/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getCompanyHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to update shift issue"));
+  }
+  return await res.json();
+}
+
+export async function deleteSirIssueApi(id) {
+  const res = await fetch(`${API_BASE}/sir/issues/${id}`, {
+    method: "DELETE",
+    headers: getCompanyHeaders(),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to delete shift issue"));
   }
   return await res.json();
 }
