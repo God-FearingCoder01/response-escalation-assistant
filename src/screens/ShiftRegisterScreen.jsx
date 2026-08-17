@@ -129,12 +129,96 @@ export default function ShiftRegisterScreen({
     resetForm();
   };
 
+  const [selectedDateFilter, setSelectedDateFilter] = useState("All");
+  const [selectedArchiveMonth, setSelectedArchiveMonth] = useState("All");
+
+  const getShiftIcon = (name = "") => {
+    const lower = name.toLowerCase();
+    if (lower.includes("morning")) return "☀️";
+    if (lower.includes("afternoon") || lower.includes("day")) return "🌆";
+    if (lower.includes("night") || lower.includes("graveyard")) return "🌙";
+    return "⏰";
+  };
+
+  // Today's shift statistics with status breakdown
+  const todayShiftStats = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const map = {};
+
+    (shifts || []).forEach((s) => {
+      map[s.name] = {
+        ...s,
+        ongoing: 0,
+        monitoring: 0,
+        resolved: 0,
+        total: 0,
+      };
+    });
+
+    (issues || []).forEach((item) => {
+      const itemDate = item.created_at ? new Date(item.created_at).toISOString().slice(0, 10) : todayStr;
+      if (itemDate === todayStr) {
+        const sName = item.shift_name || currentShiftName;
+        if (!map[sName]) {
+          map[sName] = { name: sName, start_time: "00:00", end_time: "23:59", ongoing: 0, monitoring: 0, resolved: 0, total: 0 };
+        }
+        map[sName].total += 1;
+        if (item.status === "Ongoing") map[sName].ongoing += 1;
+        else if (item.status === "Monitoring") map[sName].monitoring += 1;
+        else if (item.status === "Resolved") map[sName].resolved += 1;
+      }
+    });
+
+    return Object.values(map);
+  }, [shifts, issues, currentShiftName]);
+
+  // Recent Shifts by Date
+  const recentShiftsList = useMemo(() => {
+    const map = {};
+    (issues || []).forEach((item) => {
+      const dateObj = item.created_at ? new Date(item.created_at) : new Date();
+      const dateKey = dateObj.toISOString().slice(0, 10);
+      const label = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      if (!map[dateKey]) {
+        map[dateKey] = { dateKey, label, count: 0 };
+      }
+      map[dateKey].count += 1;
+    });
+    return Object.values(map).sort((a, b) => b.dateKey.localeCompare(a.dateKey)).slice(0, 5);
+  }, [issues]);
+
+  // Monthly Archives
+  const monthlyArchiveList = useMemo(() => {
+    const map = {};
+    (issues || []).forEach((item) => {
+      const dateObj = item.created_at ? new Date(item.created_at) : new Date();
+      const monthKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}`;
+      const label = dateObj.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+      if (!map[monthKey]) {
+        map[monthKey] = { monthKey, label, count: 0 };
+      }
+      map[monthKey].count += 1;
+    });
+    return Object.values(map).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+  }, [issues]);
+
   // Filtered issues calculation
   const filteredIssues = useMemo(() => {
     return (issues || []).filter((item) => {
       if (statusFilter !== "All" && item.status !== statusFilter) return false;
       if (shiftFilter !== "All" && item.shift_name !== shiftFilter) return false;
       if (carryForwardOnly && !item.carry_forward) return false;
+
+      if (selectedDateFilter !== "All") {
+        const itemDate = item.created_at ? new Date(item.created_at).toISOString().slice(0, 10) : "";
+        if (itemDate !== selectedDateFilter) return false;
+      }
+
+      if (selectedArchiveMonth !== "All") {
+        const itemDateObj = item.created_at ? new Date(item.created_at) : new Date();
+        const monthKey = `${itemDateObj.getFullYear()}-${String(itemDateObj.getMonth() + 1).padStart(2, "0")}`;
+        if (monthKey !== selectedArchiveMonth) return false;
+      }
 
       if (searchTerm.trim()) {
         const query = searchTerm.toLowerCase();
@@ -148,7 +232,7 @@ export default function ShiftRegisterScreen({
       }
       return true;
     });
-  }, [issues, statusFilter, shiftFilter, carryForwardOnly, searchTerm]);
+  }, [issues, statusFilter, shiftFilter, carryForwardOnly, selectedDateFilter, selectedArchiveMonth, searchTerm]);
 
   // Priority Carry Forward Items
   const carryForwardItems = useMemo(() => {
@@ -159,7 +243,7 @@ export default function ShiftRegisterScreen({
 
   return (
     <section className="max-w-7xl mx-auto space-y-8 animate-fadeIn">
-      {/* HEADER SECTION */}
+      {/* TOP HEADER & ACTION BAR */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b pb-6" style={{ borderColor: "var(--panel-border)" }}>
         <div>
           <div className="flex items-center gap-3">
@@ -169,315 +253,417 @@ export default function ShiftRegisterScreen({
             </h2>
           </div>
           <p className="text-sm mt-1.5 font-medium" style={{ color: "var(--text-muted)" }}>
-            Record any noteworthy issue, actions taken and important information for the next shift
+            Record recurring shift issues, actions taken, and carry-forward notes for incoming shifts
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <div
-            className="flex items-center gap-2 rounded-2xl border px-3.5 py-2 text-xs font-semibold backdrop-blur shadow-sm transition hover:border-[#4cd34c]/50"
-            style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--badge-bg)" }}
-            title="Click to switch your current operating shift"
-          >
-            <span className="h-2.5 w-2.5 rounded-full bg-[#4cd34c] animate-pulse" />
-            <span>Active Shift:</span>
-            <select
-              value={currentShiftName}
-              onChange={(e) => handleSelectActiveShift?.(e.target.value)}
-              className="bg-transparent font-bold text-[#4cd34c] cursor-pointer focus:outline-none pr-1"
-            >
-              {(shifts || []).map((s) => (
-                <option key={s.id} value={s.name} className="bg-[var(--panel-bg)] text-[var(--app-text)] font-semibold">
-                  {s.name} ({s.start_time} - {s.end_time})
-                </option>
-              ))}
-            </select>
-          </div>
-
           <button
             onClick={handleOpenRecordModal}
-            className="px-5 py-2.5 rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-sm font-bold shadow-lg transition hover:scale-[1.02] active:scale-95 flex items-center gap-2"
+            className="px-6 py-3 rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-sm font-extrabold shadow-lg transition hover:scale-[1.02] active:scale-95 flex items-center gap-2"
           >
-            <span className="text-base font-extrabold">+</span>
+            <span className="text-lg font-black">+</span>
             <span>Record Issue</span>
           </button>
         </div>
       </div>
 
-      {/* PRIORITY CARRY FORWARD BANNER (IF ACTIVE CARRY FORWARD ISSUES EXIST) */}
-      {carryForwardItems.length > 0 && (
-        <div className="rounded-3xl border p-5 shadow-xl backdrop-blur relative overflow-hidden bg-gradient-to-r from-[#b83838]/15 via-[#f1c84b]/10 to-transparent border-[#f1c84b]/40">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-3 w-3 rounded-full bg-[#ff6b6b] animate-ping" />
-              <h3 className="text-base font-bold text-[#ff6b6b] flex items-center gap-2 uppercase tracking-wider">
-                ⚠️ Priority: Carried Forward To This Shift ({carryForwardItems.length})
+      {/* MAIN LAYOUT GRID (SIDEBAR + WORKSPACE) */}
+      <div className="flex flex-col lg:flex-row gap-8 items-start">
+        {/* LEFT SIDEBAR (TODAY, RECENT SHIFTS, ISSUE ARCHIVE) */}
+        <aside className="w-full lg:w-80 shrink-0 space-y-6">
+          {/* TODAY SHIFT CARDS */}
+          <div className="rounded-3xl border p-5 shadow-md backdrop-blur space-y-3.5" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs uppercase font-extrabold tracking-wider" style={{ color: "var(--app-text)" }}>
+                TODAY
               </h3>
+              <span className="text-[10px] font-bold text-[#4cd34c] bg-[#4cd34c]/10 px-2 py-0.5 rounded-full border border-[#4cd34c]/30">
+                Live Shifts
+              </span>
             </div>
-            <span className="text-xs font-medium opacity-80" style={{ color: "var(--text-muted)" }}>
-              Requires Next Shift Attention
-            </span>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {carryForwardItems.map((item) => (
-              <div
-                key={item.id}
-                className="rounded-2xl border p-4 shadow-md bg-[var(--field-bg)] backdrop-blur space-y-2 border-[#f1c84b]/30"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#f1c84b]/20 text-[#f1c84b] border border-[#f1c84b]/40">
-                    {item.reference_no}
-                  </span>
-                  <span className="text-[11px] font-semibold opacity-75" style={{ color: "var(--text-muted)" }}>
-                    Time: {item.time_noticed} ({item.shift_name || "Prior Shift"})
-                  </span>
-                </div>
+            <div className="space-y-3">
+              {todayShiftStats.map((shift) => {
+                const icon = getShiftIcon(shift.name);
+                const isSelected = shiftFilter === shift.name;
 
-                <h4 className="font-bold text-sm" style={{ color: "var(--app-text)" }}>
-                  {item.title}
-                </h4>
+                return (
+                  <div
+                    key={shift.name}
+                    onClick={() => setShiftFilter(isSelected ? "All" : shift.name)}
+                    className={`rounded-2xl border p-4 cursor-pointer transition-all hover:scale-[1.01] shadow-sm ${
+                      isSelected
+                        ? "border-[#4cd34c] bg-[#4cd34c]/10 shadow-[#4cd34c]/10"
+                        : "hover:border-[#4cd34c]/40"
+                    }`}
+                    style={{
+                      borderColor: isSelected ? "#4cd34c" : "var(--field-border)",
+                      backgroundColor: isSelected ? undefined : "var(--field-bg)",
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-sm flex items-center gap-2" style={{ color: "var(--app-text)" }}>
+                        <span>{icon}</span>
+                        <span>{shift.name}</span>
+                      </span>
+                      {isSelected && (
+                        <span className="text-[10px] font-extrabold text-[#4cd34c] uppercase">Selected</span>
+                      )}
+                    </div>
 
-                {item.next_shift_instructions && (
-                  <div className="rounded-xl border p-2.5 text-xs bg-[#ff6b6b]/10 border-[#ff6b6b]/30 text-[#ff8080]">
-                    <strong className="block mb-0.5 text-[#ff6b6b]">What next shift should do:</strong>
-                    <p className="whitespace-pre-wrap">{item.next_shift_instructions}</p>
+                    <div className="text-xs font-medium mb-3 opacity-75" style={{ color: "var(--text-muted)" }}>
+                      {shift.start_time} – {shift.end_time}
+                    </div>
+
+                    {/* Counters: Ongoing, Monitoring, Resolved */}
+                    <div className="flex items-center gap-3 pt-2 border-t border-[var(--panel-border)] text-xs font-bold">
+                      <span className="flex items-center gap-1 text-[#ff6b6b]" title="Ongoing Issues">
+                        <span>🔴</span>
+                        <span>{shift.ongoing}</span>
+                      </span>
+                      <span className="flex items-center gap-1 text-[#f1c84b]" title="Monitoring Issues">
+                        <span>🟠</span>
+                        <span>{shift.monitoring}</span>
+                      </span>
+                      <span className="flex items-center gap-1 text-[#4cd34c]" title="Resolved Issues">
+                        <span>🟢</span>
+                        <span>{shift.resolved}</span>
+                      </span>
+                    </div>
                   </div>
-                )}
+                );
+              })}
+            </div>
+          </div>
 
-                <div className="flex items-center justify-between pt-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
-                  <span>Escalated to: <strong>{item.escalated_to}</strong></span>
-                  <span>Logged by: <strong>{item.logged_by_name} ({item.logged_by_initials})</strong></span>
+          {/* RECENT SHIFTS SECTION */}
+          <div className="rounded-3xl border p-5 shadow-md backdrop-blur space-y-3" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+            <h3 className="text-xs uppercase font-extrabold tracking-wider" style={{ color: "var(--app-text)" }}>
+              RECENT SHIFTS
+            </h3>
+
+            <div className="space-y-1.5">
+              {recentShiftsList.length > 0 ? (
+                recentShiftsList.map((item) => {
+                  const isSelected = selectedDateFilter === item.dateKey;
+                  return (
+                    <button
+                      key={item.dateKey}
+                      onClick={() => {
+                        setSelectedDateFilter(isSelected ? "All" : item.dateKey);
+                        setSelectedArchiveMonth("All");
+                      }}
+                      className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                        isSelected
+                          ? "bg-[#4cd34c] text-[#071007] font-bold"
+                          : "hover:bg-[var(--neutral-bg)] text-[var(--app-text)]"
+                      }`}
+                    >
+                      <span>{item.label}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        isSelected ? "bg-[#071007]/20 text-[#071007]" : "bg-[var(--field-bg)] text-[var(--text-muted)] border border-[var(--field-border)]"
+                      }`}>
+                        {item.count} {item.count === 1 ? "issue" : "issues"}
+                      </span>
+                    </button>
+                  );
+                })
+              ) : (
+                <p className="text-xs italic p-2" style={{ color: "var(--text-muted)" }}>
+                  No recent shift logs
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* ISSUE ARCHIVE SECTION */}
+          <div className="rounded-3xl border p-5 shadow-md backdrop-blur space-y-3" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+            <h3 className="text-xs uppercase font-extrabold tracking-wider flex items-center gap-1.5" style={{ color: "var(--app-text)" }}>
+              <span>📁</span>
+              <span>ISSUE ARCHIVE</span>
+            </h3>
+
+            <div className="space-y-2">
+              {monthlyArchiveList.length > 0 ? (
+                monthlyArchiveList.map((item) => {
+                  const isSelected = selectedArchiveMonth === item.monthKey;
+                  return (
+                    <button
+                      key={item.monthKey}
+                      onClick={() => {
+                        setSelectedArchiveMonth(isSelected ? "All" : item.monthKey);
+                        setSelectedDateFilter("All");
+                      }}
+                      className={`w-full flex items-center justify-between rounded-2xl border px-3.5 py-2.5 text-xs font-semibold transition ${
+                        isSelected
+                          ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold"
+                          : "border-[var(--field-border)] hover:border-[#4cd34c]/50 text-[var(--app-text)]"
+                      }`}
+                    >
+                      <span>[ {item.label} ]</span>
+                      <span className="text-[10px] opacity-75">
+                        ({item.count})
+                      </span>
+                    </button>
+                  );
+                })
+              ) : (
+                <p className="text-xs italic p-2" style={{ color: "var(--text-muted)" }}>
+                  No archive records
+                </p>
+              )}
+            </div>
+          </div>
+        </aside>
+
+        {/* RIGHT WORKSPACE (CARRIER BANNER + SEARCH & FILTER + COMPACT CARDS) */}
+        <div className="flex-1 w-full space-y-6">
+          {/* Active Filter Indicators */}
+          {(selectedDateFilter !== "All" || selectedArchiveMonth !== "All" || shiftFilter !== "All") && (
+            <div className="flex items-center justify-between rounded-2xl border px-4 py-2.5 text-xs font-bold bg-[#4cd34c]/10 border-[#4cd34c]/30 text-[#4cd34c]">
+              <span>
+                Filtering: {selectedDateFilter !== "All" ? `Date (${selectedDateFilter})` : ""} {selectedArchiveMonth !== "All" ? `Month (${selectedArchiveMonth})` : ""} {shiftFilter !== "All" ? `Shift (${shiftFilter})` : ""}
+              </span>
+              <button
+                onClick={() => {
+                  setSelectedDateFilter("All");
+                  setSelectedArchiveMonth("All");
+                  setShiftFilter("All");
+                }}
+                className="underline text-xs hover:opacity-80"
+              >
+                Clear Filters ✕
+              </button>
+            </div>
+          )}
+
+          {/* PRIORITY CARRY FORWARD BANNER */}
+          {carryForwardItems.length > 0 && (
+            <div className="rounded-3xl border p-5 shadow-xl backdrop-blur relative overflow-hidden bg-gradient-to-r from-[#b83838]/15 via-[#f1c84b]/10 to-transparent border-[#f1c84b]/40 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-3 w-3 rounded-full bg-[#ff6b6b] animate-ping" />
+                  <h3 className="text-base font-bold text-[#ff6b6b] flex items-center gap-2 uppercase tracking-wider">
+                    ⚠️ Priority: Carried Forward To This Shift ({carryForwardItems.length})
+                  </h3>
                 </div>
+                <span className="text-xs font-medium opacity-80" style={{ color: "var(--text-muted)" }}>
+                  Requires Next Shift Attention
+                </span>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* FILTER & SEARCH BAR */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-2xl border p-4 shadow-md backdrop-blur" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-          {["All", "Ongoing", "Monitoring", "Resolved"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setStatusFilter(tab)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-                statusFilter === tab
-                  ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-sm"
-                  : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
-              }`}
-            >
-              {tab === "All" ? `All Issues (${issues.length})` : tab}
-            </button>
-          ))}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {carryForwardItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-2xl border p-4 shadow-md bg-[var(--field-bg)] backdrop-blur space-y-2 border-[#f1c84b]/30"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#f1c84b]/20 text-[#f1c84b] border border-[#f1c84b]/40">
+                        {item.reference_no}
+                      </span>
+                      <span className="text-[11px] font-semibold opacity-75" style={{ color: "var(--text-muted)" }}>
+                        Time: {item.time_noticed} ({item.shift_name || "Prior Shift"})
+                      </span>
+                    </div>
 
-          {/* Shift Filter Dropdown */}
-          <div className="flex items-center gap-1.5 border-l pl-3 border-[var(--panel-border)]">
-            <span className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Shift:</span>
-            <select
-              value={shiftFilter}
-              onChange={(e) => setShiftFilter(e.target.value)}
-              className="rounded-xl border px-2.5 py-1 text-xs font-semibold focus:outline-none focus:border-[#4cd34c]"
-              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-            >
-              <option value="All">All Shifts</option>
-              {(shifts || []).map((s) => (
-                <option key={s.id} value={s.name}>
-                  {s.name}
-                </option>
+                    <h4 className="font-bold text-sm" style={{ color: "var(--app-text)" }}>
+                      {item.title}
+                    </h4>
+
+                    {item.next_shift_instructions && (
+                      <div className="rounded-xl border p-2.5 text-xs bg-[#ff6b6b]/10 border-[#ff6b6b]/30 text-[#ff8080]">
+                        <strong className="block mb-0.5 text-[#ff6b6b]">What next shift should do:</strong>
+                        <p className="whitespace-pre-wrap">{item.next_shift_instructions}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* FILTER & SEARCH BAR */}
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-2xl border p-4 shadow-md backdrop-blur" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+            {/* Status Filter Tabs */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+              {["All", "Ongoing", "Monitoring", "Resolved"].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setStatusFilter(tab)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                    statusFilter === tab
+                      ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-sm"
+                      : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+                  }`}
+                >
+                  {tab === "All" ? `All Issues (${issues.length})` : tab}
+                </button>
               ))}
-            </select>
+
+              <label className="ml-3 flex items-center gap-2 text-xs font-semibold cursor-pointer select-none border-l pl-3 border-[var(--panel-border)] whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={carryForwardOnly}
+                  onChange={(e) => setCarryForwardOnly(e.target.checked)}
+                  className="rounded accent-[#4cd34c] h-4 w-4"
+                />
+                <span style={{ color: carryForwardOnly ? "#ff6b6b" : "var(--app-text)" }}>
+                  Priority / Carry Forward Only ⚡
+                </span>
+              </label>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative min-w-[240px]">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by Title, Ref #, Agent..."
+                className="w-full rounded-xl border py-2 pl-9 pr-3 text-xs font-medium focus:outline-none focus:border-[#4cd34c]"
+                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+              />
+              <img src="/search.png" alt="Search" className="absolute left-3 top-2.5 h-3.5 w-3.5 object-contain opacity-60" />
+            </div>
           </div>
 
-          <label className="ml-3 flex items-center gap-2 text-xs font-semibold cursor-pointer select-none border-l pl-3 border-[var(--panel-border)] whitespace-nowrap">
-            <input
-              type="checkbox"
-              checked={carryForwardOnly}
-              onChange={(e) => setCarryForwardOnly(e.target.checked)}
-              className="rounded accent-[#4cd34c] h-4 w-4"
-            />
-            <span style={{ color: carryForwardOnly ? "#ff6b6b" : "var(--app-text)" }}>
-              Priority / Carry Forward Only ⚡
-            </span>
-          </label>
-        </div>
+          {/* COMPACT ISSUES CARDS GRID */}
+          {loading ? (
+            <div className="text-center py-12" style={{ color: "var(--text-muted)" }}>
+              <span className="inline-block animate-spin text-2xl mb-2">⏳</span>
+              <p className="text-sm font-medium">Loading shift register records...</p>
+            </div>
+          ) : filteredIssues.length === 0 ? (
+            <div className="rounded-3xl border p-12 text-center shadow-inner space-y-3" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+              <div className="text-4xl">📋</div>
+              <h3 className="text-lg font-bold" style={{ color: "var(--app-text)" }}>
+                No shift issues found
+              </h3>
+              <p className="text-xs max-w-md mx-auto" style={{ color: "var(--text-muted)" }}>
+                No records match your active filters or search terms. Click '+ Record Issue' above to log a new issue.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredIssues.map((issue) => {
+                const shiftIcon = getShiftIcon(issue.shift_name);
 
-        {/* Search Bar */}
-        <div className="relative min-w-[240px]">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by Title, Ref #, Agent..."
-            className="w-full rounded-xl border py-2 pl-9 pr-3 text-xs font-medium focus:outline-none focus:border-[#4cd34c]"
-            style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-          />
-          <img src="/search.png" alt="Search" className="absolute left-3 top-2.5 h-3.5 w-3.5 object-contain opacity-60" />
+                return (
+                  <div
+                    key={issue.id}
+                    className={`rounded-2xl border p-4 shadow-md backdrop-blur transition-all space-y-3 flex flex-col justify-between ${
+                      issue.carry_forward && issue.status !== "Resolved"
+                        ? "border-[#f1c84b]/50 bg-gradient-to-r from-[#f1c84b]/5 via-transparent to-transparent"
+                        : ""
+                    }`}
+                    style={{
+                      borderColor: issue.carry_forward && issue.status !== "Resolved" ? undefined : "var(--panel-border)",
+                      backgroundColor: "var(--panel-bg)",
+                    }}
+                  >
+                    {/* Compact Card Header */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-[#4cd34c]/15 text-[#4cd34c] border border-[#4cd34c]/30 shadow-sm">
+                          {issue.reference_no || `#SIR-${issue.id}`}
+                        </span>
+
+                        <div className="flex items-center gap-1.5">
+                          {issue.carry_forward && (
+                            <span className="rounded-full border px-2 py-0.5 text-[10px] font-bold border-[#ff6b6b]/40 bg-[#ff6b6b]/10 text-[#ff6b6b]">
+                              Priority ⚡
+                            </span>
+                          )}
+
+                          <span
+                            className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
+                              issue.status === "Resolved"
+                                ? "border-[#4cd34c]/40 bg-[#4cd34c]/10 text-[#4cd34c]"
+                                : issue.status === "Monitoring"
+                                  ? "border-[#f1c84b]/40 bg-[#f1c84b]/10 text-[#f1c84b]"
+                                  : "border-[#ff6b6b]/40 bg-[#ff6b6b]/10 text-[#ff6b6b]"
+                            }`}
+                          >
+                            ● {issue.status}
+                          </span>
+                        </div>
+                      </div>
+
+                      <h3 className="font-bold text-base line-clamp-2" style={{ color: "var(--app-text)" }}>
+                        {issue.title}
+                      </h3>
+
+                      <div className="flex items-center gap-2 text-[11px] font-medium text-[var(--text-muted)]">
+                        <span>{shiftIcon} {issue.shift_name || "General Shift"}</span>
+                        <span>•</span>
+                        <span>Noticed: <strong>{issue.time_noticed}</strong></span>
+                      </div>
+                    </div>
+
+                    {/* Compact Description & Actions */}
+                    <div className="space-y-2 text-xs">
+                      <div className="rounded-xl border p-2.5 space-y-0.5" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                        <span className="font-bold text-[#4cd34c] uppercase text-[9px] block">Description</span>
+                        <p className="line-clamp-3 font-medium text-[var(--app-text)]">
+                          {issue.description}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border p-2.5 space-y-0.5" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                        <span className="font-bold text-[#4cd34c] uppercase text-[9px] block">Actions Taken</span>
+                        <p className="line-clamp-2 font-medium text-[var(--app-text)]">
+                          {issue.actions_taken}
+                        </p>
+                      </div>
+
+                      {issue.customer_response && (
+                        <div className="rounded-xl border p-2 text-xs bg-[#4cd34c]/5 border-[#4cd34c]/30">
+                          <span className="font-bold text-[#4cd34c] uppercase text-[9px] block">💬 Customer Response:</span>
+                          <p className="line-clamp-2 font-medium text-emerald-300">"{issue.customer_response}"</p>
+                        </div>
+                      )}
+
+                      {issue.next_shift_instructions && (
+                        <div className="rounded-xl border p-2 text-xs bg-[#ff6b6b]/10 border-[#ff6b6b]/30 text-[#ff8080]">
+                          <strong className="block text-[9px] text-[#ff6b6b] uppercase font-bold">Next Shift Action:</strong>
+                          <p className="line-clamp-2">{issue.next_shift_instructions}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Compact Footer */}
+                    <div className="flex items-center justify-between pt-2 border-t border-[var(--panel-border)] text-[11px] text-[var(--text-muted)]">
+                      <div>
+                        <span>Logged by: <strong>{issue.logged_by_initials || issue.logged_by_name}</strong></span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleOpenEditModal(issue)}
+                          className="px-2 py-0.5 rounded-lg border text-[11px] font-semibold hover:opacity-80 transition"
+                          style={{ borderColor: "var(--badge-border)" }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteIssue(issue.id)}
+                          className="px-2 py-0.5 rounded-lg border text-[11px] font-semibold hover:bg-[#ff6b6b]/10 hover:text-[#ff6b6b] transition"
+                          style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ISSUES LIST / CARDS GRID */}
-      {loading ? (
-        <div className="text-center py-12" style={{ color: "var(--text-muted)" }}>
-          <span className="inline-block animate-spin text-2xl mb-2">⏳</span>
-          <p className="text-sm font-medium">Loading shift register records...</p>
-        </div>
-      ) : filteredIssues.length === 0 ? (
-        <div className="rounded-3xl border p-12 text-center shadow-inner space-y-3" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
-          <div className="text-4xl">📋</div>
-          <h3 className="text-lg font-bold" style={{ color: "var(--app-text)" }}>
-            No shift issues found
-          </h3>
-          <p className="text-xs max-w-md mx-auto" style={{ color: "var(--text-muted)" }}>
-            {searchTerm || statusFilter !== "All" || carryForwardOnly
-              ? "No records match your active filters or search terms."
-              : "No issues recorded yet for this shift. Click '+ Record Issue' above to log a new issue."}
-          </p>
-          {(searchTerm || statusFilter !== "All" || carryForwardOnly) && (
-            <button
-              onClick={() => {
-                setSearchTerm("");
-                setStatusFilter("All");
-                setCarryForwardOnly(false);
-              }}
-              className="mt-2 text-xs text-[#4cd34c] underline font-bold"
-            >
-              Reset Filters
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {filteredIssues.map((issue) => (
-            <div
-              key={issue.id}
-              className={`rounded-3xl border p-6 shadow-md backdrop-blur transition-all space-y-4 ${
-                issue.carry_forward && issue.status !== "Resolved"
-                  ? "border-[#f1c84b]/50 bg-gradient-to-r from-[#f1c84b]/5 via-transparent to-transparent"
-                  : ""
-              }`}
-              style={{
-                borderColor: issue.carry_forward && issue.status !== "Resolved" ? undefined : "var(--panel-border)",
-                backgroundColor: "var(--panel-bg)",
-              }}
-            >
-              {/* Card Header */}
-              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between border-b pb-3" style={{ borderColor: "var(--panel-border)" }}>
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-xs font-extrabold px-3 py-1 rounded-full bg-[#4cd34c]/15 text-[#4cd34c] border border-[#4cd34c]/30 shadow-sm">
-                    {issue.reference_no || `#SIR-${issue.id}`}
-                  </span>
-                  <h3 className="text-lg font-bold" style={{ color: "var(--app-text)" }}>
-                    {issue.title}
-                  </h3>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {/* Carry Forward Badge */}
-                  {issue.carry_forward && (
-                    <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-bold border-[#ff6b6b]/40 bg-[#ff6b6b]/10 text-[#ff6b6b]">
-                      Next Shift Priority ⚡
-                    </span>
-                  )}
-
-                  {/* Status Badge */}
-                  <span
-                    className={`rounded-full border px-3 py-0.5 text-xs font-bold ${
-                      issue.status === "Resolved"
-                        ? "border-[#4cd34c]/40 bg-[#4cd34c]/10 text-[#4cd34c]"
-                        : issue.status === "Monitoring"
-                          ? "border-[#f1c84b]/40 bg-[#f1c84b]/10 text-[#f1c84b]"
-                          : "border-[#ff6b6b]/40 bg-[#ff6b6b]/10 text-[#ff6b6b]"
-                    }`}
-                  >
-                    ● {issue.status}
-                  </span>
-
-                  {/* Edit / Delete Buttons */}
-                  <div className="ml-2 flex items-center gap-1.5">
-                    <button
-                      onClick={() => handleOpenEditModal(issue)}
-                      className="px-2.5 py-1 rounded-xl border text-xs font-semibold hover:opacity-80 transition"
-                      style={{ borderColor: "var(--badge-border)" }}
-                      title="Edit issue details"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteIssue(issue.id)}
-                      className="px-2.5 py-1 rounded-xl border text-xs font-semibold hover:bg-[#ff6b6b]/10 hover:text-[#ff6b6b] transition"
-                      style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
-                      title="Delete record"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Details Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                {/* Description */}
-                <div className="rounded-2xl border p-3.5 space-y-1" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
-                  <span className="font-bold text-[#4cd34c] uppercase tracking-wider text-[10px]">Description of Issue</span>
-                  <p className="whitespace-pre-wrap font-medium" style={{ color: "var(--app-text)" }}>
-                    {issue.description}
-                  </p>
-                </div>
-
-                {/* Actions Taken */}
-                <div className="rounded-2xl border p-3.5 space-y-1" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
-                  <span className="font-bold text-[#4cd34c] uppercase tracking-wider text-[10px]">Actions Taken</span>
-                  <p className="whitespace-pre-wrap font-medium" style={{ color: "var(--app-text)" }}>
-                    {issue.actions_taken}
-                  </p>
-                </div>
-              </div>
-
-              {/* Optional Response given to customer */}
-              {issue.customer_response && (
-                <div className="rounded-2xl border p-3.5 text-xs bg-[#4cd34c]/5 border-[#4cd34c]/30">
-                  <span className="font-bold text-[#4cd34c] uppercase tracking-wider text-[10px] block mb-1">
-                    💬 Customer Given Response:
-                  </span>
-                  <p className="whitespace-pre-wrap font-medium text-emerald-300">
-                    "{issue.customer_response}"
-                  </p>
-                </div>
-              )}
-
-              {/* Next Shift Instructions (If carried forward) */}
-              {issue.carry_forward && issue.next_shift_instructions && (
-                <div className="rounded-2xl border p-3.5 text-xs bg-[#f1c84b]/10 border-[#f1c84b]/40 text-[#f1c84b]">
-                  <span className="font-bold uppercase tracking-wider text-[10px] block mb-1">
-                    📌 What Next Shift Should Know / Do:
-                  </span>
-                  <p className="whitespace-pre-wrap font-semibold">
-                    {issue.next_shift_instructions}
-                  </p>
-                </div>
-              )}
-
-              {/* Card Footer Metadata */}
-              <div className="flex flex-wrap items-center justify-between pt-2 border-t text-[11px]" style={{ borderColor: "var(--panel-border)", color: "var(--text-muted)" }}>
-                <div className="flex items-center gap-4">
-                  <span>First Noticed: <strong className="text-[var(--app-text)]">{issue.time_noticed}</strong></span>
-                  <span>Escalated To: <strong className="text-[var(--app-text)]">{issue.escalated_to || "None"}</strong></span>
-                  {issue.shift_name && <span>Shift: <strong className="text-[var(--app-text)]">{issue.shift_name}</strong></span>}
-                </div>
-
-                <div>
-                  Logged by: <strong className="text-[#4cd34c]">{issue.logged_by_name} ({issue.logged_by_initials})</strong>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* RECORD / EDIT ISSUE MODAL */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
           <div
