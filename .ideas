@@ -22,3 +22,12 @@ Admin_DashBoard Screen
 Tech_Esclation Screen
 1. Order Alphabetically the templates in the comboBox.
 2. Auto-fill for {day} and {month_number} field with the current correct values as according to the current date in real life.
+
+More feature
+1. Need a suggestions Screen from which all the other non-admin agents are able to either provide specific communication messages that they rather found useful/relevant and but would like for them to be added to the templates library for other agents to also use it ( or just for the team lead  aka manager to review and approve of that template message). This would ensure all the time all across agents and shifts standardized communication.
+2. Need a favourites and/or most used and recent used screen for the agents
+
+
+MF
+1. Pinned sections for the whole team with pinned du
+2. Photo text detector for particularly simple transaction id extraction (and maybe verification through scanning and using given cues for whether the message is associated with the company or not) 

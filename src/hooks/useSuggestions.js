@@ -76,8 +76,10 @@ export function useSuggestions({ activeScreen, apiStatus, currentAgent, refreshT
           await refreshSuggestions();
           showToast("Template suggestion submitted for review! 💡");
         } catch (fetchErr) {
-          if (fetchErr instanceof Error && fetchErr.message && fetchErr.message !== "Failed to fetch") {
-            throw fetchErr;
+          const msg = fetchErr instanceof Error ? fetchErr.message : "";
+          if (msg && !msg.toLowerCase().includes("fetch") && !msg.toLowerCase().includes("networkerror")) {
+            setError(msg);
+            return;
           }
         }
       }

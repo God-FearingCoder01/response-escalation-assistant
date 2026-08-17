@@ -323,7 +323,7 @@ export async function createTemplateApi(payload) {
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
-    throw new Error(errData?.detail || "Failed to create template");
+    throw new Error(parseApiError(errData, "Failed to create template"));
   }
   return await res.json();
 }
@@ -336,7 +336,7 @@ export async function updateTemplateApi(id, payload) {
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
-    throw new Error(errData?.detail || "Failed to update template");
+    throw new Error(parseApiError(errData, "Failed to update template"));
   }
   return await res.json();
 }
@@ -348,7 +348,7 @@ export async function deleteTemplateApi(id) {
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
-    throw new Error(errData?.detail || "Failed to delete template");
+    throw new Error(parseApiError(errData, "Failed to delete template"));
   }
   return true;
 }
@@ -361,7 +361,7 @@ export async function importTemplatesApi(payload) {
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
-    throw new Error(errData?.detail || "Import failed");
+    throw new Error(parseApiError(errData, "Import failed"));
   }
   return await res.json();
 }
@@ -378,7 +378,7 @@ export async function createAgentApi(payload) {
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
-    throw new Error(errData?.detail || "Failed to create agent");
+    throw new Error(parseApiError(errData, "Failed to create agent"));
   }
   return await res.json();
 }
@@ -391,7 +391,7 @@ export async function updateAgentApi(id, payload) {
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
-    throw new Error(errData?.detail || "Failed to update agent");
+    throw new Error(parseApiError(errData, "Failed to update agent"));
   }
   return await res.json();
 }
@@ -403,7 +403,7 @@ export async function deleteAgentApi(id) {
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
-    throw new Error(errData?.detail || "Failed to delete agent");
+    throw new Error(parseApiError(errData, "Failed to delete agent"));
   }
   return true;
 }
@@ -430,7 +430,7 @@ export async function createSuggestionApi(payload) {
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
-    throw new Error(errData?.detail || "Failed to submit suggestion");
+    throw new Error(parseApiError(errData, "Failed to submit suggestion"));
   }
   return await res.json();
 }
@@ -442,7 +442,7 @@ export async function approveSuggestionApi(id) {
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => null);
-    throw new Error(errData?.detail || "Approval failed");
+    throw new Error(parseApiError(errData, "Approval failed"));
   }
   return await res.json();
 }

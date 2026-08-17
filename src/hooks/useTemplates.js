@@ -282,10 +282,23 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
             handleResetTemplateForm();
             return;
           } catch (err) {
-            if (err instanceof Error && err.message === "Failed to fetch") {
-              // Fallback to local offline mode
+            const errMsg = err instanceof Error ? err.message : "";
+            if (errMsg.includes("Template not found") || errMsg.includes("404")) {
+              try {
+                const created = await createTemplateApi(payload);
+                setTemplates((curr) => curr.map((t) => (t.id === editTplId ? created : t)));
+                showToast("Template saved successfully! 📝");
+                handleResetTemplateForm();
+                return;
+              } catch (createErr) {
+                showToast(`Error: ${createErr instanceof Error ? createErr.message : "Failed to save template"} ⚠️`);
+                return;
+              }
+            }
+            if (errMsg.toLowerCase().includes("fetch") || errMsg.toLowerCase().includes("networkerror")) {
+              // Fallback to local offline mode below
             } else {
-              showToast(`Error: ${err instanceof Error ? err.message : "Template update failed"} ⚠️`);
+              showToast(`Error: ${errMsg || "Template update failed"} ⚠️`);
               return;
             }
           }
@@ -303,10 +316,11 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
             handleResetTemplateForm();
             return;
           } catch (err) {
-            if (err instanceof Error && err.message === "Failed to fetch") {
-              // Fallback to local offline mode
+            const errMsg = err instanceof Error ? err.message : "";
+            if (errMsg.toLowerCase().includes("fetch") || errMsg.toLowerCase().includes("networkerror")) {
+              // Fallback to local offline mode below
             } else {
-              showToast(`Error: ${err instanceof Error ? err.message : "Failed to create template"} ⚠️`);
+              showToast(`Error: ${errMsg || "Failed to create template"} ⚠️`);
               return;
             }
           }

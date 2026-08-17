@@ -51,7 +51,7 @@ export default function TechEscalation({
           >
             {(techTemplates || []).map((t) => (
               <option key={t.id} value={t.id}>
-                {t.name}{t.category && t.category !== "tech_escalation" ? ` (${t.category})` : ""}
+                {t.name}
               </option>
             ))}
           </select>

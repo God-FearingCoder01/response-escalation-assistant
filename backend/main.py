@@ -185,6 +185,23 @@ def require_admin(
             if comp:
                 target_company_id = comp.id
 
+        if token_str:
+            payload = verify_admin_token(token_str)
+            if payload:
+                sub = payload.get("sub")
+                if sub == "SUPERADMIN":
+                    return
+                if sub:
+                    stmt = select(Agent).where(Agent.is_admin == True)
+                    if target_company_id is not None:
+                        comp_admins = session.exec(stmt.where(Agent.company_id == target_company_id)).all()
+                        if not comp_admins:
+                            comp_admins = session.exec(stmt).all()
+                    else:
+                        comp_admins = session.exec(stmt).all()
+                    if any(a.agent_initials.upper() == sub.upper() for a in comp_admins):
+                        return
+
         stmt = select(Agent).where(Agent.is_admin == True)
         if target_company_id is not None:
             stmt = stmt.where(Agent.company_id == target_company_id)
@@ -203,17 +220,7 @@ def require_admin(
 
         authenticated = False
 
-        if token_str:
-            payload = verify_admin_token(token_str)
-            if payload:
-                token_initials = payload.get("sub")
-                if token_initials:
-                    for agent in admin_agents:
-                        if agent.agent_initials.upper() == token_initials.upper():
-                            authenticated = True
-                            break
-
-        if not authenticated and pin_str:
+        if pin_str:
             for agent in admin_agents:
                 expected_hash = agent.pin or hash_pin("0000")
                 if verify_pin_hash(pin_str, expected_hash):
