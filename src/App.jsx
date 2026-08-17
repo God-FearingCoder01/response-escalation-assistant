@@ -76,7 +76,9 @@ export default function App() {
     adminConfirmPin = "",
     setAdminConfirmPin,
     pinSuccessMsg = "",
+    setPinSuccessMsg,
     pinErrorMsg = "",
+    setPinErrorMsg,
     handleChangeAdminPin,
     editAgentId = null,
     setEditAgentId,
@@ -124,8 +126,17 @@ export default function App() {
     return () => window.removeEventListener("popstate", syncRouteWithState);
   }, [syncRouteWithState]);
 
+  // Auto-clear global top error notification bar after 6 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(""), 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
   // Navigate helper that syncs URL history
   const handleNavigate = (screen) => {
+    setError("");
     if (screen !== "monitor") {
       setIsSuperAdminAuth(false);
     }
@@ -148,6 +159,7 @@ export default function App() {
   };
 
   const handleSwitchCompanyAndEnter = (companyIdOrSlug) => {
+    setError("");
     switchCompany(companyIdOrSlug);
     if (activeScreen === "monitor") {
       setActiveScreen(currentAgent ? "tech_escalation" : "welcome");
@@ -159,6 +171,7 @@ export default function App() {
   const {
     showToast = () => {},
     toast = { show: false, message: "" },
+    setToast,
     favoriteIds = [],
     usageCounts = {},
     recentlyUsed = [],
@@ -420,6 +433,7 @@ export default function App() {
           currentAgent={currentAgent}
           statusMessage={statusMessage}
           error={error}
+          setError={setError}
           companies={companies}
           activeCompanyId={activeCompanyId}
           switchCompany={handleSwitchCompanyAndEnter}
@@ -543,7 +557,9 @@ export default function App() {
           adminConfirmPin={adminConfirmPin}
           setAdminConfirmPin={setAdminConfirmPin}
           pinSuccessMsg={pinSuccessMsg}
+          setPinSuccessMsg={setPinSuccessMsg}
           pinErrorMsg={pinErrorMsg}
+          setPinErrorMsg={setPinErrorMsg}
           handleChangeAdminPin={handleChangeAdminPin}
         />
 
@@ -600,7 +616,7 @@ export default function App() {
         )}
       </div>
 
-      <Toast toast={toast} />
+      <Toast toast={toast} onClose={() => setToast?.({ show: false, message: "" })} />
     </div>
   );
 }

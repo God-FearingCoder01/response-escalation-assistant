@@ -5,6 +5,7 @@ export default function HeaderStatusBar({
   currentAgent,
   statusMessage,
   error,
+  setError,
   companies = [],
   activeCompanyId = 1,
   switchCompany = () => {},
@@ -114,14 +115,26 @@ export default function HeaderStatusBar({
 
       {error ? (
         <div
-          className="mb-4 rounded-2xl border px-4 py-3 text-sm"
+          className="mb-4 flex items-center justify-between rounded-2xl border px-4 py-3 text-sm shadow-md transition-all"
           style={{
             borderColor: "var(--error-border)",
             backgroundColor: "var(--error-bg)",
             color: "var(--error-text)",
           }}
         >
-          {error}
+          <div className="flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{error}</span>
+          </div>
+          {setError && (
+            <button
+              onClick={() => setError("")}
+              className="ml-4 font-bold opacity-75 hover:opacity-100 transition"
+              title="Dismiss error"
+            >
+              ✕
+            </button>
+          )}
         </div>
       ) : null}
     </>

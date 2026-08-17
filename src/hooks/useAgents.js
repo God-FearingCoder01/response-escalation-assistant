@@ -56,6 +56,21 @@ export function useAgents({ apiStatus, showToast }) {
   const [pinSuccessMsg, setPinSuccessMsg] = useState("");
   const [pinErrorMsg, setPinErrorMsg] = useState("");
 
+  // Auto-clear PIN change notifications after 4-5 seconds
+  useEffect(() => {
+    if (pinSuccessMsg) {
+      const timer = setTimeout(() => setPinSuccessMsg(""), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [pinSuccessMsg]);
+
+  useEffect(() => {
+    if (pinErrorMsg) {
+      const timer = setTimeout(() => setPinErrorMsg(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [pinErrorMsg]);
+
   // Auto-generate initials from agent full name unless manually customized
   useEffect(() => {
     if (!userCustomizedInitials && editAgentFullName) {
@@ -357,7 +372,9 @@ export function useAgents({ apiStatus, showToast }) {
     adminConfirmPin,
     setAdminConfirmPin,
     pinSuccessMsg,
+    setPinSuccessMsg,
     pinErrorMsg,
+    setPinErrorMsg,
     handleChangeAdminPin,
     // Agent CRUD
     editAgentId,

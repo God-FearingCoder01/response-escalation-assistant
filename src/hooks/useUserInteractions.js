@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   API_BASE,
   fetchFavoritesApi,
@@ -12,10 +12,14 @@ export function useUserInteractions({ currentAgent, apiStatus }) {
   const [favoriteIds, setFavoriteIds] = useState([]);
   const [usageCounts, setUsageCounts] = useState({});
   const [recentlyUsed, setRecentlyUsed] = useState([]);
+  const toastTimerRef = useRef(null);
 
   function showToast(message = "Copied to clipboard!") {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
     setToast({ show: true, message });
-    setTimeout(() => {
+    toastTimerRef.current = setTimeout(() => {
       setToast({ show: false, message: "" });
     }, 2800);
   }
@@ -141,6 +145,7 @@ export function useUserInteractions({ currentAgent, apiStatus }) {
 
   return {
     toast,
+    setToast,
     showToast,
     favoriteIds,
     setFavoriteIds,

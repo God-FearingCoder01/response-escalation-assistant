@@ -53,7 +53,9 @@ export default function AdminDashboard({
   adminConfirmPin,
   setAdminConfirmPin,
   pinSuccessMsg,
+  setPinSuccessMsg,
   pinErrorMsg,
+  setPinErrorMsg,
   handleChangeAdminPin,
 }) {
   const fileRef = useRef(null);
@@ -638,14 +640,33 @@ export default function AdminDashboard({
           </div>
 
           {pinSuccessMsg ? (
-            <div className="rounded-xl border px-3 py-2 text-xs font-semibold text-[#4cd34c] border-[#4cd34c]/40 bg-[#4cd34c]/10">
-              {pinSuccessMsg}
+            <div className="flex items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold text-[#4cd34c] border-[#4cd34c]/40 bg-[#4cd34c]/10">
+              <span>{pinSuccessMsg}</span>
+              <button
+                type="button"
+                onClick={() => setPinSuccessMsg?.("")}
+                className="ml-2 font-bold opacity-70 hover:opacity-100 transition"
+                title="Dismiss message"
+              >
+                ✕
+              </button>
             </div>
           ) : null}
 
           {pinErrorMsg ? (
-            <div className="rounded-xl border px-3 py-2 text-xs font-semibold" style={{ borderColor: "var(--error-border)", backgroundColor: "var(--error-bg)", color: "var(--error-text)" }}>
-              {pinErrorMsg}
+            <div
+              className="flex items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold"
+              style={{ borderColor: "var(--error-border)", backgroundColor: "var(--error-bg)", color: "var(--error-text)" }}
+            >
+              <span>{pinErrorMsg}</span>
+              <button
+                type="button"
+                onClick={() => setPinErrorMsg?.("")}
+                className="ml-2 font-bold opacity-70 hover:opacity-100 transition"
+                title="Dismiss error"
+              >
+                ✕
+              </button>
             </div>
           ) : null}
 
