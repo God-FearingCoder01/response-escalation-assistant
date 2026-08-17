@@ -487,29 +487,36 @@ def get_current_company(
 ) -> Company:
     ensure_db_initialized()
     with Session(engine) as session:
+        comp = None
         if x_company_id:
             try:
                 cid = int(x_company_id)
                 comp = session.get(Company, cid)
-                if comp and comp.is_active:
-                    return comp
+                if comp and not comp.is_active:
+                    comp = None
             except ValueError:
                 pass
 
-        if x_company_slug:
+        if not comp and x_company_slug:
             comp = session.exec(
                 select(Company).where(Company.slug == x_company_slug.lower(), Company.is_active == True)
             ).first()
-            if comp:
-                return comp
 
-        comp = session.get(Company, 1)
+        if not comp:
+            comp = session.get(Company, 1)
         if not comp:
             comp = session.exec(select(Company).where(Company.is_active == True)).first()
         if not comp:
             raise HTTPException(status_code=404, detail="No active organization found")
-        return comp
 
+        return Company(
+            id=comp.id,
+            name=comp.name,
+            slug=comp.slug,
+            is_active=comp.is_active,
+            created_at=comp.created_at,
+            updated_at=comp.updated_at,
+        )
 
 
 _db_initialized = False
@@ -860,22 +867,22 @@ def update_company(company_id: int, payload: CompanyUpdate):
 
 @app.get("/templates", response_model=List[TemplateRead])
 def list_templates(company: Company = Depends(get_current_company)):
+    cid = company.id if company and company.id else 1
     with Session(engine) as session:
         return session.exec(
             select(Template)
-            .where(Template.company_id == company.id)
+            .where(Template.company_id == cid)
             .order_by(col(Template.updated_at).desc())
         ).all()
 
 
 @app.post("/templates", response_model=TemplateRead, dependencies=[Depends(require_admin)])
 def create_template(template: TemplateCreate, company: Company = Depends(get_current_company)):
-    if company.id is None:
-        raise HTTPException(status_code=400, detail="Invalid company ID")
+    cid = company.id if company and company.id else 1
     with Session(engine) as session:
         existing = session.exec(
             select(Template).where(
-                col(Template.company_id) == company.id,
+                col(Template.company_id) == cid,
                 col(Template.category_type) == template.category_type,
                 col(Template.name) == template.name,
                 col(Template.category) == template.category,
@@ -893,7 +900,7 @@ def create_template(template: TemplateCreate, company: Company = Depends(get_cur
             category_type=template.category_type,
             category=template.category,
             subcategory=template.subcategory,
-            company_id=company.id,
+            company_id=cid,
             created_at=now,
             updated_at=now,
         )
@@ -905,18 +912,20 @@ def create_template(template: TemplateCreate, company: Company = Depends(get_cur
 
 @app.get("/templates/{template_id}", response_model=TemplateRead)
 def get_template(template_id: int, company: Company = Depends(get_current_company)):
+    cid = company.id if company and company.id else 1
     with Session(engine) as session:
         template = session.get(Template, template_id)
-        if not template or template.company_id != company.id:
+        if not template or template.company_id != cid:
             raise HTTPException(status_code=404, detail="Template not found")
         return template
 
 
 @app.put("/templates/{template_id}", response_model=TemplateRead, dependencies=[Depends(require_admin)])
 def update_template(template_id: int, incoming: TemplateUpdate, company: Company = Depends(get_current_company)):
+    cid = company.id if company and company.id else 1
     with Session(engine) as session:
         existing = session.get(Template, template_id)
-        if not existing or existing.company_id != company.id:
+        if not existing or existing.company_id != cid:
             raise HTTPException(status_code=404, detail="Template not found")
         if incoming.name is not None:
             existing.name = incoming.name
@@ -937,9 +946,10 @@ def update_template(template_id: int, incoming: TemplateUpdate, company: Company
 
 @app.delete("/templates/{template_id}", dependencies=[Depends(require_admin)])
 def delete_template(template_id: int, company: Company = Depends(get_current_company)):
+    cid = company.id if company and company.id else 1
     with Session(engine) as session:
         existing = session.get(Template, template_id)
-        if not existing or existing.company_id != company.id:
+        if not existing or existing.company_id != cid:
             raise HTTPException(status_code=404, detail="Template not found")
         session.delete(existing)
         session.commit()
@@ -948,21 +958,21 @@ def delete_template(template_id: int, company: Company = Depends(get_current_com
 
 @app.get("/export", response_model=List[TemplateRead])
 def export_templates(company: Company = Depends(get_current_company)):
+    cid = company.id if company and company.id else 1
     with Session(engine) as session:
         return session.exec(
             select(Template)
-            .where(Template.company_id == company.id)
+            .where(Template.company_id == cid)
             .order_by(col(Template.updated_at).desc())
         ).all()
 
 
 @app.post("/import", dependencies=[Depends(require_admin)])
 def import_templates(items: List[TemplateCreate], company: Company = Depends(get_current_company)):
-    if company.id is None:
-        raise HTTPException(status_code=400, detail="Invalid company ID")
+    cid = company.id if company and company.id else 1
     with Session(engine) as session:
         existing_templates = session.exec(
-            select(Template).where(Template.company_id == company.id)
+            select(Template).where(Template.company_id == cid)
         ).all()
         seen = set(
             (
@@ -994,7 +1004,7 @@ def import_templates(items: List[TemplateCreate], company: Company = Depends(get
                     category_type=item.category_type,
                     category=item.category,
                     subcategory=item.subcategory,
-                    company_id=company.id,
+                    company_id=cid,
                     created_at=now,
                     updated_at=now,
                 )
@@ -1010,10 +1020,11 @@ def import_templates(items: List[TemplateCreate], company: Company = Depends(get
 
 @app.post("/templates/deduplicate", dependencies=[Depends(require_admin)])
 def deduplicate_templates(company: Company = Depends(get_current_company)):
+    cid = company.id if company and company.id else 1
     with Session(engine) as session:
         all_templates = session.exec(
             select(Template)
-            .where(Template.company_id == company.id)
+            .where(Template.company_id == cid)
             .order_by(col(Template.id).asc())
         ).all()
         seen = set()
@@ -1045,16 +1056,16 @@ def deduplicate_templates(company: Company = Depends(get_current_company)):
 # Agent endpoints
 @app.get("/agents", response_model=List[AgentRead])
 def list_agents(company: Company = Depends(get_current_company)):
+    cid = company.id if company and company.id else 1
     with Session(engine) as session:
         return session.exec(
-            select(Agent).where(Agent.company_id == company.id).order_by(col(Agent.id).asc())
+            select(Agent).where(Agent.company_id == cid).order_by(col(Agent.id).asc())
         ).all()
 
 
 @app.post("/agents", response_model=AgentRead, dependencies=[Depends(require_admin)])
 def create_agent(agent: AgentCreate, company: Company = Depends(get_current_company)):
-    if company.id is None:
-        raise HTTPException(status_code=400, detail="Invalid company ID")
+    cid = company.id if company and company.id else 1
     with Session(engine) as session:
         now = datetime.now(timezone.utc)
         db_agent = Agent(
@@ -1063,7 +1074,7 @@ def create_agent(agent: AgentCreate, company: Company = Depends(get_current_comp
             agent_initials=agent.agent_initials.upper(),
             is_admin=agent.is_admin,
             pin=hash_pin(agent.pin or "0000"),
-            company_id=company.id,
+            company_id=cid,
             created_at=now,
             updated_at=now,
         )
@@ -1075,9 +1086,10 @@ def create_agent(agent: AgentCreate, company: Company = Depends(get_current_comp
 
 @app.put("/agents/{agent_id}", response_model=AgentRead, dependencies=[Depends(require_admin)])
 def update_agent(agent_id: int, incoming: AgentUpdate, company: Company = Depends(get_current_company)):
+    cid = company.id if company and company.id else 1
     with Session(engine) as session:
         existing = session.get(Agent, agent_id)
-        if not existing or existing.company_id != company.id:
+        if not existing or existing.company_id != cid:
             raise HTTPException(status_code=404, detail="Agent not found")
         if (existing.agent_initials == "SA" or existing.agent_name == "Sys_Admin") and incoming.is_admin is False:
             raise HTTPException(
@@ -1103,9 +1115,10 @@ def update_agent(agent_id: int, incoming: AgentUpdate, company: Company = Depend
 
 @app.delete("/agents/{agent_id}", dependencies=[Depends(require_admin)])
 def delete_agent(agent_id: int, company: Company = Depends(get_current_company)):
+    cid = company.id if company and company.id else 1
     with Session(engine) as session:
         existing = session.get(Agent, agent_id)
-        if not existing or existing.company_id != company.id:
+        if not existing or existing.company_id != cid:
             raise HTTPException(status_code=404, detail="Agent not found")
         if existing.agent_initials == "SA" or existing.agent_name == "Sys_Admin":
             raise HTTPException(
@@ -1114,7 +1127,7 @@ def delete_agent(agent_id: int, company: Company = Depends(get_current_company))
             )
         if existing.is_admin:
             admin_count = len(
-                session.exec(select(Agent).where(Agent.company_id == company.id, Agent.is_admin == True)).all()
+                session.exec(select(Agent).where(Agent.company_id == cid, Agent.is_admin == True)).all()
             )
             if admin_count <= 1:
                 raise HTTPException(
@@ -1128,21 +1141,22 @@ def delete_agent(agent_id: int, company: Company = Depends(get_current_company))
 
 @app.post("/agents/verify-pin")
 def verify_agent_pin(req: PinVerifyRequest, request: Request, company: Company = Depends(get_current_company)):
+    cid = company.id if company and company.id else 1
     client_ip = request.client.host if request.client else "unknown"
-    rate_key = f"{client_ip}:{company.id}:{req.agent_initials.upper()}"
+    rate_key = f"{client_ip}:{cid}:{req.agent_initials.upper()}"
     check_pin_rate_limit(rate_key)
 
     with Session(engine) as session:
         agent = session.exec(
             select(Agent).where(
-                Agent.company_id == company.id,
+                Agent.company_id == cid,
                 Agent.agent_initials == req.agent_initials.upper(),
             )
         ).first()
         if not agent:
             agent = session.exec(
                 select(Agent).where(
-                    Agent.company_id == company.id,
+                    Agent.company_id == cid,
                     Agent.is_admin == True,
                 )
             ).first()
@@ -1177,21 +1191,33 @@ def verify_agent_pin(req: PinVerifyRequest, request: Request, company: Company =
 
 @app.get("/suggestions", response_model=List[SuggestionRead])
 def get_suggestions(company: Company = Depends(get_current_company)):
+    cid = company.id if company and company.id else 1
     with Session(engine) as session:
         return session.exec(
             select(Suggestion)
-            .where(Suggestion.company_id == company.id)
+            .where(Suggestion.company_id == cid)
             .order_by(col(Suggestion.created_at).desc())
         ).all()
 
 
 @app.post("/suggestions", response_model=SuggestionRead)
 def create_suggestion(payload: SuggestionCreate, company: Company = Depends(get_current_company)):
-    if company.id is None:
-        raise HTTPException(status_code=400, detail="Invalid company ID")
+    cid = company.id if company and company.id else 1
     with Session(engine) as session:
-        suggestion = Suggestion.model_validate(payload)
-        suggestion.company_id = company.id
+        now = datetime.now(timezone.utc)
+        suggestion = Suggestion(
+            name=payload.name.strip(),
+            body=payload.body.strip(),
+            category_type=payload.category_type or "tech_escalation",
+            category=payload.category.strip() if payload.category else None,
+            subcategory=payload.subcategory.strip() if payload.subcategory else None,
+            suggested_by_name=payload.suggested_by_name or "Support Agent",
+            suggested_by_initials=(payload.suggested_by_initials or "SA").upper(),
+            status=payload.status or "pending",
+            company_id=cid,
+            created_at=now,
+            updated_at=now,
+        )
         session.add(suggestion)
         session.commit()
         session.refresh(suggestion)
@@ -1200,25 +1226,27 @@ def create_suggestion(payload: SuggestionCreate, company: Company = Depends(get_
 
 @app.post("/suggestions/{suggestion_id}/approve", response_model=TemplateRead, dependencies=[Depends(require_admin)])
 def approve_suggestion(suggestion_id: int, company: Company = Depends(get_current_company)):
-    if company.id is None:
-        raise HTTPException(status_code=400, detail="Invalid company ID")
+    cid = company.id if company and company.id else 1
     with Session(engine) as session:
         sug = session.get(Suggestion, suggestion_id)
-        if not sug or sug.company_id != company.id:
+        if not sug or sug.company_id != cid:
             raise HTTPException(status_code=404, detail="Suggestion not found")
 
+        now = datetime.now(timezone.utc)
         new_tpl = Template(
             name=sug.name,
             body=sug.body,
             category_type=sug.category_type,
             category=sug.category,
             subcategory=sug.subcategory,
-            company_id=company.id,
+            company_id=cid,
+            created_at=now,
+            updated_at=now,
         )
         session.add(new_tpl)
 
         sug.status = "approved"
-        sug.updated_at = datetime.now(timezone.utc)
+        sug.updated_at = now
         session.add(sug)
 
         session.commit()
@@ -1228,9 +1256,10 @@ def approve_suggestion(suggestion_id: int, company: Company = Depends(get_curren
 
 @app.post("/suggestions/{suggestion_id}/reject", response_model=SuggestionRead, dependencies=[Depends(require_admin)])
 def reject_suggestion(suggestion_id: int, company: Company = Depends(get_current_company)):
+    cid = company.id if company and company.id else 1
     with Session(engine) as session:
         sug = session.get(Suggestion, suggestion_id)
-        if not sug or sug.company_id != company.id:
+        if not sug or sug.company_id != cid:
             raise HTTPException(status_code=404, detail="Suggestion not found")
         sug.status = "rejected"
         sug.updated_at = datetime.now(timezone.utc)
@@ -1242,9 +1271,10 @@ def reject_suggestion(suggestion_id: int, company: Company = Depends(get_current
 
 @app.delete("/suggestions/{suggestion_id}", dependencies=[Depends(require_admin)])
 def delete_suggestion(suggestion_id: int, company: Company = Depends(get_current_company)):
+    cid = company.id if company and company.id else 1
     with Session(engine) as session:
         sug = session.get(Suggestion, suggestion_id)
-        if not sug or sug.company_id != company.id:
+        if not sug or sug.company_id != cid:
             raise HTTPException(status_code=404, detail="Suggestion not found")
         session.delete(sug)
         session.commit()

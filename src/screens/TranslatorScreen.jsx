@@ -16,6 +16,7 @@ export default function TranslatorScreen({
     isTranslating,
     translationProvider,
     history,
+    addToHistory,
     handleSwapLanguages,
     handleTranslate,
     handleSelectPreset,
@@ -36,6 +37,9 @@ export default function TranslatorScreen({
   const handleCopyTranslated = () => {
     if (!translatedText) return;
     copyText(translatedText);
+    if (sourceText && sourceText.trim()) {
+      addToHistory?.(sourceText, translatedText, sourceLang, targetLang);
+    }
     setCopied(true);
     showToast?.("Translated text copied to clipboard!");
     setTimeout(() => setCopied(false), 2000);

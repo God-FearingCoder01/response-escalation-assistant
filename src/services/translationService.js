@@ -109,6 +109,18 @@ const REVERSE_NDEBELE_DICTIONARY = Object.entries(SUPPORT_NDEBELE_DICTIONARY).re
   return acc;
 }, {});
 
+export function truncateToMaxBytes(str, maxBytes = 500) {
+  if (!str) return "";
+  if (typeof TextEncoder !== "undefined" && typeof TextDecoder !== "undefined") {
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(str);
+    if (bytes.length <= maxBytes) return str;
+    const decoder = new TextDecoder("utf-8");
+    return decoder.decode(bytes.slice(0, maxBytes));
+  }
+  return str.slice(0, maxBytes);
+}
+
 /**
  * Translate text between English, Shona, and IsiNdebele
  * @param {string} text - Source text
@@ -168,18 +180,6 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
   } catch (err) {
     console.warn("Backend translation API unavailable, trying client fallback:", err);
   }
-
-export function truncateToMaxBytes(str, maxBytes = 500) {
-  if (!str) return "";
-  if (typeof TextEncoder !== "undefined" && typeof TextDecoder !== "undefined") {
-    const encoder = new TextEncoder();
-    const bytes = encoder.encode(str);
-    if (bytes.length <= maxBytes) return str;
-    const decoder = new TextDecoder("utf-8");
-    return decoder.decode(bytes.slice(0, maxBytes));
-  }
-  return str.slice(0, maxBytes);
-}
 
   // 3. Fallback: Call MyMemory API directly from client (with Zulu fallback for IsiNdebele)
   const langPairsToTry = [

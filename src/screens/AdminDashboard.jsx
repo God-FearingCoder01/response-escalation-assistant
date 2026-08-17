@@ -373,8 +373,8 @@ export default function AdminDashboard({
                                   }))
                                 }
                                 className={`rounded-xl border px-3 py-1 text-xs font-medium shrink-0 transition ${isSubActive
-                                    ? "bg-[#4cd34c] text-[#071007] font-bold border-[#4cd34c] shadow-sm"
-                                    : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+                                  ? "bg-[#4cd34c] text-[#071007] font-bold border-[#4cd34c] shadow-sm"
+                                  : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
                                   }`}
                                 style={{ borderColor: isSubActive ? "#4cd34c" : "var(--badge-border)" }}
                               >
