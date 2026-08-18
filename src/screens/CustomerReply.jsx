@@ -334,7 +334,7 @@ export default function CustomerReply({
                           )}
                         </select>
                       ) : controlType === "number" ? (
-                        (isMonthNumberField || isDayField || cfg?.auto_fill_type === "month_number" || cfg?.auto_fill_type === "day_number" || ["month_number", "month_num", "month", "mm", "day_number", "day_num", "day", "dd"].includes(ph.toLowerCase())) ? (
+                        (isMonthNumberField || isDayField || customCfg?.auto_fill_type === "month_number" || customCfg?.auto_fill_type === "day_number" || ["month_number", "month_num", "month", "mm", "day_number", "day_num", "day", "dd"].includes(ph.toLowerCase())) ? (
                           <div className="flex items-center rounded-xl border overflow-hidden" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
                             <input
                               type="text"
@@ -351,7 +351,7 @@ export default function CustomerReply({
                                   return;
                                 }
                                 let n = parseInt(digits, 10);
-                                const maxVal = (isMonthNumberField || cfg?.auto_fill_type === "month_number" || ["month_number", "month_num", "month", "mm"].includes(ph.toLowerCase())) ? 12 : 31;
+                                const maxVal = (isMonthNumberField || customCfg?.auto_fill_type === "month_number" || ["month_number", "month_num", "month", "mm"].includes(ph.toLowerCase())) ? 12 : 31;
                                 if (n > maxVal) n = maxVal;
                                 setValues((s) => ({ ...s, [ph]: String(n).padStart(2, "0") }));
                               }}
@@ -363,7 +363,7 @@ export default function CustomerReply({
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const maxVal = (isMonthNumberField || cfg?.auto_fill_type === "month_number" || ["month_number", "month_num", "month", "mm"].includes(ph.toLowerCase())) ? 12 : 31;
+                                  const maxVal = (isMonthNumberField || customCfg?.auto_fill_type === "month_number" || ["month_number", "month_num", "month", "mm"].includes(ph.toLowerCase())) ? 12 : 31;
                                   const current = parseInt(valMap[ph] ?? autoVal ?? "1", 10) || 1;
                                   let next = current + 1;
                                   if (next > maxVal) next = 1;
@@ -377,7 +377,7 @@ export default function CustomerReply({
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const maxVal = (isMonthNumberField || cfg?.auto_fill_type === "month_number" || ["month_number", "month_num", "month", "mm"].includes(ph.toLowerCase())) ? 12 : 31;
+                                  const maxVal = (isMonthNumberField || customCfg?.auto_fill_type === "month_number" || ["month_number", "month_num", "month", "mm"].includes(ph.toLowerCase())) ? 12 : 31;
                                   const current = parseInt(valMap[ph] ?? autoVal ?? "1", 10) || 1;
                                   let next = current - 1;
                                   if (next < 1) next = maxVal;
