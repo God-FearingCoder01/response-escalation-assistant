@@ -433,7 +433,7 @@ export default function AdminDashboard({
                                   className="w-full rounded-lg border p-1.5 text-xs font-semibold focus:outline-none focus:border-[#4cd34c]"
                                   style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                                 >
-                                  <option value="default">Default Slashes (2026/08/12 07:29)</option>
+                                  <option value="default">Default Slashes (12/08/2026 07:29)</option>
                                   <option value="YYYY/MM/DD HH:mm">YYYY/MM/DD HH:mm (2026/08/12 07:29)</option>
                                   <option value="DD/MM/YYYY HH:mm">DD/MM/YYYY HH:mm (12/08/2026 07:29)</option>
                                   <option value="YYYY-MM-DD HH:mm">YYYY-MM-DD HH:mm (2026-08-12 07:29)</option>

@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import * as XLSX from "xlsx";
 
 export default function ShiftRegisterScreen({
   activeScreen,
@@ -30,6 +31,7 @@ export default function ShiftRegisterScreen({
   const [showModal, setShowModal] = useState(false);
   const [editIssueId, setEditIssueId] = useState(null);
   const [viewDetailIssue, setViewDetailIssue] = useState(null);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Form Fields
   const [title, setTitle] = useState("");
@@ -128,6 +130,229 @@ export default function ShiftRegisterScreen({
 
     setShowModal(false);
     resetForm();
+  };
+
+  // --- EXPORT HANDLERS ---
+  const handleExportExcel = () => {
+    try {
+      const now = new Date();
+      const currentMonthName = now.toLocaleString("default", { month: "long" });
+      const currentYear = now.getFullYear();
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const periodLabel = `1–${lastDay} ${currentMonthName} ${currentYear}`;
+
+      const totalIssuesCount = issues.length;
+      const resolvedCount = issues.filter((i) => i.status === "Resolved").length;
+      const ongoingCount = issues.filter((i) => i.status === "Ongoing").length;
+      const monitoringCount = issues.filter((i) => i.status === "Monitoring").length;
+      const escalatedCount = issues.filter((i) => i.escalated_to && i.escalated_to !== "None").length;
+
+      const morningCount = issues.filter((i) => (i.shift_name || "").toLowerCase().includes("morning")).length;
+      const afternoonCount = issues.filter((i) => (i.shift_name || "").toLowerCase().includes("afternoon")).length;
+
+      // Sheet 1 --- Summary
+      const summaryData = [
+        ["SIR MANAGEMENT SUMMARY"],
+        [""],
+        ["Reporting period:", periodLabel],
+        [""],
+        ["Metric", "Count"],
+        ["Total Issues", totalIssuesCount],
+        ["Resolved", resolvedCount],
+        ["Ongoing", ongoingCount],
+        ["Monitoring", monitoringCount],
+        ["Escalated", escalatedCount],
+        [""],
+        ["Shift Breakdown", "Count"],
+        ["Morning Shift Issues", morningCount],
+        ["Afternoon Shift Issues", afternoonCount],
+      ];
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+
+      // Sheet 2 --- Issue Register (All detail records)
+      const registerRows = (issues || []).map((item) => ({
+        "Reference No": item.reference_no || `#SIR-${item.id}`,
+        "Title": item.title,
+        "Status": item.status,
+        "Shift": item.shift_name || "N/A",
+        "Time Noticed": item.time_noticed,
+        "Description": item.description,
+        "Actions Taken": item.actions_taken,
+        "Customer Given Response": item.customer_response || "",
+        "Escalated To": item.escalated_to || "None",
+        "Priority / Carry Forward": item.carry_forward ? "Yes" : "No",
+        "Next Shift Instructions": item.next_shift_instructions || "",
+        "Logged By Agent": `${item.logged_by_name || "Agent"} (${item.logged_by_initials || "AG"})`,
+        "Created Date": item.created_at ? new Date(item.created_at).toLocaleString() : "",
+      }));
+      const registerSheet = XLSX.utils.json_to_sheet(registerRows);
+
+      // Sheet 3 --- Issue Trends
+      const trendsMap = {
+        Payments: 0,
+        Technical: 0,
+        Network: 0,
+        Accounts: 0,
+        Other: 0,
+      };
+
+      (issues || []).forEach((item) => {
+        const text = `${item.title} ${item.description} ${item.escalated_to}`.toLowerCase();
+        if (text.includes("pay") || text.includes("ecocash") || text.includes("billing") || text.includes("deposit") || text.includes("withdraw") || text.includes("bank") || text.includes("money")) {
+          trendsMap.Payments += 1;
+        } else if (text.includes("tech") || text.includes("system") || text.includes("bug") || text.includes("error") || text.includes("login") || text.includes("app") || text.includes("portal")) {
+          trendsMap.Technical += 1;
+        } else if (text.includes("net") || text.includes("signal") || text.includes("connection") || text.includes("server") || text.includes("down") || text.includes("offline")) {
+          trendsMap.Network += 1;
+        } else if (text.includes("account") || text.includes("verify") || text.includes("pin") || text.includes("kyc") || text.includes("profile") || text.includes("password")) {
+          trendsMap.Accounts += 1;
+        } else {
+          trendsMap.Other += 1;
+        }
+      });
+
+      const trendsData = [
+        ["Category", "Occurrences"],
+        ...Object.entries(trendsMap).map(([category, occurrences]) => [category, occurrences]),
+      ];
+      const trendsSheet = XLSX.utils.aoa_to_sheet(trendsData);
+
+      // Build & Download Workbook
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, summarySheet, "Summary");
+      XLSX.utils.book_append_sheet(wb, registerSheet, "Issue Register");
+      XLSX.utils.book_append_sheet(wb, trendsSheet, "Issue Trends");
+
+      XLSX.writeFile(wb, `SIR_Excel_Workbook_${currentMonthName}_${currentYear}.xlsx`);
+      setShowExportModal(false);
+    } catch (e) {
+      console.error("Error exporting Excel workbook:", e);
+      alert("Failed to export Excel workbook. Please try again.");
+    }
+  };
+
+  const handleExportManagementReport = () => {
+    try {
+      const now = new Date();
+      const currentMonthName = now.toLocaleString("default", { month: "long" });
+      const currentYear = now.getFullYear();
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const periodLabel = `1–${lastDay} ${currentMonthName} ${currentYear}`;
+
+      const totalIssuesCount = issues.length;
+      const resolvedCount = issues.filter((i) => i.status === "Resolved").length;
+      const ongoingCount = issues.filter((i) => i.status === "Ongoing").length;
+      const monitoringCount = issues.filter((i) => i.status === "Monitoring").length;
+      const escalatedCount = issues.filter((i) => i.escalated_to && i.escalated_to !== "None").length;
+
+      const morningCount = issues.filter((i) => (i.shift_name || "").toLowerCase().includes("morning")).length;
+      const afternoonCount = issues.filter((i) => (i.shift_name || "").toLowerCase().includes("afternoon")).length;
+
+      const trendsMap = { Payments: 0, Technical: 0, Network: 0, Accounts: 0, Other: 0 };
+      (issues || []).forEach((item) => {
+        const text = `${item.title} ${item.description} ${item.escalated_to}`.toLowerCase();
+        if (text.includes("pay") || text.includes("ecocash") || text.includes("billing") || text.includes("deposit") || text.includes("withdraw")) trendsMap.Payments += 1;
+        else if (text.includes("tech") || text.includes("system") || text.includes("bug") || text.includes("error") || text.includes("login")) trendsMap.Technical += 1;
+        else if (text.includes("net") || text.includes("signal") || text.includes("connection") || text.includes("server")) trendsMap.Network += 1;
+        else if (text.includes("account") || text.includes("verify") || text.includes("pin") || text.includes("kyc")) trendsMap.Accounts += 1;
+        else trendsMap.Other += 1;
+      });
+
+      const reportContent = `=====================================================
+SIR MANAGEMENT SUMMARY REPORT
+=====================================================
+Reporting Period: ${periodLabel}
+Generated On: ${now.toISOString().slice(0, 10)}
+
+-----------------------------------------------------
+1. EXECUTIVE METRICS SUMMARY
+-----------------------------------------------------
+Total Issues Recorded:      ${totalIssuesCount}
+  - Resolved:               ${resolvedCount} (${totalIssuesCount ? Math.round((resolvedCount / totalIssuesCount) * 100) : 0}%)
+  - Ongoing:                 ${ongoingCount} (${totalIssuesCount ? Math.round((ongoingCount / totalIssuesCount) * 100) : 0}%)
+  - Monitoring:              ${monitoringCount} (${totalIssuesCount ? Math.round((monitoringCount / totalIssuesCount) * 100) : 0}%)
+  - Escalated to Seniors:    ${escalatedCount} (${totalIssuesCount ? Math.round((escalatedCount / totalIssuesCount) * 100) : 0}%)
+
+-----------------------------------------------------
+2. SHIFT BREAKDOWN
+-----------------------------------------------------
+  - Morning Shift Issues:     ${morningCount}
+  - Afternoon Shift Issues:   ${afternoonCount}
+
+-----------------------------------------------------
+3. TOP ISSUE TRENDS
+-----------------------------------------------------
+  - Payments:               ${trendsMap.Payments} occurrences
+  - Technical:              ${trendsMap.Technical} occurrences
+  - Network:                ${trendsMap.Network} occurrences
+  - Accounts:               ${trendsMap.Accounts} occurrences
+  - Other:                  ${trendsMap.Other} occurrences
+
+=====================================================
+RESPONSE ESCALATION ASSISTANT - SHIFT ISSUE REGISTER
+=====================================================`;
+
+      const blob = new Blob([reportContent], { type: "text/plain;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `SIR_Management_Report_${currentMonthName}_${currentYear}.txt`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setShowExportModal(false);
+    } catch (e) {
+      console.error("Error generating management report:", e);
+      alert("Failed to export Management Report. Please try again.");
+    }
+  };
+
+  const handleExportCSV = () => {
+    try {
+      const headers = [
+        "Reference No",
+        "Title",
+        "Status",
+        "Shift",
+        "Time Noticed",
+        "Description",
+        "Actions Taken",
+        "Customer Response",
+        "Escalated To",
+        "Priority / Carry Forward",
+        "Logged By",
+        "Created Date",
+      ];
+
+      const rows = (issues || []).map((i) => [
+        `"${(i.reference_no || `#SIR-${i.id}`).replace(/"/g, '""')}"`,
+        `"${(i.title || "").replace(/"/g, '""')}"`,
+        `"${(i.status || "").replace(/"/g, '""')}"`,
+        `"${(i.shift_name || "").replace(/"/g, '""')}"`,
+        `"${(i.time_noticed || "").replace(/"/g, '""')}"`,
+        `"${(i.description || "").replace(/"/g, '""')}"`,
+        `"${(i.actions_taken || "").replace(/"/g, '""')}"`,
+        `"${(i.customer_response || "").replace(/"/g, '""')}"`,
+        `"${(i.escalated_to || "None").replace(/"/g, '""')}"`,
+        `"${i.carry_forward ? "Yes" : "No"}"`,
+        `"${(i.logged_by_name || "Agent").replace(/"/g, '""')}"`,
+        `"${i.created_at ? new Date(i.created_at).toLocaleString() : ""}"`,
+      ]);
+
+      const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `SIR_Issue_Register_Raw_Data_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setShowExportModal(false);
+    } catch (e) {
+      console.error("Error exporting CSV:", e);
+      alert("Failed to export CSV. Please try again.");
+    }
   };
 
   const [selectedDateFilter, setSelectedDateFilter] = useState("All");
@@ -259,6 +484,15 @@ export default function ShiftRegisterScreen({
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="px-4 py-3 rounded-2xl border text-xs font-extrabold backdrop-blur shadow-sm transition hover:scale-[1.02] active:scale-95 flex items-center gap-2"
+            style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
+          >
+            <span className="text-sm">📥</span>
+            <span>Export Shift Issues</span>
+          </button>
+
           <button
             onClick={handleOpenRecordModal}
             className="px-6 py-3 rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-sm font-extrabold shadow-lg transition hover:scale-[1.02] active:scale-95 flex items-center gap-2"
@@ -736,6 +970,101 @@ export default function ShiftRegisterScreen({
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EXPORT SHIFT ISSUES MODAL */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+          <div
+            className="w-full max-w-md rounded-3xl border p-6 shadow-2xl space-y-5"
+            style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
+          >
+            <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
+              <h3 className="text-lg font-extrabold flex items-center gap-2">
+                <span>📥</span>
+                <span>Export Shift Issues</span>
+              </h3>
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="text-lg font-bold opacity-60 hover:opacity-100 transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {/* Option 1: Excel Workbook (.xlsx) */}
+              <button
+                onClick={handleExportExcel}
+                className="w-full text-left rounded-2xl border p-4 transition-all hover:scale-[1.01] hover:border-[#4cd34c] bg-[var(--field-bg)] space-y-1 group"
+                style={{ borderColor: "var(--field-border)" }}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-sm flex items-center gap-2 group-hover:text-[#4cd34c] transition">
+                    <span>📊</span>
+                    <span>Excel Workbook (.xlsx)</span>
+                  </span>
+                  <span className="text-[11px] font-extrabold text-[#4cd34c] bg-[#4cd34c]/10 px-2 py-0.5 rounded-full border border-[#4cd34c]/30">
+                    3 Worksheets
+                  </span>
+                </div>
+                <p className="text-xs opacity-75 pl-6" style={{ color: "var(--text-muted)" }}>
+                  Complete issue records with Summary, Issue Register & Trends worksheets
+                </p>
+              </button>
+
+              {/* Option 2: Management Report (.txt) */}
+              <button
+                onClick={handleExportManagementReport}
+                className="w-full text-left rounded-2xl border p-4 transition-all hover:scale-[1.01] hover:border-[#4cd34c] bg-[var(--field-bg)] space-y-1 group"
+                style={{ borderColor: "var(--field-border)" }}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-sm flex items-center gap-2 group-hover:text-[#4cd34c] transition">
+                    <span>📄</span>
+                    <span>Management Report</span>
+                  </span>
+                  <span className="text-[11px] font-extrabold text-[#4cd34c] bg-[#4cd34c]/10 px-2 py-0.5 rounded-full border border-[#4cd34c]/30">
+                    Executive
+                  </span>
+                </div>
+                <p className="text-xs opacity-75 pl-6" style={{ color: "var(--text-muted)" }}>
+                  Executive summary report suitable for management briefings
+                </p>
+              </button>
+
+              {/* Option 3: CSV Data (.csv) */}
+              <button
+                onClick={handleExportCSV}
+                className="w-full text-left rounded-2xl border p-4 transition-all hover:scale-[1.01] hover:border-[#4cd34c] bg-[var(--field-bg)] space-y-1 group"
+                style={{ borderColor: "var(--field-border)" }}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-sm flex items-center gap-2 group-hover:text-[#4cd34c] transition">
+                    <span>📋</span>
+                    <span>CSV Data (.csv)</span>
+                  </span>
+                  <span className="text-[11px] font-extrabold text-[#4cd34c] bg-[#4cd34c]/10 px-2 py-0.5 rounded-full border border-[#4cd34c]/30">
+                    Raw Data
+                  </span>
+                </div>
+                <p className="text-xs opacity-75 pl-6" style={{ color: "var(--text-muted)" }}>
+                  Raw data file for further database or spreadsheet processing
+                </p>
+              </button>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t" style={{ borderColor: "var(--panel-border)" }}>
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="px-4 py-2 rounded-xl border text-xs font-bold hover:opacity-80 transition"
+                style={{ borderColor: "var(--badge-border)" }}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
