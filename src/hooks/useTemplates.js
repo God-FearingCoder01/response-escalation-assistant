@@ -8,6 +8,7 @@ import {
   importTemplatesApi,
   getDateAutoValues,
   formatDateTimeString,
+  resolveConditionalMappings,
 } from "../services/api";
 
 export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteIds, usageCounts, recentlyUsed, showToast }) {
@@ -244,9 +245,12 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
       });
     }
 
-    const allKeys = new Set([...Object.keys(autoMap), ...Object.keys(customConfigAutoMap), ...Object.keys(values)]);
+    // Resolve conditional mappings (e.g. {animal?} -> {:game})
+    const { resolvedValues } = resolveConditionalMappings(placeholders, parsedConfig, values);
+
+    const allKeys = new Set([...Object.keys(autoMap), ...Object.keys(customConfigAutoMap), ...Object.keys(resolvedValues)]);
     for (const key of allKeys) {
-      let rawVal = values[key] ?? customConfigAutoMap[key] ?? autoMap[key] ?? "";
+      let rawVal = resolvedValues[key] ?? customConfigAutoMap[key] ?? autoMap[key] ?? "";
       const cfg = parsedConfig[key];
       const ctrlType = cfg?.control_type || (key === "date" ? "date" : key === "time" ? "time" : "datetime");
 

@@ -1,4 +1,4 @@
-import { getDateAutoValues } from "../services/api";
+import { getDateAutoValues, resolveConditionalMappings } from "../services/api";
 
 export default function QuickAccess({
   activeScreen,
@@ -232,64 +232,86 @@ export default function QuickAccess({
               </span>
             ) : null}
           </div>
+          {(() => {
+            let parsedCfgMap = {};
+            if (activeTemplate?.placeholder_config) {
+              try {
+                parsedCfgMap = typeof activeTemplate.placeholder_config === "string"
+                  ? JSON.parse(activeTemplate.placeholder_config)
+                  : activeTemplate.placeholder_config;
+              } catch (e) {}
+            }
+            const { resolvedValues, mappedTargetKeys } = resolveConditionalMappings(phList, parsedCfgMap, values);
+            const visiblePlaceholders = (phList || []).filter((ph) => !mappedTargetKeys.has(ph));
 
-          {/* Parameters inputs for Quick Access */}
-          {phList.length > 0 ? (
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1 border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
-              <label className="text-[11px] font-semibold uppercase tracking-wider block" style={{ color: "var(--text-muted)" }}>
-                Fill Template Parameters:
-              </label>
-              {phList.map((ph) => {
-                const dateAuto = getDateAutoValues();
-                let customCfg = null;
-                if (activeTemplate?.placeholder_config) {
-                  try {
-                    const parsed = typeof activeTemplate.placeholder_config === "string"
-                      ? JSON.parse(activeTemplate.placeholder_config)
-                      : activeTemplate.placeholder_config;
-                    customCfg = parsed[ph] || null;
-                  } catch (e) {
-                    customCfg = null;
+            return visiblePlaceholders.length > 0 ? (
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1 border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
+                <label className="text-[11px] font-semibold uppercase tracking-wider block" style={{ color: "var(--text-muted)" }}>
+                  Fill Template Parameters:
+                </label>
+                {visiblePlaceholders.map((ph) => {
+                  const dateAuto = getDateAutoValues();
+                  const customCfg = parsedCfgMap[ph] || null;
+
+                  const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
+                  const isDateField = dateAuto[ph] !== undefined;
+                  const isTimeUnitField = /^time_unit/i.test(ph);
+                  const isReasonField = ph.toLowerCase().includes("reason") || ph.toLowerCase().includes("details") || ph.toLowerCase().includes("note") || ph.toLowerCase().includes("description");
+                  const isDayField = ph === "day" || ph === "day_number" || ph === "day_num" || ph === "dd";
+                  const isMonthNumberField = ph === "month_number" || ph === "month_num" || ph === "month" || ph === "mm";
+
+                  let controlType = customCfg?.control_type || (
+                    ph.endsWith("?") ? "combobox" :
+                    isReasonField ? "textarea" :
+                    isTimeUnitField ? "time_units_select" :
+                    isDayField || isMonthNumberField ? "number" :
+                    "text"
+                  );
+
+                  let autoVal = "";
+                  if (customCfg?.auto_fill_type === "date_day") autoVal = dateAuto.day;
+                  else if (customCfg?.auto_fill_type === "date_month") autoVal = dateAuto.month_number;
+                  else if (customCfg?.auto_fill_type === "date_year") autoVal = dateAuto.year;
+                  else if (customCfg?.auto_fill_type === "date_time") autoVal = dateAuto.time;
+                  else if (customCfg?.auto_fill_type === "agent_name") autoVal = currentAgent?.agent_name ?? "";
+                  else if (customCfg?.auto_fill_type === "agent_initials") autoVal = currentAgent?.agent_initials ?? "";
+                  else if (customCfg?.auto_fill_type === "custom") autoVal = customCfg.custom_default ?? "";
+                  else if (isAgentField) autoVal = ph === "agent_initials" ? currentAgent?.agent_initials : currentAgent?.agent_name;
+                  else if (isDateField) autoVal = dateAuto[ph];
+                  else if (isTimeUnitField) autoVal = "hour(s)";
+
+                  let options = Array.isArray(customCfg?.options) ? customCfg.options : [];
+                  if (options.length === 0 && ph.endsWith("?")) {
+                    options = ["Elephant", "Rhino", "Lion", "Buffalo", "Leopard"];
                   }
-                }
 
-                const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
-                const isDateField = dateAuto[ph] !== undefined;
-                const isTimeUnitField = /^time_unit/i.test(ph);
-                const isReasonField = ph.toLowerCase().includes("reason") || ph.toLowerCase().includes("details") || ph.toLowerCase().includes("note") || ph.toLowerCase().includes("description");
-                const isDayField = ph === "day" || ph === "day_number" || ph === "day_num" || ph === "dd";
-                const isMonthNumberField = ph === "month_number" || ph === "month_num" || ph === "month" || ph === "mm";
+                  const targetKey = customCfg?.mapped_target || (ph.endsWith("?") ? `:${ph.replace(/\?$/, "")}` : null);
+                  const autoMappedVal = targetKey ? resolvedValues[targetKey] : null;
 
-                let controlType = customCfg?.control_type || (
-                  isReasonField ? "textarea" :
-                  isTimeUnitField ? "time_units_select" :
-                  isDayField || isMonthNumberField ? "number" :
-                  "text"
-                );
-
-                let autoVal = "";
-                if (customCfg?.auto_fill_type === "date_day") autoVal = dateAuto.day;
-                else if (customCfg?.auto_fill_type === "date_month") autoVal = dateAuto.month_number;
-                else if (customCfg?.auto_fill_type === "date_year") autoVal = dateAuto.year;
-                else if (customCfg?.auto_fill_type === "date_time") autoVal = dateAuto.time;
-                else if (customCfg?.auto_fill_type === "agent_name") autoVal = currentAgent?.agent_name ?? "";
-                else if (customCfg?.auto_fill_type === "agent_initials") autoVal = currentAgent?.agent_initials ?? "";
-                else if (customCfg?.auto_fill_type === "custom") autoVal = customCfg.custom_default ?? "";
-                else if (isAgentField) autoVal = ph === "agent_initials" ? currentAgent?.agent_initials : currentAgent?.agent_name;
-                else if (isDateField) autoVal = dateAuto[ph];
-                else if (isTimeUnitField) autoVal = "hour(s)";
-
-                const options = Array.isArray(customCfg?.options) ? customCfg.options : [];
-
-                return (
-                  <div key={ph}>
-                    <div className="flex justify-between items-center mb-0.5">
-                      <span className="text-xs capitalize font-medium" style={{ color: "var(--text-muted)" }}>
-                        {ph.replace("_", " ")}:
-                      </span>
-                    </div>
-
-                    {controlType === "combobox" ? (
+                  return (
+                    <div key={ph}>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs capitalize font-medium" style={{ color: "var(--text-muted)" }}>
+                          {ph.replace("_", " ")}:
+                        </span>
+                        {targetKey && autoMappedVal ? (
+                          <span className="text-[10px] text-[#4cd34c] font-extrabold bg-[#4cd34c]/15 px-2 py-0.5 rounded-full border border-[#4cd34c]/30">
+                            ⚡ Auto-maps {targetKey} ➔ "{autoMappedVal}"
+                          </span>
+                        ) : customCfg ? (
+                          <span className="text-[10px] text-[#4cd34c] font-semibold">Configured: {controlType}</span>
+                        ) : isAgentField ? (
+                          <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from profile</span>
+                        ) : isDayField || isMonthNumberField ? (
+                          <span className="text-[10px] text-[#4cd34c] font-semibold">Numeric up/down (Auto-filled)</span>
+                        ) : isDateField ? (
+                          <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from date</span>
+                        ) : isTimeUnitField ? (
+                          <span className="text-[10px] text-[#4cd34c] font-semibold">Preset dropdown</span>
+                        ) : isReasonField ? (
+                          <span className="text-[10px] text-[#4cd34c] font-semibold">Multi-line resizable text</span>
+                        ) : null}
+                      </div>      {controlType === "combobox" ? (
                       <select
                         value={values[ph] ?? (options[0] || autoVal)}
                         onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
@@ -459,10 +481,11 @@ export default function QuickAccess({
                       />
                     )}
                   </div>
-                );
-              })}
-            </div>
-          ) : null}
+                  );
+                })}
+              </div>
+            ) : null;
+          })()}
 
           <div
             className="rounded-2xl border p-4 min-h-[10rem] max-h-[22rem] overflow-y-auto break-words [overflow-wrap:anywhere] font-mono text-sm leading-relaxed"

@@ -71,6 +71,28 @@ export const DEFAULT_TEMPLATES = [
     category: "Payment Escalations",
     subcategory: "Withdrawal",
   },
+  {
+    id: 5,
+    name: "Big Five Game Free Spins Escalation",
+    body: "Account number {account_number} completed {animal?} on Big Five but has not seen his free spins on {:game}",
+    category_type: "tech_escalation",
+    category: "Game Escalations",
+    subcategory: "Free Spins",
+    placeholder_config: JSON.stringify({
+      "animal?": {
+        control_type: "combobox",
+        mapped_target: ":game",
+        options: ["Elephant", "Rhino", "Lion", "Buffalo", "Leopard"],
+        mapping: {
+          Elephant: "Big Game Slot",
+          Rhino: "Stampede Slot",
+          Lion: "King Jungle Slot",
+          Buffalo: "Buffalo Gold",
+          Leopard: "Leopard Riches",
+        },
+      },
+    }),
+  },
   // Customer Reply Templates
   {
     id: 5,
@@ -236,6 +258,58 @@ export function getDateAutoValues() {
     minute: min,
     minutes: min,
   };
+}
+
+export function resolveConditionalMappings(placeholders = [], parsedConfig = {}, values = {}) {
+  const resolvedValues = { ...values };
+  const mappedTargetKeys = new Set();
+
+  (placeholders || []).forEach((ph) => {
+    const cfg = parsedConfig?.[ph];
+    const isTrigger = ph.endsWith("?") || Boolean(cfg?.mapped_target);
+
+    if (isTrigger) {
+      let targetKey = cfg?.mapped_target;
+      if (!targetKey) {
+        const baseName = ph.replace(/\?$/, "");
+        const foundTarget = (placeholders || []).find(
+          (p) => p === `:${baseName}` || p.startsWith(":") || (p.startsWith(":") && p.slice(1) === baseName)
+        );
+        targetKey = foundTarget || `:${baseName}`;
+      }
+
+      if (targetKey) {
+        mappedTargetKeys.add(targetKey);
+        const triggerVal = resolvedValues[ph] ?? cfg?.options?.[0] ?? "";
+        let mappedVal = "";
+
+        if (cfg?.mapping && typeof cfg.mapping === "object" && triggerVal) {
+          mappedVal = cfg.mapping[triggerVal] || "";
+        } else if (Array.isArray(cfg?.options) && Array.isArray(cfg?.mapped_options) && triggerVal) {
+          const idx = cfg.options.indexOf(triggerVal);
+          if (idx !== -1 && cfg.mapped_options[idx]) {
+            mappedVal = cfg.mapped_options[idx];
+          }
+        }
+
+        // Default pairwise fallbacks if not explicitly defined in config
+        if (!mappedVal && triggerVal) {
+          const defaultGameMap = {
+            Elephant: "Big Game Slot",
+            Rhino: "Stampede Slot",
+            Lion: "King Jungle Slot",
+            Buffalo: "Buffalo Gold",
+            Leopard: "Leopard Riches",
+          };
+          mappedVal = defaultGameMap[triggerVal] || `${triggerVal} Game`;
+        }
+
+        resolvedValues[targetKey] = mappedVal;
+      }
+    }
+  });
+
+  return { resolvedValues, mappedTargetKeys };
 }
 
 // Helper fetch wrapper checking json content-type safely
