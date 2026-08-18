@@ -758,24 +758,17 @@ def reset_company_admin_pin(payload: CompanyAdminPinReset):
             if len(clean_pin) != 4 or not clean_pin.isdigit():
                 raise HTTPException(status_code=400, detail="PIN must be exactly 4 digits")
 
-            try:
-                cid = int(payload.company_id)
-            except (ValueError, TypeError):
-                raise HTTPException(status_code=400, detail="Invalid company_id")
+            cid = payload.company_id
 
             comp = session.get(Company, cid)
             if not comp or comp.id is None:
                 raise HTTPException(status_code=404, detail="Company not found")
 
-            company_id_val = int(comp.id)
+            company_id_val = comp.id
 
             stmt = select(Agent).where(Agent.company_id == company_id_val, Agent.is_admin == True)
-            if payload.agent_id:
-                try:
-                    aid = int(payload.agent_id)
-                    stmt = stmt.where(Agent.id == aid)
-                except (ValueError, TypeError):
-                    pass
+            if payload.agent_id is not None:
+                stmt = stmt.where(Agent.id == payload.agent_id)
 
             admin_agents = session.exec(stmt).all()
             if not admin_agents:
@@ -868,7 +861,7 @@ def create_company(payload: CompanyCreate):
         session.refresh(comp)
         if comp.id is None:
             raise HTTPException(status_code=500, detail="Failed to retrieve company ID after creation")
-        comp_id_val = int(comp.id)
+        comp_id_val = comp.id
 
         # Seed default agents for new company (Sys_Admin and Chris Whyt)
         for item in DEFAULT_AGENTS:
