@@ -3,6 +3,28 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+// Utility helpers for issue age and shifts affected calculation
+function calculateIssueAge(createdAt) {
+  if (!createdAt) return "N/A";
+  const diffMs = Date.now() - new Date(createdAt).getTime();
+  if (diffMs < 0) return "Just now";
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  if (diffMins < 60) return `${diffMins}m`;
+  const diffHours = Math.floor(diffMins / 60);
+  const remMins = diffMins % 60;
+  if (diffHours < 24) return `${diffHours}h ${remMins > 0 ? `${remMins}m` : ""}`.trim();
+  const diffDays = Math.floor(diffHours / 24);
+  const remHours = diffHours % 24;
+  return `${diffDays}d ${remHours > 0 ? `${remHours}h` : ""}`.trim();
+}
+
+function calculateShiftsAffected(issue) {
+  if (!issue.created_at) return 1;
+  const diffHours = (Date.now() - new Date(issue.created_at).getTime()) / (1000 * 3600);
+  const shiftCount = Math.max(1, Math.ceil(diffHours / 8));
+  return issue.carry_forward ? Math.max(2, shiftCount) : shiftCount;
+}
+
 export default function ShiftRegisterScreen({
   activeScreen,
   currentAgent,
@@ -28,11 +50,14 @@ export default function ShiftRegisterScreen({
   const [statusFilter, setStatusFilter] = useState("All"); // "All", "Ongoing", "Monitoring", "Resolved"
   const [shiftFilter, setShiftFilter] = useState("All"); // "All" or specific shift name
   const [carryForwardOnly, setCarryForwardOnly] = useState(false);
+  const [viewMode, setViewMode] = useState("table"); // "table" or "cards"
+  const [selectedDateFilter, setSelectedDateFilter] = useState("All");
+  const [selectedArchiveMonth, setSelectedArchiveMonth] = useState("All");
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [editIssueId, setEditIssueId] = useState(null);
-  const [viewDetailIssue, setViewDetailIssue] = useState(null);
+  const [timelineModalIssue, setTimelineModalIssue] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
 
   // Form Fields
@@ -48,6 +73,12 @@ export default function ShiftRegisterScreen({
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [carryForward, setCarryForward] = useState(false);
   const [nextShiftInstructions, setNextShiftInstructions] = useState("");
+
+  // Export Period & Format State
+  const [exportPeriod, setExportPeriod] = useState("current_week"); // "current_week", "previous_week", "this_month", "custom"
+  const [customStartDate, setCustomStartDate] = useState(new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10));
+  const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().slice(0, 10));
+  const [exportFormat, setExportFormat] = useState("excel"); // "excel", "pdf", "csv"
 
   const resetForm = () => {
     setEditIssueId(null);
@@ -82,7 +113,6 @@ export default function ShiftRegisterScreen({
     setCustomerResponse(issue.customer_response || "");
     setStatus(issue.status || "Ongoing");
 
-    // Check if escalated_to matches predefined options or is custom
     const targetNames = (escalationTargets || []).map((t) => t.name);
     if (targetNames.includes(issue.escalated_to)) {
       setEscalatedToSelect(issue.escalated_to);
@@ -134,119 +164,141 @@ export default function ShiftRegisterScreen({
     resetForm();
   };
 
+  // Helper to filter issues for export according to selected period
+  const getIssuesForPeriod = () => {
+    const now = new Date();
+    let start = new Date(0);
+    let end = new Date(2100, 0, 1);
+
+    if (exportPeriod === "current_week") {
+      const dayOfWeek = now.getDay();
+      const distanceToMon = (dayOfWeek + 6) % 7;
+      start = new Date(now);
+      start.setDate(now.getDate() - distanceToMon);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
+    } else if (exportPeriod === "previous_week") {
+      const dayOfWeek = now.getDay();
+      const distanceToMon = (dayOfWeek + 6) % 7;
+      start = new Date(now);
+      start.setDate(now.getDate() - distanceToMon - 7);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
+    } else if (exportPeriod === "this_month") {
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    } else if (exportPeriod === "custom") {
+      if (customStartDate) start = new Date(`${customStartDate}T00:00:00`);
+      if (customEndDate) end = new Date(`${customEndDate}T23:59:59`);
+    }
+
+    return (issues || []).filter((i) => {
+      const t = i.created_at ? new Date(i.created_at).getTime() : Date.now();
+      return t >= start.getTime() && t <= end.getTime();
+    });
+  };
+
   // --- EXPORT HANDLERS ---
-  const handleExportExcel = () => {
+  const handleRunExport = () => {
+    const periodIssues = getIssuesForPeriod();
+    if (exportFormat === "excel") {
+      exportExcelWorkbook(periodIssues);
+    } else if (exportFormat === "pdf") {
+      exportManagementPdf(periodIssues);
+    } else {
+      exportCsvFile(periodIssues);
+    }
+  };
+
+  const exportExcelWorkbook = (periodIssues) => {
     try {
       const now = new Date();
       const currentMonthName = now.toLocaleString("default", { month: "long" });
       const currentYear = now.getFullYear();
 
-      // Determine reporting period from actual issue dates
-      let startDateLabel = `1 ${currentMonthName}`;
-      let endDateLabel = `${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()} ${currentMonthName} ${currentYear}`;
-
-      if (issues && issues.length > 0) {
-        const timestamps = issues
-          .map((i) => (i.created_at ? new Date(i.created_at).getTime() : null))
-          .filter(Boolean);
-        if (timestamps.length > 0) {
-          const minDate = new Date(Math.min(...timestamps));
-          const maxDate = new Date(Math.max(...timestamps));
-          startDateLabel = `${minDate.getDate()} ${minDate.toLocaleString("default", { month: "short" })}`;
-          endDateLabel = `${maxDate.getDate()} ${maxDate.toLocaleString("default", { month: "short" })} ${maxDate.getFullYear()}`;
-        }
-      }
-      const periodLabel = `${startDateLabel} – ${endDateLabel}`;
-
-      const totalIssuesCount = issues.length;
-      const resolvedCount = issues.filter((i) => i.status === "Resolved").length;
-      const ongoingCount = issues.filter((i) => i.status === "Ongoing").length;
-      const monitoringCount = issues.filter((i) => i.status === "Monitoring").length;
-      const escalatedCount = issues.filter((i) => i.escalated_to && i.escalated_to !== "None").length;
-
-      // Dynamic shift counts from actual platform data
-      const shiftCounts = {};
-      (shifts || []).forEach((s) => {
-        shiftCounts[s.name] = 0;
-      });
-      (issues || []).forEach((i) => {
-        const sName = i.shift_name || "General Shift";
-        shiftCounts[sName] = (shiftCounts[sName] || 0) + 1;
-      });
+      const totalCount = periodIssues.length;
+      const resolvedCount = periodIssues.filter((i) => i.status === "Resolved").length;
+      const ongoingCount = periodIssues.filter((i) => i.status === "Ongoing").length;
+      const monitoringCount = periodIssues.filter((i) => i.status === "Monitoring").length;
+      const persistentCount = periodIssues.filter((i) => calculateShiftsAffected(i) >= 2 || i.carry_forward).length;
+      const escalatedCount = periodIssues.filter((i) => i.escalated_to && i.escalated_to !== "None").length;
 
       // Sheet 1 --- Summary
       const summaryData = [
-        ["SIR MANAGEMENT SUMMARY"],
+        ["SHIFT ISSUE REGISTER (SIR) - MANAGEMENT EXECUTIVE SUMMARY"],
         [""],
-        ["Reporting period:", periodLabel],
+        ["Export Generated:", `${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`],
+        ["Reporting Period:", exportPeriod.toUpperCase().replace("_", " ")],
         [""],
-        ["Metric", "Count"],
-        ["Total Issues", totalIssuesCount],
-        ["Resolved", resolvedCount],
-        ["Ongoing", ongoingCount],
-        ["Monitoring", monitoringCount],
-        ["Escalated", escalatedCount],
-        [""],
-        ["Shift Breakdown", "Count"],
-        ...Object.entries(shiftCounts).map(([shiftName, count]) => [`${shiftName} Issues`, count]),
+        ["KPI Metric", "Count", "Share"],
+        ["Total Shift Issues", totalCount, "100%"],
+        ["Resolved", resolvedCount, `${totalCount ? Math.round((resolvedCount / totalCount) * 100) : 0}%`],
+        ["Ongoing (Active)", ongoingCount, `${totalCount ? Math.round((ongoingCount / totalCount) * 100) : 0}%`],
+        ["Monitoring", monitoringCount, `${totalCount ? Math.round((monitoringCount / totalCount) * 100) : 0}%`],
+        ["Persistent / Carried Issues", persistentCount, `${totalCount ? Math.round((persistentCount / totalCount) * 100) : 0}%`],
+        ["Escalated to Senior Teams", escalatedCount, `${totalCount ? Math.round((escalatedCount / totalCount) * 100) : 0}%`],
       ];
       const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
 
-      // Sheet 2 --- Issue Register (All detail records)
-      const registerRows = (issues || []).map((item) => ({
+      // Sheet 2 --- Issue Register
+      const registerRows = periodIssues.map((item) => ({
         "Reference No": item.reference_no || `#SIR-${item.id}`,
         "Title": item.title,
         "Status": item.status,
         "Shift": item.shift_name || "N/A",
         "Time Noticed": item.time_noticed,
+        "Issue Age": calculateIssueAge(item.created_at),
+        "Shifts Affected": calculateShiftsAffected(item),
         "Description": item.description,
         "Actions Taken": item.actions_taken,
-        "Customer Given Response": item.customer_response || "",
+        "Customer Response": item.customer_response || "",
         "Escalated To": item.escalated_to || "None",
-        "Priority / Carry Forward": item.carry_forward ? "Yes" : "No",
+        "Carried Forward": item.carry_forward ? "Yes" : "No",
         "Next Shift Instructions": item.next_shift_instructions || "",
         "Logged By Agent": `${item.logged_by_name || "Agent"} (${item.logged_by_initials || "AG"})`,
         "Created Date": item.created_at ? new Date(item.created_at).toLocaleString() : "",
       }));
       const registerSheet = XLSX.utils.json_to_sheet(registerRows);
 
-      // Sheet 3 --- Issue Trends
-      const trendsMap = {
-        Payments: 0,
-        Technical: 0,
-        Network: 0,
-        Accounts: 0,
-        Other: 0,
-      };
-
-      (issues || []).forEach((item) => {
-        const text = `${item.title} ${item.description} ${item.escalated_to}`.toLowerCase();
-        if (text.includes("pay") || text.includes("ecocash") || text.includes("billing") || text.includes("deposit") || text.includes("withdraw") || text.includes("bank") || text.includes("money")) {
-          trendsMap.Payments += 1;
-        } else if (text.includes("tech") || text.includes("system") || text.includes("bug") || text.includes("error") || text.includes("login") || text.includes("app") || text.includes("portal")) {
-          trendsMap.Technical += 1;
-        } else if (text.includes("net") || text.includes("signal") || text.includes("connection") || text.includes("server") || text.includes("down") || text.includes("offline")) {
-          trendsMap.Network += 1;
-        } else if (text.includes("account") || text.includes("verify") || text.includes("pin") || text.includes("kyc") || text.includes("profile") || text.includes("password")) {
-          trendsMap.Accounts += 1;
-        } else {
-          trendsMap.Other += 1;
-        }
+      // Sheet 3 --- Recurring Issues
+      const recurringMap = {};
+      periodIssues.forEach((item) => {
+        const title = (item.title || "General Issue").trim();
+        const key = title.charAt(0).toUpperCase() + title.slice(1);
+        recurringMap[key] = (recurringMap[key] || 0) + 1;
       });
-
-      const trendsData = [
-        ["Category", "Occurrences"],
-        ...Object.entries(trendsMap).map(([category, occurrences]) => [category, occurrences]),
+      const recurringData = [
+        ["Issue Pattern Title", "Occurrences Count"],
+        ...Object.entries(recurringMap).map(([title, count]) => [title, count]),
       ];
-      const trendsSheet = XLSX.utils.aoa_to_sheet(trendsData);
+      const recurringSheet = XLSX.utils.aoa_to_sheet(recurringData);
 
-      // Build & Download Workbook
+      // Sheet 4 --- Outstanding Issues
+      const outstandingRows = periodIssues
+        .filter((i) => i.status !== "Resolved")
+        .map((item) => ({
+          "Reference No": item.reference_no || `#SIR-${item.id}`,
+          "Title": item.title,
+          "Status": item.status,
+          "Shift": item.shift_name || "N/A",
+          "Issue Age": calculateIssueAge(item.created_at),
+          "Shifts Affected": calculateShiftsAffected(item),
+          "Next Shift Instructions": item.next_shift_instructions || "",
+          "Escalated To": item.escalated_to || "None",
+        }));
+      const outstandingSheet = XLSX.utils.json_to_sheet(outstandingRows);
+
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, summarySheet, "Summary");
+      XLSX.utils.book_append_sheet(wb, summarySheet, "Executive Summary");
       XLSX.utils.book_append_sheet(wb, registerSheet, "Issue Register");
-      XLSX.utils.book_append_sheet(wb, trendsSheet, "Issue Trends");
+      XLSX.utils.book_append_sheet(wb, recurringSheet, "Recurring Patterns");
+      XLSX.utils.book_append_sheet(wb, outstandingSheet, "Outstanding Issues");
 
-      XLSX.writeFile(wb, `SIR_Excel_Workbook_${currentMonthName}_${currentYear}.xlsx`);
+      XLSX.writeFile(wb, `SIR_Management_Workbook_${exportPeriod}_${currentMonthName}_${currentYear}.xlsx`);
       setShowExportModal(false);
     } catch (e) {
       console.error("Error exporting Excel workbook:", e);
@@ -254,95 +306,40 @@ export default function ShiftRegisterScreen({
     }
   };
 
-  const handleExportManagementReport = () => {
+  const exportManagementPdf = (periodIssues) => {
     try {
       const doc = new jsPDF();
       const now = new Date();
       const currentMonthName = now.toLocaleString("default", { month: "long" });
       const currentYear = now.getFullYear();
 
-      // Determine reporting period from actual issue dates
-      let startDateLabel = `1 ${currentMonthName}`;
-      let endDateLabel = `${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()} ${currentMonthName} ${currentYear}`;
+      const totalCount = periodIssues.length;
+      const resolvedCount = periodIssues.filter((i) => i.status === "Resolved").length;
+      const ongoingCount = periodIssues.filter((i) => i.status === "Ongoing").length;
+      const monitoringCount = periodIssues.filter((i) => i.status === "Monitoring").length;
+      const escalatedCount = periodIssues.filter((i) => i.escalated_to && i.escalated_to !== "None").length;
 
-      if (issues && issues.length > 0) {
-        const timestamps = issues
-          .map((i) => (i.created_at ? new Date(i.created_at).getTime() : null))
-          .filter(Boolean);
-        if (timestamps.length > 0) {
-          const minDate = new Date(Math.min(...timestamps));
-          const maxDate = new Date(Math.max(...timestamps));
-          startDateLabel = `${minDate.getDate()} ${minDate.toLocaleString("default", { month: "short" })}`;
-          endDateLabel = `${maxDate.getDate()} ${maxDate.toLocaleString("default", { month: "short" })} ${maxDate.getFullYear()}`;
-        }
-      }
-      const periodLabel = `${startDateLabel} – ${endDateLabel}`;
-
-      // Metrics calculations from actual platform data
-      const totalCount = issues.length;
-      const resolvedCount = issues.filter((i) => i.status === "Resolved").length;
-      const ongoingCount = issues.filter((i) => i.status === "Ongoing").length;
-      const monitoringCount = issues.filter((i) => i.status === "Monitoring").length;
-      const escalatedCount = issues.filter((i) => i.escalated_to && i.escalated_to !== "None").length;
-
-      // Dynamic shift counts from actual platform data
-      const shiftCounts = {};
-      (shifts || []).forEach((s) => {
-        shiftCounts[s.name] = 0;
-      });
-      (issues || []).forEach((i) => {
-        const sName = i.shift_name || "General Shift";
-        shiftCounts[sName] = (shiftCounts[sName] || 0) + 1;
-      });
-
-      // Dynamic trends categorization from actual platform data
-      const trendsMap = {
-        "Payments & Financial": 0,
-        "Technical & Systems": 0,
-        "Network & Connectivity": 0,
-        "Account & User Access": 0,
-        "Other Support Queries": 0,
-      };
-
-      (issues || []).forEach((item) => {
-        const text = `${item.title} ${item.description} ${item.escalated_to}`.toLowerCase();
-        if (text.includes("pay") || text.includes("ecocash") || text.includes("billing") || text.includes("deposit") || text.includes("withdraw") || text.includes("bank") || text.includes("money")) {
-          trendsMap["Payments & Financial"] += 1;
-        } else if (text.includes("tech") || text.includes("system") || text.includes("bug") || text.includes("error") || text.includes("login") || text.includes("app") || text.includes("portal")) {
-          trendsMap["Technical & Systems"] += 1;
-        } else if (text.includes("net") || text.includes("signal") || text.includes("connection") || text.includes("server") || text.includes("down") || text.includes("offline")) {
-          trendsMap["Network & Connectivity"] += 1;
-        } else if (text.includes("account") || text.includes("verify") || text.includes("pin") || text.includes("kyc") || text.includes("profile") || text.includes("password")) {
-          trendsMap["Account & User Access"] += 1;
-        } else {
-          trendsMap["Other Support Queries"] += 1;
-        }
-      });
-
-      // PDF Formatting & Header Banner
-      doc.setFillColor(15, 155, 0); // Theme Green Accent
+      doc.setFillColor(15, 155, 0);
       doc.rect(0, 0, 210, 22, "F");
 
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
+      doc.setFontSize(13);
       doc.text("SHIFT ISSUE REGISTER (SIR) - MANAGEMENT REPORT", 14, 14);
 
-      // Meta Info Header
       doc.setTextColor(50, 50, 50);
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
-      doc.text(`Reporting Period: ${periodLabel}`, 14, 30);
+      doc.text(`Reporting Period: ${exportPeriod.toUpperCase().replace("_", " ")}`, 14, 30);
       doc.text(`Generated On: ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`, 14, 36);
 
-      // Table 1: Executive Metrics Summary
       autoTable(doc, {
         startY: 42,
-        head: [["KPI Metric", "Actual Count", "Percentage Share"]],
+        head: [["KPI Metric", "Count", "Percentage Share"]],
         body: [
           ["Total Shift Issues Recorded", totalCount.toString(), "100%"],
           ["Resolved Issues", resolvedCount.toString(), `${totalCount ? Math.round((resolvedCount / totalCount) * 100) : 0}%`],
-          ["Ongoing Issues", ongoingCount.toString(), `${totalCount ? Math.round((ongoingCount / totalCount) * 100) : 0}%`],
+          ["Ongoing Issues (Active)", ongoingCount.toString(), `${totalCount ? Math.round((ongoingCount / totalCount) * 100) : 0}%`],
           ["Monitoring Status", monitoringCount.toString(), `${totalCount ? Math.round((monitoringCount / totalCount) * 100) : 0}%`],
           ["Escalated to Senior Teams", escalatedCount.toString(), `${totalCount ? Math.round((escalatedCount / totalCount) * 100) : 0}%`],
         ],
@@ -350,44 +347,33 @@ export default function ShiftRegisterScreen({
         styles: { fontSize: 9 },
       });
 
-      // Table 2: Shift Breakdown
-      const shiftRows = Object.entries(shiftCounts).map(([shiftName, count]) => [
-        shiftName,
-        count.toString(),
-        `${totalCount ? Math.round((count / totalCount) * 100) : 0}%`,
-      ]);
+      // Executive Outstanding Issues Table
+      const outstandingData = periodIssues
+        .filter((i) => i.status !== "Resolved")
+        .slice(0, 15)
+        .map((i) => [
+          i.reference_no || `#SIR-${i.id}`,
+          i.title,
+          i.shift_name || "N/A",
+          calculateIssueAge(i.created_at),
+          i.status,
+          i.escalated_to || "None",
+        ]);
 
       autoTable(doc, {
         startY: doc.lastAutoTable.finalY + 8,
-        head: [["Shift Name", "Total Recorded Issues", "Shift Share"]],
-        body: shiftRows,
+        head: [["ID", "Issue Title", "Shift", "Age", "Status", "Escalated To"]],
+        body: outstandingData.length > 0 ? outstandingData : [["-", "No active outstanding issues", "-", "-", "-", "-"]],
         headStyles: { fillStyle: "F", fillColor: [30, 30, 45], textColor: [76, 211, 76], fontStyle: "bold" },
-        styles: { fontSize: 9 },
+        styles: { fontSize: 8 },
       });
 
-      // Table 3: Issue Categories & Trends
-      const trendRows = Object.entries(trendsMap).map(([category, count]) => [
-        category,
-        count.toString(),
-        `${totalCount ? Math.round((count / totalCount) * 100) : 0}%`,
-      ]);
-
-      autoTable(doc, {
-        startY: doc.lastAutoTable.finalY + 8,
-        head: [["Category / Topic Trend", "Occurrences", "Trend Share"]],
-        body: trendRows,
-        headStyles: { fillStyle: "F", fillColor: [30, 30, 45], textColor: [76, 211, 76], fontStyle: "bold" },
-        styles: { fontSize: 9 },
-      });
-
-      // Footer notice
       const finalY = doc.lastAutoTable.finalY + 12;
       doc.setFontSize(8);
       doc.setTextColor(120, 120, 120);
-      doc.text("Confidential Management Report — Response Escalation Assistant (REA)", 14, finalY);
+      doc.text("Confidential Operational Report — Response Escalation Assistant (REA)", 14, finalY);
 
-      // Save PDF file
-      doc.save(`SIR_Management_Report_${currentMonthName}_${currentYear}.pdf`);
+      doc.save(`SIR_Management_Report_${exportPeriod}_${currentMonthName}_${currentYear}.pdf`);
       setShowExportModal(false);
     } catch (e) {
       console.error("Error generating PDF Management Report:", e);
@@ -395,7 +381,7 @@ export default function ShiftRegisterScreen({
     }
   };
 
-  const handleExportCSV = () => {
+  const exportCsvFile = (periodIssues) => {
     try {
       const headers = [
         "Reference No",
@@ -403,21 +389,25 @@ export default function ShiftRegisterScreen({
         "Status",
         "Shift",
         "Time Noticed",
+        "Issue Age",
+        "Shifts Affected",
         "Description",
         "Actions Taken",
         "Customer Response",
         "Escalated To",
-        "Priority / Carry Forward",
+        "Carried Forward",
         "Logged By",
         "Created Date",
       ];
 
-      const rows = (issues || []).map((i) => [
+      const rows = periodIssues.map((i) => [
         `"${(i.reference_no || `#SIR-${i.id}`).replace(/"/g, '""')}"`,
         `"${(i.title || "").replace(/"/g, '""')}"`,
         `"${(i.status || "").replace(/"/g, '""')}"`,
         `"${(i.shift_name || "").replace(/"/g, '""')}"`,
         `"${(i.time_noticed || "").replace(/"/g, '""')}"`,
+        `"${calculateIssueAge(i.created_at)}"`,
+        `"${calculateShiftsAffected(i)}"`,
         `"${(i.description || "").replace(/"/g, '""')}"`,
         `"${(i.actions_taken || "").replace(/"/g, '""')}"`,
         `"${(i.customer_response || "").replace(/"/g, '""')}"`,
@@ -432,7 +422,7 @@ export default function ShiftRegisterScreen({
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `SIR_Issue_Register_Raw_Data_${new Date().toISOString().slice(0, 10)}.csv`);
+      link.setAttribute("download", `SIR_Issue_Register_${exportPeriod}_${new Date().toISOString().slice(0, 10)}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -443,9 +433,6 @@ export default function ShiftRegisterScreen({
     }
   };
 
-  const [selectedDateFilter, setSelectedDateFilter] = useState("All");
-  const [selectedArchiveMonth, setSelectedArchiveMonth] = useState("All");
-
   const getShiftIcon = (name = "") => {
     const lower = name.toLowerCase();
     if (lower.includes("morning")) return "☀️";
@@ -454,69 +441,63 @@ export default function ShiftRegisterScreen({
     return "⏰";
   };
 
-  // Today's shift statistics with status breakdown
-  const todayShiftStats = useMemo(() => {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const map = {};
+  // Metric Counts
+  const metrics = useMemo(() => {
+    const total = issues.length;
+    const ongoing = issues.filter((i) => i.status === "Ongoing").length;
+    const monitoring = issues.filter((i) => i.status === "Monitoring").length;
+    const carried = issues.filter((i) => i.carry_forward && i.status !== "Resolved").length;
+    const resolved = issues.filter((i) => i.status === "Resolved").length;
 
-    (shifts || []).forEach((s) => {
-      map[s.name] = {
-        ...s,
-        ongoing: 0,
-        monitoring: 0,
-        resolved: 0,
-        total: 0,
-      };
-    });
-
-    (issues || []).forEach((item) => {
-      const itemDate = item.created_at ? new Date(item.created_at).toISOString().slice(0, 10) : todayStr;
-      if (itemDate === todayStr) {
-        const sName = item.shift_name || currentShiftName;
-        if (!map[sName]) {
-          map[sName] = { name: sName, start_time: "00:00", end_time: "23:59", ongoing: 0, monitoring: 0, resolved: 0, total: 0 };
-        }
-        map[sName].total += 1;
-        if (item.status === "Ongoing") map[sName].ongoing += 1;
-        else if (item.status === "Monitoring") map[sName].monitoring += 1;
-        else if (item.status === "Resolved") map[sName].resolved += 1;
-      }
-    });
-
-    return Object.values(map);
-  }, [shifts, issues, currentShiftName]);
-
-  // Recent Shifts by Date
-  const recentShiftsList = useMemo(() => {
-    const map = {};
-    (issues || []).forEach((item) => {
-      const dateObj = item.created_at ? new Date(item.created_at) : new Date();
-      const dateKey = dateObj.toISOString().slice(0, 10);
-      const label = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-      if (!map[dateKey]) {
-        map[dateKey] = { dateKey, label, count: 0 };
-      }
-      map[dateKey].count += 1;
-    });
-    return Object.values(map).sort((a, b) => b.dateKey.localeCompare(a.dateKey)).slice(0, 5);
+    return {
+      total,
+      ongoing,
+      monitoring,
+      carried,
+      resolved,
+      ongoingPct: total ? Math.round((ongoing / total) * 100) : 0,
+      monitoringPct: total ? Math.round((monitoring / total) * 100) : 0,
+      carriedPct: total ? Math.round((carried / total) * 100) : 0,
+      resolvedPct: total ? Math.round((resolved / total) * 100) : 0,
+    };
   }, [issues]);
 
-  // Monthly Archives
-  const monthlyArchiveList = useMemo(() => {
-    const map = {};
-    (issues || []).forEach((item) => {
-      const dateObj = item.created_at ? new Date(item.created_at) : new Date();
-      const monthKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}`;
-      const label = dateObj.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-      if (!map[monthKey]) {
-        map[monthKey] = { monthKey, label, count: 0 };
-      }
-      map[monthKey].count += 1;
+  // Operational Attention List (Needs Attention centerpiece)
+  const needsAttentionList = useMemo(() => {
+    return (issues || []).filter((i) => {
+      if (i.status === "Resolved") return false;
+      const isPersistent = calculateShiftsAffected(i) >= 2;
+      return i.status === "Ongoing" || i.carry_forward || isPersistent || i.status === "Monitoring";
     });
-    return Object.values(map).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
   }, [issues]);
 
-  // Filtered issues calculation
+  // Current Shift Active Issues List
+  const thisShiftIssuesList = useMemo(() => {
+    return (issues || []).filter((i) => i.shift_name === currentShiftName);
+  }, [issues, currentShiftName]);
+
+  // Recurring Issue Patterns Analysis
+  const recurringPatterns = useMemo(() => {
+    const map = {};
+    (issues || []).forEach((item) => {
+      const title = (item.title || "General Issue").trim();
+      const key = title.charAt(0).toUpperCase() + title.slice(1);
+      map[key] = (map[key] || 0) + 1;
+    });
+
+    const maxCount = Math.max(1, ...Object.values(map));
+
+    return Object.entries(map)
+      .map(([title, count]) => ({
+        title,
+        count,
+        pct: Math.round((count / maxCount) * 100),
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+  }, [issues]);
+
+  // Filtered issues calculation for Archive Table / Cards
   const filteredIssues = useMemo(() => {
     return (issues || []).filter((item) => {
       if (statusFilter !== "All" && item.status !== statusFilter) return false;
@@ -548,16 +529,11 @@ export default function ShiftRegisterScreen({
     });
   }, [issues, statusFilter, shiftFilter, carryForwardOnly, selectedDateFilter, selectedArchiveMonth, searchTerm]);
 
-  // Priority Carry Forward Items
-  const carryForwardItems = useMemo(() => {
-    return (issues || []).filter((item) => item.carry_forward && item.status !== "Resolved");
-  }, [issues]);
-
   if (activeScreen !== "shift_register") return null;
 
   return (
-    <section className="max-w-7xl mx-auto space-y-8 animate-fadeIn">
-      {/* TOP HEADER & ACTION BAR */}
+    <section className="max-w-7xl mx-auto space-y-8 animate-fadeIn pb-16">
+      {/* OPERATIONAL DASHBOARD HEADER */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b pb-6" style={{ borderColor: "var(--panel-border)" }}>
         <div>
           <div className="flex items-center gap-3">
@@ -567,617 +543,747 @@ export default function ShiftRegisterScreen({
             </h2>
           </div>
           <p className="text-sm mt-1.5 font-medium" style={{ color: "var(--text-muted)" }}>
-            Record any noteworthy shift issues (persistant & recurring), actions taken, and important information for incoming shifts.
+            Operational Intelligence Dashboard & Multi-Shift Issue Archive for Team Operations.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Active Shift Selector Pill */}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-2xl border backdrop-blur text-xs font-bold" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}>
+            <span className="text-base">{getShiftIcon(currentShiftName)}</span>
+            <select
+              value={currentShiftName}
+              onChange={(e) => handleSelectActiveShift(e.target.value)}
+              className="bg-transparent font-bold focus:outline-none cursor-pointer"
+              style={{ color: "var(--app-text)" }}
+            >
+              {(shifts || []).map((s) => (
+                <option key={s.id || s.name} value={s.name} className="bg-[var(--app-bg)] text-[var(--app-text)] font-semibold">
+                  {s.name} ({s.start_time} - {s.end_time})
+                </option>
+              ))}
+            </select>
+          </div>
+
           <button
             onClick={() => setShowExportModal(true)}
-            className="px-4 py-3 rounded-2xl border text-xs font-extrabold backdrop-blur shadow-sm transition hover:scale-[1.02] active:scale-95 flex items-center gap-2"
+            className="px-4 py-2.5 rounded-2xl border text-xs font-extrabold backdrop-blur shadow-sm transition hover:scale-[1.02] active:scale-95 flex items-center gap-2"
             style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
           >
             <span className="text-sm">📥</span>
-            <span>Export Shift Issues</span>
+            <span>Export & Reports</span>
           </button>
 
           <button
             onClick={handleOpenRecordModal}
-            className="px-6 py-3 rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-sm font-extrabold shadow-lg transition hover:scale-[1.02] active:scale-95 flex items-center gap-2"
+            className="px-5 py-2.5 rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-extrabold shadow-lg transition hover:scale-[1.02] active:scale-95 flex items-center gap-2"
           >
-            <span className="text-lg font-black">+</span>
+            <span className="text-base font-black">+</span>
             <span>Record Issue</span>
           </button>
         </div>
       </div>
 
-      {/* MAIN LAYOUT GRID (SIDEBAR + WORKSPACE) */}
-      <div className="flex flex-col lg:flex-row gap-8 items-start">
-        {/* LEFT SIDEBAR (TODAY, RECENT SHIFTS, ISSUE ARCHIVE) */}
-        <aside className="w-full lg:w-80 shrink-0 space-y-6">
-          {/* TODAY SHIFT CARDS */}
-          <div className="rounded-3xl border p-5 shadow-md backdrop-blur space-y-3.5" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs uppercase font-extrabold tracking-wider" style={{ color: "var(--app-text)" }}>
-                TODAY
-              </h3>
-              <span className="text-[10px] font-bold text-[#4cd34c] bg-[#4cd34c]/10 px-2 py-0.5 rounded-full border border-[#4cd34c]/30">
-                Live Shifts
-              </span>
-            </div>
+      {/* ROW 1: SITUATION SUMMARY METRIC CARDS */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Ongoing */}
+        <div className="rounded-3xl border p-4 shadow-sm backdrop-blur transition hover:border-red-500/50" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-red-400">🔴 Ongoing</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-red-500/10 text-red-400">{metrics.ongoingPct}%</span>
+          </div>
+          <div className="mt-3 flex items-baseline justify-between">
+            <span className="text-3xl font-black" style={{ color: "var(--app-text)" }}>{metrics.ongoing}</span>
+            <span className="text-xs text-[var(--text-muted)] font-medium">Unresolved</span>
+          </div>
+        </div>
 
-            <div className="space-y-3">
-              {todayShiftStats.map((shift) => {
-                const icon = getShiftIcon(shift.name);
-                const isSelected = shiftFilter === shift.name;
+        {/* Monitoring */}
+        <div className="rounded-3xl border p-4 shadow-sm backdrop-blur transition hover:border-orange-500/50" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">🟠 Monitoring</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-amber-500/10 text-amber-400">{metrics.monitoringPct}%</span>
+          </div>
+          <div className="mt-3 flex items-baseline justify-between">
+            <span className="text-3xl font-black" style={{ color: "var(--app-text)" }}>{metrics.monitoring}</span>
+            <span className="text-xs text-[var(--text-muted)] font-medium">Under Observation</span>
+          </div>
+        </div>
 
-                return (
-                  <div
-                    key={shift.name}
-                    onClick={() => setShiftFilter(isSelected ? "All" : shift.name)}
-                    className={`rounded-2xl border p-4 cursor-pointer transition-all hover:scale-[1.01] shadow-sm ${isSelected
-                        ? "border-[#4cd34c] bg-[#4cd34c]/10 shadow-[#4cd34c]/10"
-                        : "hover:border-[#4cd34c]/40"
-                      }`}
-                    style={{
-                      borderColor: isSelected ? "#4cd34c" : "var(--field-border)",
-                      backgroundColor: isSelected ? undefined : "var(--field-bg)",
-                    }}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-sm flex items-center gap-2" style={{ color: "var(--app-text)" }}>
-                        <span>{icon}</span>
-                        <span>{shift.name}</span>
+        {/* Carried Forward */}
+        <div className="rounded-3xl border p-4 shadow-sm backdrop-blur transition hover:border-blue-500/50" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-400">↪ Carried Forward</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-blue-500/10 text-blue-400">{metrics.carriedPct}%</span>
+          </div>
+          <div className="mt-3 flex items-baseline justify-between">
+            <span className="text-3xl font-black" style={{ color: "var(--app-text)" }}>{metrics.carried}</span>
+            <span className="text-xs text-[var(--text-muted)] font-medium">From Shifts</span>
+          </div>
+        </div>
+
+        {/* Resolved */}
+        <div className="rounded-3xl border p-4 shadow-sm backdrop-blur transition hover:border-emerald-500/50" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#4cd34c]">🟢 Resolved</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-[#4cd34c]/10 text-[#4cd34c]">{metrics.resolvedPct}%</span>
+          </div>
+          <div className="mt-3 flex items-baseline justify-between">
+            <span className="text-3xl font-black" style={{ color: "var(--app-text)" }}>{metrics.resolved}</span>
+            <span className="text-xs text-[var(--text-muted)] font-medium">Closed</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ROW 2: ⚠ NEEDS ATTENTION (OPERATIONAL CENTERPIECE) */}
+      <div className="rounded-3xl border p-6 shadow-md backdrop-blur space-y-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+        <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
+          <div className="flex items-center gap-2">
+            <span className="text-xl">⚠️</span>
+            <h3 className="text-lg font-black tracking-tight text-red-400">
+              NEEDS ATTENTION ({needsAttentionList.length})
+            </h3>
+          </div>
+          <span className="text-xs font-medium text-[var(--text-muted)]">
+            Auto-surfaced active, carried, & persistent incidents requiring immediate operational focus
+          </span>
+        </div>
+
+        {needsAttentionList.length === 0 ? (
+          <div className="p-8 text-center border-2 border-dashed rounded-2xl" style={{ borderColor: "var(--field-border)" }}>
+            <span className="text-3xl block mb-2">🎉</span>
+            <p className="text-sm font-bold text-[#4cd34c]">All clear! No open or unresolved issues requiring attention.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {needsAttentionList.map((issue) => {
+              const age = calculateIssueAge(issue.created_at);
+              const shiftsAffected = calculateShiftsAffected(issue);
+              const isPersistent = shiftsAffected >= 2;
+
+              return (
+                <div
+                  key={issue.id}
+                  className="rounded-2xl border p-4 transition hover:border-[#4cd34c] flex flex-col justify-between space-y-3"
+                  style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-md font-mono bg-[var(--panel-bg)] text-[var(--text-muted)]">
+                        {issue.reference_no || `#SIR-${issue.id}`}
                       </span>
-                      {isSelected && (
-                        <span className="text-[10px] font-extrabold text-[#4cd34c] uppercase">Selected</span>
+
+                      <div className="flex items-center gap-1.5">
+                        {issue.status === "Ongoing" ? (
+                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">🔴 Ongoing</span>
+                        ) : (
+                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">🟠 Monitoring</span>
+                        )}
+                        {issue.carry_forward && (
+                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400">↪ Carried</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <h4 className="text-sm font-black line-clamp-1" style={{ color: "var(--app-text)" }}>
+                      {issue.title}
+                    </h4>
+
+                    <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--text-muted)" }}>
+                      {issue.description}
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t space-y-2" style={{ borderColor: "var(--panel-border)" }}>
+                    <div className="flex items-center justify-between text-[11px] font-semibold">
+                      <span className="text-amber-400 flex items-center gap-1">
+                        ⏱️ Age: <strong>{age}</strong>
+                      </span>
+                      {isPersistent && (
+                        <span className="text-red-400 font-extrabold flex items-center gap-1">
+                          🔥 {shiftsAffected} shifts affected
+                        </span>
                       )}
                     </div>
 
-                    <div className="text-xs font-medium mb-3 opacity-75" style={{ color: "var(--text-muted)" }}>
-                      {shift.start_time} – {shift.end_time}
-                    </div>
-
-                    {/* Counters: Ongoing, Monitoring, Resolved */}
-                    <div className="flex items-center gap-3 pt-2 border-t border-[var(--panel-border)] text-xs font-bold">
-                      <span className="flex items-center gap-1 text-[#ff6b6b]" title="Ongoing Issues">
-                        <span>🔴</span>
-                        <span>{shift.ongoing}</span>
-                      </span>
-                      <span className="flex items-center gap-1 text-[#f1c84b]" title="Monitoring Issues">
-                        <span>🟠</span>
-                        <span>{shift.monitoring}</span>
-                      </span>
-                      <span className="flex items-center gap-1 text-[#4cd34c]" title="Resolved Issues">
-                        <span>🟢</span>
-                        <span>{shift.resolved}</span>
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* RECENT SHIFTS SECTION */}
-          <div className="rounded-3xl border p-5 shadow-md backdrop-blur space-y-3" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
-            <h3 className="text-xs uppercase font-extrabold tracking-wider" style={{ color: "var(--app-text)" }}>
-              RECENT SHIFTS
-            </h3>
-
-            <div className="space-y-1.5">
-              {recentShiftsList.length > 0 ? (
-                recentShiftsList.map((item) => {
-                  const isSelected = selectedDateFilter === item.dateKey;
-                  return (
-                    <button
-                      key={item.dateKey}
-                      onClick={() => {
-                        setSelectedDateFilter(isSelected ? "All" : item.dateKey);
-                        setSelectedArchiveMonth("All");
-                      }}
-                      className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold transition ${isSelected
-                          ? "bg-[#4cd34c] text-[#071007] font-bold"
-                          : "hover:bg-[var(--neutral-bg)] text-[var(--app-text)]"
-                        }`}
-                    >
-                      <span>{item.label}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isSelected ? "bg-[#071007]/20 text-[#071007]" : "bg-[var(--field-bg)] text-[var(--text-muted)] border border-[var(--field-border)]"
-                        }`}>
-                        {item.count} {item.count === 1 ? "issue" : "issues"}
-                      </span>
-                    </button>
-                  );
-                })
-              ) : (
-                <p className="text-xs italic p-2" style={{ color: "var(--text-muted)" }}>
-                  No recent shift logs
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* ISSUE ARCHIVE SECTION */}
-          <div className="rounded-3xl border p-5 shadow-md backdrop-blur space-y-3" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
-            <h3 className="text-xs uppercase font-extrabold tracking-wider flex items-center gap-1.5" style={{ color: "var(--app-text)" }}>
-              <span>📁</span>
-              <span>ISSUE ARCHIVE</span>
-            </h3>
-
-            <div className="space-y-2">
-              {monthlyArchiveList.length > 0 ? (
-                monthlyArchiveList.map((item) => {
-                  const isSelected = selectedArchiveMonth === item.monthKey;
-                  return (
-                    <button
-                      key={item.monthKey}
-                      onClick={() => {
-                        setSelectedArchiveMonth(isSelected ? "All" : item.monthKey);
-                        setSelectedDateFilter("All");
-                      }}
-                      className={`w-full flex items-center justify-between rounded-2xl border px-3.5 py-2.5 text-xs font-semibold transition ${isSelected
-                          ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold"
-                          : "border-[var(--field-border)] hover:border-[#4cd34c]/50 text-[var(--app-text)]"
-                        }`}
-                    >
-                      <span>[ {item.label} ]</span>
-                      <span className="text-[10px] opacity-75">
-                        ({item.count})
-                      </span>
-                    </button>
-                  );
-                })
-              ) : (
-                <p className="text-xs italic p-2" style={{ color: "var(--text-muted)" }}>
-                  No archive records
-                </p>
-              )}
-            </div>
-          </div>
-        </aside>
-
-        {/* RIGHT WORKSPACE (CARRIER BANNER + SEARCH & FILTER + COMPACT CARDS) */}
-        <div className="flex-1 w-full space-y-6">
-          {/* Active Filter Indicators */}
-          {(selectedDateFilter !== "All" || selectedArchiveMonth !== "All" || shiftFilter !== "All") && (
-            <div className="flex items-center justify-between rounded-2xl border px-4 py-2.5 text-xs font-bold bg-[#4cd34c]/10 border-[#4cd34c]/30 text-[#4cd34c]">
-              <span>
-                Filtering: {selectedDateFilter !== "All" ? `Date (${selectedDateFilter})` : ""} {selectedArchiveMonth !== "All" ? `Month (${selectedArchiveMonth})` : ""} {shiftFilter !== "All" ? `Shift (${shiftFilter})` : ""}
-              </span>
-              <button
-                onClick={() => {
-                  setSelectedDateFilter("All");
-                  setSelectedArchiveMonth("All");
-                  setShiftFilter("All");
-                }}
-                className="underline text-xs hover:opacity-80"
-              >
-                Clear Filters ✕
-              </button>
-            </div>
-          )}
-
-          {/* PRIORITY CARRY FORWARD BANNER */}
-          {carryForwardItems.length > 0 && (
-            <div className="rounded-3xl border p-5 shadow-xl backdrop-blur relative overflow-hidden bg-gradient-to-r from-[#b83838]/15 via-[#f1c84b]/10 to-transparent border-[#f1c84b]/40 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-3 w-3 rounded-full bg-[#ff6b6b] animate-ping" />
-                  <h3 className="text-base font-bold text-[#ff6b6b] flex items-center gap-2 uppercase tracking-wider">
-                    ⚠️ Priority: Carried Forward To This Shift ({carryForwardItems.length})
-                  </h3>
-                </div>
-                <span className="text-xs font-medium opacity-80" style={{ color: "var(--text-muted)" }}>
-                  Requires Next Shift Attention
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {carryForwardItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-2xl border p-4 shadow-md bg-[var(--field-bg)] backdrop-blur space-y-2 border-[#f1c84b]/30"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#f1c84b]/20 text-[#f1c84b] border border-[#f1c84b]/40">
-                        {item.reference_no}
-                      </span>
-                      <span className="text-[11px] font-semibold opacity-75" style={{ color: "var(--text-muted)" }}>
-                        Time: {item.time_noticed} ({item.shift_name || "Prior Shift"})
-                      </span>
-                    </div>
-
-                    <h4 className="font-bold text-sm" style={{ color: "var(--app-text)" }}>
-                      {item.title}
-                    </h4>
-
-                    {item.next_shift_instructions && (
-                      <div className="rounded-xl border p-2.5 text-xs bg-[#ff6b6b]/10 border-[#ff6b6b]/30 text-[#ff8080]">
-                        <strong className="block mb-0.5 text-[#ff6b6b]">What next shift should do:</strong>
-                        <p className="whitespace-pre-wrap">{item.next_shift_instructions}</p>
+                    {issue.next_shift_instructions && (
+                      <div className="text-[11px] p-2 rounded-xl border bg-[var(--app-bg)] text-amber-300 font-mono italic">
+                        <strong>Instructions:</strong> {issue.next_shift_instructions}
                       </div>
                     )}
+
+                    <button
+                      onClick={() => setTimelineModalIssue(issue)}
+                      className="w-full py-1.5 rounded-xl border text-xs font-bold text-[#4cd34c] hover:bg-[#4cd34c]/10 transition flex items-center justify-center gap-1"
+                      style={{ borderColor: "var(--badge-border)" }}
+                    >
+                      <span>View Issue Story</span>
+                      <span>→</span>
+                    </button>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-          {/* FILTER & SEARCH BAR */}
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-2xl border p-4 shadow-md backdrop-blur" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
-            {/* Status Filter Tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-              {["All", "Ongoing", "Monitoring", "Resolved"].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setStatusFilter(tab)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${statusFilter === tab
-                      ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-sm"
-                      : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
-                    }`}
-                >
-                  {tab === "All" ? `All Issues (${issues.length})` : tab}
-                </button>
-              ))}
-
-              <label className="ml-3 flex items-center gap-2 text-xs font-semibold cursor-pointer select-none border-l pl-3 border-[var(--panel-border)] whitespace-nowrap">
-                <input
-                  type="checkbox"
-                  checked={carryForwardOnly}
-                  onChange={(e) => setCarryForwardOnly(e.target.checked)}
-                  className="rounded accent-[#4cd34c] h-4 w-4"
-                />
-                <span style={{ color: carryForwardOnly ? "#ff6b6b" : "var(--app-text)" }}>
-                  Priority / Carry Forward Only ⚡
-                </span>
-              </label>
+      {/* ROW 3: 📌 THIS SHIFT & 📈 RECURRING ISSUES (2-COLUMN GRID) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* THIS SHIFT ISSUES */}
+        <div className="rounded-3xl border p-5 shadow-md backdrop-blur space-y-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+          <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📌</span>
+              <h3 className="text-base font-black tracking-tight" style={{ color: "var(--app-text)" }}>
+                THIS SHIFT ({currentShiftName})
+              </h3>
             </div>
-
-            {/* Search Bar */}
-            <div className="relative min-w-[240px]">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by Title, Ref #, Agent..."
-                className="w-full rounded-xl border py-2 pl-9 pr-3 text-xs font-medium focus:outline-none focus:border-[#4cd34c]"
-                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-              />
-              <img src="/search.png" alt="Search" className="absolute left-3 top-2.5 h-3.5 w-3.5 object-contain opacity-60" />
-            </div>
+            <span className="text-xs font-bold text-[#4cd34c]">{thisShiftIssuesList.length} Issue(s)</span>
           </div>
 
-          {/* COMPACT ISSUES CARDS GRID */}
-          {loading ? (
-            <div className="text-center py-12" style={{ color: "var(--text-muted)" }}>
-              <span className="inline-block animate-spin text-2xl mb-2">⏳</span>
-              <p className="text-sm font-medium">Loading shift register records...</p>
-            </div>
-          ) : filteredIssues.length === 0 ? (
-            <div className="rounded-3xl border p-12 text-center shadow-inner space-y-3" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
-              <div className="text-4xl">📋</div>
-              <h3 className="text-lg font-bold" style={{ color: "var(--app-text)" }}>
-                No shift issues found
-              </h3>
-              <p className="text-xs max-w-md mx-auto" style={{ color: "var(--text-muted)" }}>
-                No records match your active filters or search terms. Click '+ Record Issue' above to log a new issue.
-              </p>
+          {thisShiftIssuesList.length === 0 ? (
+            <div className="p-6 text-center text-xs text-[var(--text-muted)] border border-dashed rounded-2xl" style={{ borderColor: "var(--field-border)" }}>
+              No issues recorded during {currentShiftName} yet.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredIssues.map((issue) => {
-                const statusDot = issue.status === "Resolved" ? "🟢" : issue.status === "Monitoring" ? "🟠" : "🔴";
-                const shiftCleanName = (issue.shift_name || "Shift").replace(/shift/i, "").trim();
-
-                let cardDate = "";
-                if (issue.created_at) {
-                  try {
-                    const d = new Date(issue.created_at);
-                    cardDate = d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
-                  } catch (e) {
-                    cardDate = "Today";
-                  }
-                } else {
-                  cardDate = "Today";
-                }
-
-                const escalatedLabel = issue.escalated_to && issue.escalated_to !== "None"
-                  ? `Reported to ${issue.escalated_to}`
-                  : "Logged for shift monitoring";
-
-                const deptLabel = issue.escalated_to && issue.escalated_to !== "None"
-                  ? issue.escalated_to.split(" ")[0]
-                  : "Support";
-
-                return (
-                  <div
-                    key={issue.id}
-                    className={`rounded-2xl border p-5 shadow-md backdrop-blur transition-all space-y-3 flex flex-col justify-between hover:scale-[1.01] ${issue.carry_forward && issue.status !== "Resolved"
-                        ? "border-[#f1c84b]/50 bg-gradient-to-r from-[#f1c84b]/5 via-transparent to-transparent"
-                        : ""
-                      }`}
-                    style={{
-                      borderColor: issue.carry_forward && issue.status !== "Resolved" ? undefined : "var(--panel-border)",
-                      backgroundColor: "var(--panel-bg)",
-                    }}
-                  >
-                    {/* Top Row: Status Dot + Title */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-base flex items-center gap-2 text-[var(--app-text)] line-clamp-1">
-                          <span>{statusDot}</span>
-                          <span>{issue.title}</span>
-                        </h3>
-                        {issue.carry_forward && (
-                          <span className="rounded-full border px-2 py-0.5 text-[9px] font-bold border-[#ff6b6b]/40 bg-[#ff6b6b]/10 text-[#ff6b6b] shrink-0">
-                            Priority ⚡
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Second Line: Morning · 17 Aug · 10:35 */}
-                      <div className="text-xs font-semibold text-[var(--text-muted)]">
-                        {shiftCleanName} · {cardDate} · {issue.time_noticed}
-                      </div>
-
-                      {/* Third Line: Reported to Technical Support */}
-                      <div className="text-xs font-semibold text-[#4cd34c]">
-                        {escalatedLabel}
-                      </div>
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+              {thisShiftIssuesList.map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border p-3 flex items-center justify-between transition hover:border-[#4cd34c]"
+                  style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black" style={{ color: "var(--app-text)" }}>{item.title}</span>
+                      <span className="text-[10px] font-mono opacity-80" style={{ color: "var(--text-muted)" }}>{item.time_noticed}</span>
                     </div>
-
-                    {/* Footer Row: User Initials & Department + View Details Button */}
-                    <div className="flex items-center justify-between pt-3 border-t border-[var(--panel-border)] text-xs">
-                      <div className="font-semibold text-[var(--text-muted)] flex items-center gap-1.5">
-                        <span>👤</span>
-                        <span>{issue.logged_by_initials || "Agent"} · {deptLabel}</span>
-                      </div>
-
-                      <button
-                        onClick={() => setViewDetailIssue(issue)}
-                        className="text-xs font-extrabold text-[#4cd34c] hover:underline flex items-center gap-1 transition"
-                      >
-                        <span>View Details</span>
-                        <span>→</span>
-                      </button>
-                    </div>
+                    <p className="text-xs line-clamp-1" style={{ color: "var(--text-muted)" }}>{item.actions_taken}</p>
                   </div>
-                );
-              })}
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.status === "Resolved" ? "bg-emerald-500/20 text-emerald-400" : item.status === "Monitoring" ? "bg-amber-500/20 text-amber-400" : "bg-red-500/20 text-red-400"}`}>
+                      {item.status}
+                    </span>
+                    <button
+                      onClick={() => setTimelineModalIssue(item)}
+                      className="px-2 py-1 rounded-lg border text-[11px] font-bold text-[#4cd34c] hover:bg-[#4cd34c]/20"
+                      style={{ borderColor: "var(--badge-border)" }}
+                    >
+                      Story
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* RECURRING ISSUE PATTERNS */}
+        <div className="rounded-3xl border p-5 shadow-md backdrop-blur space-y-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+          <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📈</span>
+              <h3 className="text-base font-black tracking-tight" style={{ color: "var(--app-text)" }}>
+                RECURRING ISSUE PATTERNS
+              </h3>
+            </div>
+            <span className="text-xs font-medium text-[var(--text-muted)]">Frequency Trends</span>
+          </div>
+
+          {recurringPatterns.length === 0 ? (
+            <div className="p-6 text-center text-xs text-[var(--text-muted)] border border-dashed rounded-2xl" style={{ borderColor: "var(--field-border)" }}>
+              No issue patterns recorded yet.
+            </div>
+          ) : (
+            <div className="space-y-3.5 max-h-80 overflow-y-auto pr-1">
+              {recurringPatterns.map((pat) => (
+                <div key={pat.title} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span style={{ color: "var(--app-text)" }}>{pat.title}</span>
+                    <span className="text-amber-400 font-extrabold">{pat.count} occurrence(s)</span>
+                  </div>
+                  <div className="w-full h-2.5 rounded-full overflow-hidden bg-[var(--field-bg)] border" style={{ borderColor: "var(--field-border)" }}>
+                    <div
+                      className="h-full rounded-full bg-[linear-gradient(90deg,#4cd34c_0%,#0f9b00_100%)] transition-all duration-500"
+                      style={{ width: `${pat.pct}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
       </div>
 
-      {/* VIEW DETAILS MODAL */}
-      {viewDetailIssue && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
-          <div
-            className="w-full max-w-2xl rounded-3xl border p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
-            style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
-          >
-            <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
-              <div className="flex items-center gap-3">
-                <span className="text-xl">
-                  {viewDetailIssue.status === "Resolved" ? "🟢" : viewDetailIssue.status === "Monitoring" ? "🟠" : "🔴"}
-                </span>
-                <div>
-                  <span className="font-mono text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#4cd34c]/15 text-[#4cd34c] border border-[#4cd34c]/30">
-                    {viewDetailIssue.reference_no || `#SIR-${viewDetailIssue.id}`}
-                  </span>
-                  <h3 className="text-lg font-extrabold mt-1">{viewDetailIssue.title}</h3>
-                </div>
-              </div>
+      {/* ROW 4: 📁 ISSUE HISTORY & ARCHIVE (DENSE MANAGEMENT TABLE GRID) */}
+      <div className="rounded-3xl border p-6 shadow-md backdrop-blur space-y-5" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: "var(--field-border)" }}>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">📁</span>
+              <h3 className="text-lg font-black tracking-tight" style={{ color: "var(--app-text)" }}>
+                ISSUE HISTORY & ARCHIVE ({filteredIssues.length})
+              </h3>
+            </div>
+            <p className="text-xs font-medium mt-0.5" style={{ color: "var(--text-muted)" }}>
+              Search, filter, and inspect detailed historical records across shifts and reporting periods.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* View Mode Toggle */}
+            <div className="flex items-center p-1 rounded-2xl border backdrop-blur" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
               <button
-                onClick={() => setViewDetailIssue(null)}
-                className="text-lg font-bold opacity-60 hover:opacity-100 transition"
+                onClick={() => setViewMode("table")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${viewMode === "table" ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007]" : "text-[var(--text-muted)]"}`}
               >
-                ✕
+                📋 Table View
               </button>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-              <div className="rounded-xl border p-2.5" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
-                <span className="text-[10px] font-semibold text-[var(--text-muted)] block">Status:</span>
-                <span className="font-bold text-[#4cd34c]">{viewDetailIssue.status}</span>
-              </div>
-              <div className="rounded-xl border p-2.5" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
-                <span className="text-[10px] font-semibold text-[var(--text-muted)] block">Shift & Time:</span>
-                <span className="font-bold">{viewDetailIssue.shift_name} ({viewDetailIssue.time_noticed})</span>
-              </div>
-              <div className="rounded-xl border p-2.5" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
-                <span className="text-[10px] font-semibold text-[var(--text-muted)] block">Escalated To:</span>
-                <span className="font-bold">{viewDetailIssue.escalated_to || "None"}</span>
-              </div>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="rounded-2xl border p-4 space-y-1" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
-                <span className="font-bold text-[#4cd34c] uppercase text-[10px]">Description of Issue</span>
-                <p className="whitespace-pre-wrap leading-relaxed font-medium">{viewDetailIssue.description}</p>
-              </div>
-
-              <div className="rounded-2xl border p-4 space-y-1" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
-                <span className="font-bold text-[#4cd34c] uppercase text-[10px]">Actions Taken</span>
-                <p className="whitespace-pre-wrap leading-relaxed font-medium">{viewDetailIssue.actions_taken}</p>
-              </div>
-
-              {viewDetailIssue.customer_response && (
-                <div className="rounded-2xl border p-4 bg-[#4cd34c]/5 border-[#4cd34c]/30 text-xs">
-                  <span className="font-bold text-[#4cd34c] uppercase text-[10px] block mb-1">💬 Customer Given Response:</span>
-                  <p className="whitespace-pre-wrap font-medium text-emerald-300">"{viewDetailIssue.customer_response}"</p>
-                </div>
-              )}
-
-              {viewDetailIssue.next_shift_instructions && (
-                <div className="rounded-2xl border p-4 bg-[#ff6b6b]/10 border-[#ff6b6b]/30 text-[#ff8080] text-xs">
-                  <strong className="block text-[10px] text-[#ff6b6b] uppercase font-bold mb-1">What Next Shift Should Know / Do:</strong>
-                  <p className="whitespace-pre-wrap font-semibold">{viewDetailIssue.next_shift_instructions}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: "var(--panel-border)" }}>
-              <div className="text-xs text-[var(--text-muted)]">
-                Logged by: <strong className="text-[#4cd34c]">{viewDetailIssue.logged_by_name} ({viewDetailIssue.logged_by_initials})</strong>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    const item = viewDetailIssue;
-                    setViewDetailIssue(null);
-                    handleOpenEditModal(item);
-                  }}
-                  className="px-4 py-2 rounded-xl border text-xs font-semibold hover:opacity-80 transition"
-                  style={{ borderColor: "var(--badge-border)" }}
-                >
-                  Edit Issue
-                </button>
-                <button
-                  onClick={() => {
-                    const id = viewDetailIssue.id;
-                    setViewDetailIssue(null);
-                    handleDeleteIssue(id);
-                  }}
-                  className="px-4 py-2 rounded-xl border text-xs font-semibold hover:bg-[#ff6b6b]/10 hover:text-[#ff6b6b] transition"
-                  style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
-                >
-                  Delete
-                </button>
-                <button
-                  onClick={() => setViewDetailIssue(null)}
-                  className="px-4 py-2 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-bold shadow-md"
-                >
-                  Close
-                </button>
-              </div>
+              <button
+                onClick={() => setViewMode("cards")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${viewMode === "cards" ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007]" : "text-[var(--text-muted)]"}`}
+              >
+                🎴 Cards View
+              </button>
             </div>
           </div>
         </div>
-      )}
 
-      {/* EXPORT SHIFT ISSUES MODAL */}
-      {showExportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
-          <div
-            className="w-full max-w-md rounded-3xl border p-6 shadow-2xl space-y-5"
-            style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
+        {/* SEARCH & FILTERS BAR */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Search Input */}
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search ID, title, shift, agent..."
+              className="w-full rounded-xl border p-2.5 text-xs font-medium focus:outline-none focus:border-[#4cd34c]"
+              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+            />
+          </div>
+
+          {/* Status Filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full rounded-xl border p-2.5 text-xs font-bold focus:outline-none focus:border-[#4cd34c]"
+            style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
           >
-            <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
-              <h3 className="text-lg font-extrabold flex items-center gap-2">
-                <span>📥</span>
-                <span>Export Shift Issues</span>
-              </h3>
+            <option value="All">Status: All Records</option>
+            <option value="Ongoing">Status: 🔴 Ongoing Only</option>
+            <option value="Monitoring">Status: 🟠 Monitoring Only</option>
+            <option value="Resolved">Status: 🟢 Resolved Only</option>
+          </select>
+
+          {/* Shift Filter */}
+          <select
+            value={shiftFilter}
+            onChange={(e) => setShiftFilter(e.target.value)}
+            className="w-full rounded-xl border p-2.5 text-xs font-bold focus:outline-none focus:border-[#4cd34c]"
+            style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+          >
+            <option value="All">Shift: All Shifts</option>
+            {(shifts || []).map((s) => (
+              <option key={s.id || s.name} value={s.name}>Shift: {s.name}</option>
+            ))}
+          </select>
+
+          {/* Carry Forward Toggle */}
+          <button
+            onClick={() => setCarryForwardOnly(!carryForwardOnly)}
+            className={`w-full py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 ${carryForwardOnly ? "bg-blue-500/20 text-blue-400 border-blue-500/50" : ""}`}
+            style={!carryForwardOnly ? { borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" } : {}}
+          >
+            <span>↪</span>
+            <span>{carryForwardOnly ? "Showing Carried Only" : "Show Carried Only"}</span>
+          </button>
+        </div>
+
+        {/* ARCHIVE CONTENT TABLE / CARDS */}
+        {filteredIssues.length === 0 ? (
+          <div className="p-12 text-center border-2 border-dashed rounded-2xl space-y-2" style={{ borderColor: "var(--field-border)" }}>
+            <span className="text-3xl block">🔍</span>
+            <p className="text-sm font-bold" style={{ color: "var(--app-text)" }}>No matching issues found.</p>
+            <p className="text-xs text-[var(--text-muted)]">Try adjusting your search terms or filter criteria.</p>
+          </div>
+        ) : viewMode === "table" ? (
+          /* MANAGEMENT DENSE TABLE VIEW */
+          <div className="overflow-x-auto rounded-2xl border" style={{ borderColor: "var(--field-border)" }}>
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b bg-[var(--field-bg)] text-[var(--text-muted)] uppercase tracking-wider font-extrabold" style={{ borderColor: "var(--field-border)" }}>
+                  <th className="p-3 font-bold">ID</th>
+                  <th className="p-3 font-bold">Issue Title</th>
+                  <th className="p-3 font-bold">Shift</th>
+                  <th className="p-3 font-bold">Time Noticed</th>
+                  <th className="p-3 font-bold">Issue Age</th>
+                  <th className="p-3 font-bold">Status</th>
+                  <th className="p-3 font-bold text-center">Shifts</th>
+                  <th className="p-3 font-bold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y" style={{ borderColor: "var(--panel-border)" }}>
+                {filteredIssues.map((issue) => {
+                  const age = calculateIssueAge(issue.created_at);
+                  const shiftsAffected = calculateShiftsAffected(issue);
+
+                  return (
+                    <tr key={issue.id} className="hover:bg-[#4cd34c]/5 transition">
+                      <td className="p-3 font-mono font-bold text-[var(--text-muted)]">
+                        {issue.reference_no || `#SIR-${issue.id}`}
+                      </td>
+                      <td className="p-3 font-bold text-[var(--app-text)] max-w-xs truncate">
+                        {issue.title}
+                        {issue.carry_forward && (
+                          <span className="ml-2 text-[9px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-extrabold">
+                            ↪ Carried
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3 text-[var(--text-muted)] font-medium">
+                        {getShiftIcon(issue.shift_name)} {issue.shift_name || "General"}
+                      </td>
+                      <td className="p-3 font-mono text-[var(--text-muted)]">
+                        {issue.time_noticed}
+                      </td>
+                      <td className="p-3 font-mono font-extrabold text-amber-400">
+                        {age}
+                      </td>
+                      <td className="p-3">
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${issue.status === "Resolved" ? "bg-emerald-500/20 text-emerald-400" : issue.status === "Monitoring" ? "bg-amber-500/20 text-amber-400" : "bg-red-500/20 text-red-400"}`}>
+                          {issue.status}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center font-extrabold text-red-400 font-mono">
+                        {shiftsAffected}
+                      </td>
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setTimelineModalIssue(issue)}
+                            className="px-2.5 py-1 rounded-lg border text-[11px] font-bold text-[#4cd34c] hover:bg-[#4cd34c]/20"
+                            style={{ borderColor: "var(--badge-border)" }}
+                          >
+                            View Story
+                          </button>
+                          <button
+                            onClick={() => handleOpenEditModal(issue)}
+                            className="px-2 py-1 rounded-lg border text-[11px] font-bold text-[var(--app-text)] hover:opacity-80"
+                            style={{ borderColor: "var(--field-border)" }}
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          /* CARDS VIEW */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredIssues.map((issue) => (
+              <div key={issue.id} className="rounded-2xl border p-4 space-y-3" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold opacity-75">{issue.reference_no || `#SIR-${issue.id}`}</span>
+                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${issue.status === "Resolved" ? "bg-emerald-500/20 text-emerald-400" : issue.status === "Monitoring" ? "bg-amber-500/20 text-amber-400" : "bg-red-500/20 text-red-400"}`}>
+                    {issue.status}
+                  </span>
+                </div>
+                <h4 className="text-sm font-black">{issue.title}</h4>
+                <p className="text-xs line-clamp-2 text-[var(--text-muted)]">{issue.description}</p>
+                <div className="pt-2 border-t flex items-center justify-between text-xs" style={{ borderColor: "var(--panel-border)" }}>
+                  <span className="font-mono text-amber-400">⏱️ {calculateIssueAge(issue.created_at)}</span>
+                  <button
+                    onClick={() => setTimelineModalIssue(issue)}
+                    className="px-3 py-1 rounded-xl border font-bold text-[#4cd34c]"
+                    style={{ borderColor: "var(--badge-border)" }}
+                  >
+                    View Story →
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* MODAL 1: INTERACTIVE ISSUE STORY / TIMELINE DRAWER */}
+      {timelineModalIssue && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-2xl rounded-3xl border shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}>
+            {/* Header */}
+            <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--field-border)" }}>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono font-extrabold px-2 py-0.5 rounded-md bg-[var(--field-bg)] text-[var(--text-muted)]">
+                    {timelineModalIssue.reference_no || `#SIR-${timelineModalIssue.id}`}
+                  </span>
+                  <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full ${timelineModalIssue.status === "Resolved" ? "bg-emerald-500/20 text-emerald-400" : timelineModalIssue.status === "Monitoring" ? "bg-amber-500/20 text-amber-400" : "bg-red-500/20 text-red-400"}`}>
+                    {timelineModalIssue.status}
+                  </span>
+                </div>
+                <h3 className="text-xl font-black mt-1">{timelineModalIssue.title}</h3>
+              </div>
+
               <button
-                onClick={() => setShowExportModal(false)}
-                className="text-lg font-bold opacity-60 hover:opacity-100 transition"
+                onClick={() => setTimelineModalIssue(null)}
+                className="p-2 rounded-xl text-lg font-bold hover:bg-white/10"
               >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-3">
-              {/* Option 1: Excel Workbook (.xlsx) */}
-              <button
-                onClick={handleExportExcel}
-                className="w-full text-left rounded-2xl border p-4 transition-all hover:scale-[1.01] hover:border-[#4cd34c] bg-[var(--field-bg)] space-y-1 group"
-                style={{ borderColor: "var(--field-border)" }}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-sm flex items-center gap-2 group-hover:text-[#4cd34c] transition">
-                    <span>📊</span>
-                    <span>Excel Workbook (.xlsx)</span>
-                  </span>
-                  <span className="text-[11px] font-extrabold text-[#4cd34c] bg-[#4cd34c]/10 px-2 py-0.5 rounded-full border border-[#4cd34c]/30">
-                    3 Worksheets
-                  </span>
-                </div>
-                <p className="text-xs opacity-75 pl-6" style={{ color: "var(--text-muted)" }}>
-                  Complete issue records with Summary, Issue Register & Trends worksheets
+            {/* ISSUE STORY TIMELINE */}
+            <div className="space-y-6 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-gradient-to-b before:from-[#4cd34c] before:to-amber-500">
+              {/* Step 1: Issue First Noticed */}
+              <div className="relative pl-8 space-y-1">
+                <div className="absolute left-1.5 top-1.5 w-3 h-3 rounded-full bg-[#4cd34c] ring-4 ring-[#4cd34c]/20" />
+                <span className="text-[11px] font-bold text-[#4cd34c] uppercase font-mono">
+                  {timelineModalIssue.time_noticed} — {timelineModalIssue.shift_name || "General Shift"}
+                </span>
+                <p className="text-sm font-bold">Issue First Recorded</p>
+                <p className="text-xs text-[var(--text-muted)]">
+                  Logged by {timelineModalIssue.logged_by_name || "Agent"} ({timelineModalIssue.logged_by_initials || "AG"})
                 </p>
-              </button>
+              </div>
 
-              {/* Option 2: Management Report (.txt) */}
-              <button
-                onClick={handleExportManagementReport}
-                className="w-full text-left rounded-2xl border p-4 transition-all hover:scale-[1.01] hover:border-[#4cd34c] bg-[var(--field-bg)] space-y-1 group"
-                style={{ borderColor: "var(--field-border)" }}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-sm flex items-center gap-2 group-hover:text-[#4cd34c] transition">
-                    <span>📄</span>
-                    <span>Management Report (.pdf)</span>
-                  </span>
-                  <span className="text-[11px] font-extrabold text-[#4cd34c] bg-[#4cd34c]/10 px-2 py-0.5 rounded-full border border-[#4cd34c]/30">
-                    PDF Document
-                  </span>
+              {/* Step 2: Problem Description */}
+              <div className="relative pl-8 space-y-1">
+                <div className="absolute left-1.5 top-1.5 w-3 h-3 rounded-full bg-blue-400 ring-4 ring-blue-400/20" />
+                <span className="text-[11px] font-bold text-blue-400 uppercase font-mono">Problem Description</span>
+                <div className="p-3 rounded-2xl border text-xs font-medium leading-relaxed" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                  {timelineModalIssue.description}
                 </div>
-                <p className="text-xs opacity-75 pl-6" style={{ color: "var(--text-muted)" }}>
-                  Executive summary report suitable for management briefings
-                </p>
-              </button>
+              </div>
 
-              {/* Option 3: CSV Data (.csv) */}
-              <button
-                onClick={handleExportCSV}
-                className="w-full text-left rounded-2xl border p-4 transition-all hover:scale-[1.01] hover:border-[#4cd34c] bg-[var(--field-bg)] space-y-1 group"
-                style={{ borderColor: "var(--field-border)" }}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-sm flex items-center gap-2 group-hover:text-[#4cd34c] transition">
-                    <span>📋</span>
-                    <span>CSV Data (.csv)</span>
-                  </span>
-                  <span className="text-[11px] font-extrabold text-[#4cd34c] bg-[#4cd34c]/10 px-2 py-0.5 rounded-full border border-[#4cd34c]/30">
-                    Raw Data
-                  </span>
+              {/* Step 3: Technical Actions Taken */}
+              <div className="relative pl-8 space-y-1">
+                <div className="absolute left-1.5 top-1.5 w-3 h-3 rounded-full bg-amber-400 ring-4 ring-amber-400/20" />
+                <span className="text-[11px] font-bold text-amber-400 uppercase font-mono">Technical Actions Taken</span>
+                <div className="p-3 rounded-2xl border text-xs font-medium leading-relaxed" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                  {timelineModalIssue.actions_taken}
                 </div>
-                <p className="text-xs opacity-75 pl-6" style={{ color: "var(--text-muted)" }}>
-                  Raw data file for further database or spreadsheet processing
-                </p>
-              </button>
+              </div>
+
+              {/* Step 4: Customer Given Response */}
+              {timelineModalIssue.customer_response && (
+                <div className="relative pl-8 space-y-1">
+                  <div className="absolute left-1.5 top-1.5 w-3 h-3 rounded-full bg-purple-400 ring-4 ring-purple-400/20" />
+                  <span className="text-[11px] font-bold text-purple-400 uppercase font-mono">Customer Communication</span>
+                  <div className="p-3 rounded-2xl border text-xs font-medium leading-relaxed" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                    {timelineModalIssue.customer_response}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 5: Escalation (if any) */}
+              {timelineModalIssue.escalated_to && timelineModalIssue.escalated_to !== "None" && (
+                <div className="relative pl-8 space-y-1">
+                  <div className="absolute left-1.5 top-1.5 w-3 h-3 rounded-full bg-red-400 ring-4 ring-red-400/20" />
+                  <span className="text-[11px] font-bold text-red-400 uppercase font-mono">Escalation Status</span>
+                  <p className="text-xs font-bold">Escalated to: {timelineModalIssue.escalated_to}</p>
+                </div>
+              )}
+
+              {/* Step 6: Shift Carry Forward Instructions */}
+              {timelineModalIssue.carry_forward && (
+                <div className="relative pl-8 space-y-1">
+                  <div className="absolute left-1.5 top-1.5 w-3 h-3 rounded-full bg-amber-500 ring-4 ring-amber-500/20" />
+                  <span className="text-[11px] font-bold text-amber-500 uppercase font-mono">↪ Shift Carry Forward Instructions</span>
+                  <div className="p-3 rounded-2xl border text-xs font-bold text-amber-300 font-mono" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                    {timelineModalIssue.next_shift_instructions || "Maintain active monitoring for next shift."}
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="flex justify-end pt-2 border-t" style={{ borderColor: "var(--panel-border)" }}>
+            {/* Footer */}
+            <div className="flex justify-end gap-3 pt-3 border-t" style={{ borderColor: "var(--panel-border)" }}>
               <button
-                onClick={() => setShowExportModal(false)}
-                className="px-4 py-2 rounded-xl border text-xs font-bold hover:opacity-80 transition"
+                onClick={() => setTimelineModalIssue(null)}
+                className="px-5 py-2.5 rounded-xl border text-xs font-bold"
                 style={{ borderColor: "var(--badge-border)" }}
               >
-                Cancel
+                Close Story
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-          <div
-            className="w-full max-w-3xl rounded-3xl border p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
-            style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
-          >
-            <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
-              <div className="flex items-center gap-3">
-                <img src="/clipboard.png" alt="Register" className="h-7 w-7 object-contain" />
-                <h3 className="text-xl font-bold">
-                  {editIssueId ? `Edit Issue Record #${editIssueId}` : "+ Record Shift Issue"}
-                </h3>
+      {/* MODAL 2: REPORTING PERIOD & MULTI-FORMAT EXPORT MODAL */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-lg rounded-3xl border shadow-2xl p-6 space-y-6" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}>
+            <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--field-border)" }}>
+              <div>
+                <h3 className="text-lg font-black">EXPORT SHIFT ISSUES & REPORTING</h3>
+                <p className="text-xs text-[var(--text-muted)] font-medium">Select organizational reporting period & export format</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="text-lg font-bold opacity-60 hover:opacity-100 transition"
-              >
-                ✕
+              <button onClick={() => setShowExportModal(false)} className="p-1 rounded-lg text-lg font-bold hover:bg-white/10">✕</button>
+            </div>
+
+            {/* Reporting Period Options */}
+            <div className="space-y-3">
+              <label className="text-xs font-bold uppercase tracking-wider block text-[#4cd34c]">1. Select Reporting Period</label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition hover:border-[#4cd34c]" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                  <input
+                    type="radio"
+                    name="period"
+                    value="current_week"
+                    checked={exportPeriod === "current_week"}
+                    onChange={(e) => setExportPeriod(e.target.value)}
+                    className="accent-[#4cd34c]"
+                  />
+                  <div>
+                    <span className="text-xs font-bold block">Current Reporting Week</span>
+                    <span className="text-[10px] text-[var(--text-muted)] font-mono">This active calendar week (Mon - Sun)</span>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition hover:border-[#4cd34c]" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                  <input
+                    type="radio"
+                    name="period"
+                    value="previous_week"
+                    checked={exportPeriod === "previous_week"}
+                    onChange={(e) => setExportPeriod(e.target.value)}
+                    className="accent-[#4cd34c]"
+                  />
+                  <div>
+                    <span className="text-xs font-bold block">Previous Reporting Week</span>
+                    <span className="text-[10px] text-[var(--text-muted)] font-mono">Previous completed week</span>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition hover:border-[#4cd34c]" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                  <input
+                    type="radio"
+                    name="period"
+                    value="this_month"
+                    checked={exportPeriod === "this_month"}
+                    onChange={(e) => setExportPeriod(e.target.value)}
+                    className="accent-[#4cd34c]"
+                  />
+                  <div>
+                    <span className="text-xs font-bold block">This Month</span>
+                    <span className="text-[10px] text-[var(--text-muted)] font-mono">Current active month records</span>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition hover:border-[#4cd34c]" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                  <input
+                    type="radio"
+                    name="period"
+                    value="custom"
+                    checked={exportPeriod === "custom"}
+                    onChange={(e) => setExportPeriod(e.target.value)}
+                    className="accent-[#4cd34c]"
+                  />
+                  <span className="text-xs font-bold">Custom Date Range</span>
+                </label>
+
+                {exportPeriod === "custom" && (
+                  <div className="grid grid-cols-2 gap-3 pl-7 pt-1 animate-fadeIn">
+                    <div>
+                      <label className="text-[10px] font-bold block text-[var(--text-muted)]">From Date</label>
+                      <input
+                        type="date"
+                        value={customStartDate}
+                        onChange={(e) => setCustomStartDate(e.target.value)}
+                        className="w-full p-2 rounded-xl border text-xs font-bold focus:outline-none"
+                        style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold block text-[var(--text-muted)]">To Date</label>
+                      <input
+                        type="date"
+                        value={customEndDate}
+                        onChange={(e) => setCustomEndDate(e.target.value)}
+                        className="w-full p-2 rounded-xl border text-xs font-bold focus:outline-none"
+                        style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Export Format Options */}
+            <div className="space-y-3">
+              <label className="text-xs font-bold uppercase tracking-wider block text-[#4cd34c]">2. Select Export Format</label>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  onClick={() => setExportFormat("excel")}
+                  className={`p-3 rounded-2xl border text-center transition flex flex-col items-center justify-center gap-1 ${exportFormat === "excel" ? "bg-[#4cd34c]/20 border-[#4cd34c] text-[#4cd34c]" : "hover:border-[#4cd34c]"}`}
+                  style={exportFormat !== "excel" ? { borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" } : {}}
+                >
+                  <span className="text-lg">📊</span>
+                  <span className="text-xs font-black">Excel (.xlsx)</span>
+                  <span className="text-[9px] opacity-75 font-medium">Multi-Sheet</span>
+                </button>
+
+                <button
+                  onClick={() => setExportFormat("pdf")}
+                  className={`p-3 rounded-2xl border text-center transition flex flex-col items-center justify-center gap-1 ${exportFormat === "pdf" ? "bg-[#4cd34c]/20 border-[#4cd34c] text-[#4cd34c]" : "hover:border-[#4cd34c]"}`}
+                  style={exportFormat !== "pdf" ? { borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" } : {}}
+                >
+                  <span className="text-lg">📄</span>
+                  <span className="text-xs font-black">PDF Report</span>
+                  <span className="text-[9px] opacity-75 font-medium">Executive</span>
+                </button>
+
+                <button
+                  onClick={() => setExportFormat("csv")}
+                  className={`p-3 rounded-2xl border text-center transition flex flex-col items-center justify-center gap-1 ${exportFormat === "csv" ? "bg-[#4cd34c]/20 border-[#4cd34c] text-[#4cd34c]" : "hover:border-[#4cd34c]"}`}
+                  style={exportFormat !== "csv" ? { borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" } : {}}
+                >
+                  <span className="text-lg">🗃</span>
+                  <span className="text-xs font-black">Raw CSV</span>
+                  <span className="text-[9px] opacity-75 font-medium">Data Dump</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="flex justify-end gap-3 pt-3 border-t" style={{ borderColor: "var(--panel-border)" }}>
+              <button onClick={() => setShowExportModal(false)} className="px-4 py-2.5 rounded-xl border text-xs font-bold" style={{ borderColor: "var(--badge-border)" }}>
+                Cancel
               </button>
+              <button
+                onClick={handleRunExport}
+                className="px-6 py-2.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-extrabold shadow-lg transition hover:scale-105"
+              >
+                Export Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: RECORD / EDIT SHIFT ISSUE FORM */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-2xl rounded-3xl border shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}>
+            <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--field-border)" }}>
+              <div>
+                <h3 className="text-lg font-black">{editIssueId ? "Edit Shift Issue" : "Record New Shift Issue"}</h3>
+                <p className="text-xs text-[var(--text-muted)] font-medium">Enter details for operational visibility & handovers</p>
+              </div>
+              <button onClick={() => setShowModal(false)} className="p-1 rounded-lg text-lg font-bold hover:bg-white/10">✕</button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Row 1: Title, Reporting Shift & Time Noticed */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="md:col-span-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
                   <label className="text-xs font-bold mb-1 block" style={{ color: "var(--text-muted)" }}>
                     Issue Title *
                   </label>
@@ -1186,164 +1292,151 @@ export default function ShiftRegisterScreen({
                     required
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. EcoCash USSD Timeout Error"
-                    className="w-full rounded-xl border p-2.5 text-sm font-medium focus:outline-none focus:border-[#4cd34c]"
+                    placeholder="e.g. Payment Gateway Timeouts"
+                    className="w-full rounded-xl border p-2.5 text-xs font-bold focus:outline-none focus:border-[#4cd34c]"
                     style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold mb-1 block text-[#4cd34c]">
-                    Reporting Shift *
+                  <label className="text-xs font-bold mb-1 block" style={{ color: "var(--text-muted)" }}>
+                    Shift Name
                   </label>
                   <select
                     value={selectedShiftForIssue}
                     onChange={(e) => setSelectedShiftForIssue(e.target.value)}
-                    className="w-full rounded-xl border p-2.5 text-sm font-medium focus:outline-none focus:border-[#4cd34c]"
+                    className="w-full rounded-xl border p-2.5 text-xs font-bold focus:outline-none focus:border-[#4cd34c]"
                     style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                   >
                     {(shifts || []).map((s) => (
-                      <option key={s.id} value={s.name}>
-                        {s.name}
-                      </option>
+                      <option key={s.id || s.name} value={s.name}>{s.name}</option>
                     ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold mb-1 block" style={{ color: "var(--text-muted)" }}>
-                    Time First Noticed *
-                  </label>
-                  <input
-                    type="time"
-                    required
-                    value={timeNoticed}
-                    onChange={(e) => setTimeNoticed(e.target.value)}
-                    className="w-full rounded-xl border p-2.5 text-sm font-medium focus:outline-none focus:border-[#4cd34c]"
-                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                  />
-                </div>
-              </div>
-
-              {/* Row 2: Status & Escalated To */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold mb-1 block" style={{ color: "var(--text-muted)" }}>
-                    Current Status *
-                  </label>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    className="w-full rounded-xl border p-2.5 text-sm font-medium focus:outline-none focus:border-[#4cd34c]"
-                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                  >
-                    <option value="Ongoing">Ongoing (Requires Action)</option>
-                    <option value="Monitoring">Monitoring (Under Observation)</option>
-                    <option value="Resolved">Resolved (Completed)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold mb-1 block" style={{ color: "var(--text-muted)" }}>
-                    Escalated To *
-                  </label>
-                  <select
-                    value={escalatedToSelect}
-                    onChange={(e) => setEscalatedToSelect(e.target.value)}
-                    className="w-full rounded-xl border p-2.5 text-sm font-medium focus:outline-none focus:border-[#4cd34c]"
-                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                  >
-                    <option value="None">None (Handled On Shift)</option>
-                    {(escalationTargets || []).map((t) => (
-                      <option key={t.id} value={t.name}>
-                        {t.name}
-                      </option>
-                    ))}
-                    <option value="Other">Other (Custom Option...)</option>
                   </select>
                 </div>
               </div>
 
-              {/* Conditional custom escalated target input */}
-              {escalatedToSelect === "Other" && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-xs font-bold mb-1 block text-[#f1c84b]">
-                    Specify Custom Escalated Target *
+                  <label className="text-xs font-bold mb-1 block" style={{ color: "var(--text-muted)" }}>
+                    Time Noticed *
                   </label>
                   <input
                     type="text"
                     required
+                    value={timeNoticed}
+                    onChange={(e) => setTimeNoticed(e.target.value)}
+                    placeholder="HH:MM (e.g. 14:35)"
+                    className="w-full rounded-xl border p-2.5 text-xs font-bold focus:outline-none focus:border-[#4cd34c]"
+                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold mb-1 block" style={{ color: "var(--text-muted)" }}>
+                    Status *
+                  </label>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    className="w-full rounded-xl border p-2.5 text-xs font-bold focus:outline-none focus:border-[#4cd34c]"
+                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                  >
+                    <option value="Ongoing">🔴 Ongoing</option>
+                    <option value="Monitoring">🟠 Monitoring</option>
+                    <option value="Resolved">🟢 Resolved</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold mb-1 block" style={{ color: "var(--text-muted)" }}>
+                    Escalated To
+                  </label>
+                  <select
+                    value={escalatedToSelect}
+                    onChange={(e) => setEscalatedToSelect(e.target.value)}
+                    className="w-full rounded-xl border p-2.5 text-xs font-bold focus:outline-none focus:border-[#4cd34c]"
+                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                  >
+                    <option value="None">None</option>
+                    {(escalationTargets || []).map((t) => (
+                      <option key={t.id || t.name} value={t.name}>{t.name}</option>
+                    ))}
+                    <option value="Other">Other / Custom</option>
+                  </select>
+                </div>
+              </div>
+
+              {escalatedToSelect === "Other" && (
+                <div>
+                  <label className="text-xs font-bold mb-1 block text-[#4cd34c]">
+                    Custom Escalation Destination
+                  </label>
+                  <input
+                    type="text"
                     value={escalatedToCustom}
                     onChange={(e) => setEscalatedToCustom(e.target.value)}
-                    placeholder="e.g. Core Switching Team / Vendor X"
-                    className="w-full rounded-xl border p-2.5 text-sm font-medium focus:outline-none focus:border-[#4cd34c]"
+                    placeholder="e.g. Senior Network Architect"
+                    className="w-full rounded-xl border p-2.5 text-xs font-bold focus:outline-none focus:border-[#4cd34c]"
                     style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                   />
                 </div>
               )}
 
-              {/* Row 3: Description */}
               <div>
                 <label className="text-xs font-bold mb-1 block" style={{ color: "var(--text-muted)" }}>
-                  Description of the Issue *
+                  Issue Description *
                 </label>
                 <textarea
                   required
                   rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Provide details about the issue reported by customers..."
-                  className="w-full rounded-xl border p-2.5 text-sm font-medium focus:outline-none focus:border-[#4cd34c]"
+                  placeholder="Describe the nature of the issue..."
+                  className="w-full rounded-xl border p-2.5 text-xs font-medium focus:outline-none focus:border-[#4cd34c]"
                   style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                 />
               </div>
 
-              {/* Row 4: Actions Taken */}
               <div>
                 <label className="text-xs font-bold mb-1 block" style={{ color: "var(--text-muted)" }}>
                   Actions Taken *
                 </label>
                 <textarea
                   required
-                  rows={2}
+                  rows={3}
                   value={actionsTaken}
                   onChange={(e) => setActionsTaken(e.target.value)}
-                  placeholder="Describe troubleshooting steps or escalations performed..."
-                  className="w-full rounded-xl border p-2.5 text-sm font-medium focus:outline-none focus:border-[#4cd34c]"
+                  placeholder="Technical steps taken by team..."
+                  className="w-full rounded-xl border p-2.5 text-xs font-medium focus:outline-none focus:border-[#4cd34c]"
                   style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                 />
               </div>
 
-              {/* Row 5: Customer Given Response */}
               <div>
                 <label className="text-xs font-bold mb-1 block" style={{ color: "var(--text-muted)" }}>
-                  Customer Given Response (Optional)
+                  Customer Response Provided (Optional)
                 </label>
-                <textarea
-                  rows={2}
+                <input
+                  type="text"
                   value={customerResponse}
                   onChange={(e) => setCustomerResponse(e.target.value)}
-                  placeholder="Exact response script or message provided to reporting customers..."
-                  className="w-full rounded-xl border p-2.5 text-sm font-medium focus:outline-none focus:border-[#4cd34c]"
+                  placeholder="Standard response given to customers..."
+                  className="w-full rounded-xl border p-2.5 text-xs font-medium focus:outline-none focus:border-[#4cd34c]"
                   style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                 />
               </div>
 
-              {/* NEXT SHIFT ACTION SECTION */}
-              <div className="rounded-2xl border p-4 space-y-3 bg-[#ff6b6b]/5 border-[#ff6b6b]/30">
-                <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#ff6b6b] flex items-center gap-2">
-                  <span>⚡</span>
-                  <span>Next Shift Action</span>
-                </h4>
-
-                <label className="flex items-center gap-2.5 text-sm font-bold cursor-pointer select-none">
+              <div className="p-3.5 rounded-2xl border space-y-3" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={carryForward}
                     onChange={(e) => setCarryForward(e.target.checked)}
-                    className="rounded accent-[#ff6b6b] h-4 w-4"
+                    className="h-4 w-4 rounded border-gray-300 accent-[#4cd34c]"
                   />
-                  <span>Carry forward to next shift</span>
+                  <span className="text-xs font-bold text-[#f1c84b]">
+                    ↪ Carry Forward to Next Shift
+                  </span>
                 </label>
 
                 {carryForward && (
@@ -1357,14 +1450,13 @@ export default function ShiftRegisterScreen({
                       value={nextShiftInstructions}
                       onChange={(e) => setNextShiftInstructions(e.target.value)}
                       placeholder="e.g. Check NOC update at 08:30 AM. Follow up with vendor if link stays down..."
-                      className="w-full rounded-xl border p-2.5 text-sm font-medium focus:outline-none focus:border-[#f1c84b]"
+                      className="w-full rounded-xl border p-2.5 text-xs font-medium focus:outline-none focus:border-[#f1c84b]"
                       style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                     />
                   </div>
                 )}
               </div>
 
-              {/* Row 6: Additional Notes */}
               <div>
                 <label className="text-xs font-bold mb-1 block" style={{ color: "var(--text-muted)" }}>
                   Additional Notes (Optional)
@@ -1374,12 +1466,11 @@ export default function ShiftRegisterScreen({
                   value={additionalNotes}
                   onChange={(e) => setAdditionalNotes(e.target.value)}
                   placeholder="Any extra reference numbers, tickets, or observations..."
-                  className="w-full rounded-xl border p-2.5 text-sm font-medium focus:outline-none focus:border-[#4cd34c]"
+                  className="w-full rounded-xl border p-2.5 text-xs font-medium focus:outline-none focus:border-[#4cd34c]"
                   style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                 />
               </div>
 
-              {/* Modal Footer Buttons */}
               <div className="flex justify-end gap-3 pt-3 border-t" style={{ borderColor: "var(--panel-border)" }}>
                 <button
                   type="button"
@@ -1391,7 +1482,7 @@ export default function ShiftRegisterScreen({
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-bold shadow-md transition hover:scale-105"
+                  className="px-6 py-2.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-extrabold shadow-md transition hover:scale-105"
                 >
                   {editIssueId ? "Save Changes" : "Save Record"}
                 </button>
