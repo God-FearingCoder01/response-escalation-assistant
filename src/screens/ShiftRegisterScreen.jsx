@@ -567,7 +567,7 @@ export default function ShiftRegisterScreen({
             </h2>
           </div>
           <p className="text-sm mt-1.5 font-medium" style={{ color: "var(--text-muted)" }}>
-            Record recurring shift issues, actions taken, and carry-forward notes for incoming shifts
+            Record any noteworthy shift issues (persistant & recurring), actions taken, and important information for incoming shifts.
           </p>
         </div>
 
@@ -615,11 +615,10 @@ export default function ShiftRegisterScreen({
                   <div
                     key={shift.name}
                     onClick={() => setShiftFilter(isSelected ? "All" : shift.name)}
-                    className={`rounded-2xl border p-4 cursor-pointer transition-all hover:scale-[1.01] shadow-sm ${
-                      isSelected
+                    className={`rounded-2xl border p-4 cursor-pointer transition-all hover:scale-[1.01] shadow-sm ${isSelected
                         ? "border-[#4cd34c] bg-[#4cd34c]/10 shadow-[#4cd34c]/10"
                         : "hover:border-[#4cd34c]/40"
-                    }`}
+                      }`}
                     style={{
                       borderColor: isSelected ? "#4cd34c" : "var(--field-border)",
                       backgroundColor: isSelected ? undefined : "var(--field-bg)",
@@ -677,16 +676,14 @@ export default function ShiftRegisterScreen({
                         setSelectedDateFilter(isSelected ? "All" : item.dateKey);
                         setSelectedArchiveMonth("All");
                       }}
-                      className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold transition ${
-                        isSelected
+                      className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold transition ${isSelected
                           ? "bg-[#4cd34c] text-[#071007] font-bold"
                           : "hover:bg-[var(--neutral-bg)] text-[var(--app-text)]"
-                      }`}
+                        }`}
                     >
                       <span>{item.label}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        isSelected ? "bg-[#071007]/20 text-[#071007]" : "bg-[var(--field-bg)] text-[var(--text-muted)] border border-[var(--field-border)]"
-                      }`}>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isSelected ? "bg-[#071007]/20 text-[#071007]" : "bg-[var(--field-bg)] text-[var(--text-muted)] border border-[var(--field-border)]"
+                        }`}>
                         {item.count} {item.count === 1 ? "issue" : "issues"}
                       </span>
                     </button>
@@ -718,11 +715,10 @@ export default function ShiftRegisterScreen({
                         setSelectedArchiveMonth(isSelected ? "All" : item.monthKey);
                         setSelectedDateFilter("All");
                       }}
-                      className={`w-full flex items-center justify-between rounded-2xl border px-3.5 py-2.5 text-xs font-semibold transition ${
-                        isSelected
+                      className={`w-full flex items-center justify-between rounded-2xl border px-3.5 py-2.5 text-xs font-semibold transition ${isSelected
                           ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold"
                           : "border-[var(--field-border)] hover:border-[#4cd34c]/50 text-[var(--app-text)]"
-                      }`}
+                        }`}
                     >
                       <span>[ {item.label} ]</span>
                       <span className="text-[10px] opacity-75">
@@ -815,11 +811,10 @@ export default function ShiftRegisterScreen({
                 <button
                   key={tab}
                   onClick={() => setStatusFilter(tab)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-                    statusFilter === tab
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${statusFilter === tab
                       ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-sm"
                       : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
-                  }`}
+                    }`}
                 >
                   {tab === "All" ? `All Issues (${issues.length})` : tab}
                 </button>
@@ -897,11 +892,10 @@ export default function ShiftRegisterScreen({
                 return (
                   <div
                     key={issue.id}
-                    className={`rounded-2xl border p-5 shadow-md backdrop-blur transition-all space-y-3 flex flex-col justify-between hover:scale-[1.01] ${
-                      issue.carry_forward && issue.status !== "Resolved"
+                    className={`rounded-2xl border p-5 shadow-md backdrop-blur transition-all space-y-3 flex flex-col justify-between hover:scale-[1.01] ${issue.carry_forward && issue.status !== "Resolved"
                         ? "border-[#f1c84b]/50 bg-gradient-to-r from-[#f1c84b]/5 via-transparent to-transparent"
                         : ""
-                    }`}
+                      }`}
                     style={{
                       borderColor: issue.carry_forward && issue.status !== "Resolved" ? undefined : "var(--panel-border)",
                       backgroundColor: "var(--panel-bg)",
