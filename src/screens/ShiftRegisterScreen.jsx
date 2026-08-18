@@ -164,6 +164,30 @@ export default function ShiftRegisterScreen({
     resetForm();
   };
 
+  const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+  const getWeekRangeForDay = (weekStartDayName = "Monday", offsetWeeks = 0) => {
+    const now = new Date();
+    const targetStartIdx = WEEKDAYS.findIndex((d) => d.toLowerCase() === (weekStartDayName || "Monday").toLowerCase());
+    const startIdx = targetStartIdx !== -1 ? targetStartIdx : 1; // Default Monday
+
+    const currentDayIdx = now.getDay();
+    let diff = currentDayIdx - startIdx;
+    if (diff < 0) diff += 7;
+
+    const start = new Date(now);
+    start.setDate(now.getDate() - diff - (offsetWeeks * 7));
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+
+    return { start, end };
+  };
+
+  const configuredWeekStart = localStorage.getItem("REA_COMPANY_WEEK_START") || "Monday";
+
   // Helper to filter issues for export according to selected period
   const getIssuesForPeriod = () => {
     const now = new Date();
@@ -171,23 +195,13 @@ export default function ShiftRegisterScreen({
     let end = new Date(2100, 0, 1);
 
     if (exportPeriod === "current_week") {
-      const dayOfWeek = now.getDay();
-      const distanceToMon = (dayOfWeek + 6) % 7;
-      start = new Date(now);
-      start.setDate(now.getDate() - distanceToMon);
-      start.setHours(0, 0, 0, 0);
-      end = new Date(start);
-      end.setDate(start.getDate() + 6);
-      end.setHours(23, 59, 59, 999);
+      const range = getWeekRangeForDay(configuredWeekStart, 0);
+      start = range.start;
+      end = range.end;
     } else if (exportPeriod === "previous_week") {
-      const dayOfWeek = now.getDay();
-      const distanceToMon = (dayOfWeek + 6) % 7;
-      start = new Date(now);
-      start.setDate(now.getDate() - distanceToMon - 7);
-      start.setHours(0, 0, 0, 0);
-      end = new Date(start);
-      end.setDate(start.getDate() + 6);
-      end.setHours(23, 59, 59, 999);
+      const range = getWeekRangeForDay(configuredWeekStart, 1);
+      start = range.start;
+      end = range.end;
     } else if (exportPeriod === "this_month") {
       start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
       end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
@@ -1143,8 +1157,10 @@ export default function ShiftRegisterScreen({
                     className="accent-[#4cd34c]"
                   />
                   <div>
-                    <span className="text-xs font-bold block">Current Reporting Week</span>
-                    <span className="text-[10px] text-[var(--text-muted)] font-mono">This active calendar week (Mon - Sun)</span>
+                    <span className="text-xs font-bold block">Current Reporting Week ({configuredWeekStart} Start)</span>
+                    <span className="text-[10px] text-[#4cd34c] font-mono font-bold">
+                      {getWeekRangeForDay(configuredWeekStart, 0).start.getDate()} {getWeekRangeForDay(configuredWeekStart, 0).start.toLocaleString("default", { month: "short" })} – {getWeekRangeForDay(configuredWeekStart, 0).end.getDate()} {getWeekRangeForDay(configuredWeekStart, 0).end.toLocaleString("default", { month: "short" })} {getWeekRangeForDay(configuredWeekStart, 0).end.getFullYear()}
+                    </span>
                   </div>
                 </label>
 
@@ -1158,8 +1174,10 @@ export default function ShiftRegisterScreen({
                     className="accent-[#4cd34c]"
                   />
                   <div>
-                    <span className="text-xs font-bold block">Previous Reporting Week</span>
-                    <span className="text-[10px] text-[var(--text-muted)] font-mono">Previous completed week</span>
+                    <span className="text-xs font-bold block">Previous Reporting Week ({configuredWeekStart} Start)</span>
+                    <span className="text-[10px] text-[#4cd34c] font-mono font-bold">
+                      {getWeekRangeForDay(configuredWeekStart, 1).start.getDate()} {getWeekRangeForDay(configuredWeekStart, 1).start.toLocaleString("default", { month: "short" })} – {getWeekRangeForDay(configuredWeekStart, 1).end.getDate()} {getWeekRangeForDay(configuredWeekStart, 1).end.toLocaleString("default", { month: "short" })} {getWeekRangeForDay(configuredWeekStart, 1).end.getFullYear()}
+                    </span>
                   </div>
                 </label>
 

@@ -9,4 +9,8 @@ dist
 .venv
 __pycache__/
 *.pyc
-*.db
+*.db
+
+# Mine
+.tryout
+.ideas

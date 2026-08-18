@@ -103,6 +103,7 @@ export default function AdminDashboard({
   const [editShiftId, setEditShiftId] = useState(null);
 
   const [newTargetName, setNewTargetName] = useState("");
+  const [companyWeekStart, setCompanyWeekStart] = useState(() => localStorage.getItem("REA_COMPANY_WEEK_START") || "Monday");
 
   const handleSaveShiftForm = async (e) => {
     e.preventDefault();
@@ -1404,6 +1405,64 @@ export default function AdminDashboard({
               </div>
             ))}
           </div>
+        </div>
+
+        {/* SECTION 6: ORGANIZATION REPORTING SETTINGS (REPORTING WEEK START) */}
+        <div className="rounded-3xl border p-6 shadow-md backdrop-blur space-y-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+          <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
+            <div>
+              <h3 className="text-[#4cd34c] text-[11px] font-extrabold uppercase tracking-wider">
+                Section 6 · Organization Reporting Settings
+              </h3>
+              <p className="text-[13px] font-bold mt-0.5" style={{ color: "var(--app-text)" }}>
+                Configure Company SIR Reporting Period & Week Cycle
+              </p>
+            </div>
+            <span className="text-xs font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2.5 py-1 rounded-full">
+              Organization Setting
+            </span>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              localStorage.setItem("REA_COMPANY_WEEK_START", companyWeekStart);
+              alert(`Saved Reporting Week Start day: ${companyWeekStart}`);
+            }}
+            className="space-y-4"
+          >
+            <div>
+              <label className="text-xs font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
+                Reporting Week Starts On *
+              </label>
+              <select
+                value={companyWeekStart}
+                onChange={(e) => setCompanyWeekStart(e.target.value)}
+                className="w-full md:w-64 rounded-xl border p-2.5 text-xs font-bold focus:outline-none focus:border-[#4cd34c]"
+                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+              >
+                <option value="Monday">Monday (Mon ➔ Sun)</option>
+                <option value="Sunday">Sunday (Sun ➔ Sat)</option>
+                <option value="Saturday">Saturday (Sat ➔ Fri)</option>
+                <option value="Friday">Friday (Fri ➔ Thu)</option>
+                <option value="Thursday">Thursday (Thu ➔ Wed)</option>
+                <option value="Wednesday">Wednesday (Wed ➔ Tue)</option>
+                <option value="Tuesday">Tuesday (Tue ➔ Mon)</option>
+              </select>
+              <p className="text-[11px] mt-1.5 font-medium" style={{ color: "var(--text-muted)" }}>
+                Defines your organization's standard operational weekly reporting cycle for SIR exports & executive dashboards.
+              </p>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                className="px-6 py-2.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-bold shadow-md transition hover:scale-105"
+              >
+                Save Reporting Settings
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </section>
