@@ -429,22 +429,10 @@ def sync_default_data_if_needed(session: Session) -> None:
     if default_company.id is None:
         return
 
-    # 2. Ensure default_company (ID #1) has ONLY 2 profiles (SA and VN)
-    allowed_initials = [item["agent_initials"] for item in DEFAULT_AGENTS]
+    # 2. Seed default agents for default_company (ID #1) ONLY if no agents exist yet
     existing_agents = session.exec(select(Agent).where(Agent.company_id == default_company.id)).all()
-    for ag in existing_agents:
-        if ag.agent_initials not in allowed_initials:
-            session.delete(ag)
-    session.commit()
-
-    for item in DEFAULT_AGENTS:
-        existing = session.exec(
-            select(Agent).where(
-                Agent.agent_initials == item["agent_initials"],
-                Agent.company_id == default_company.id,
-            )
-        ).first()
-        if not existing:
+    if not existing_agents:
+        for item in DEFAULT_AGENTS:
             session.add(
                 Agent(
                     agent=item["agent"],
@@ -457,14 +445,35 @@ def sync_default_data_if_needed(session: Session) -> None:
                     updated_at=now,
                 )
             )
-        else:
-            if item["is_admin"] and not existing.is_admin:
-                existing.is_admin = True
-                session.add(existing)
-            if existing.pin and not existing.pin.startswith("pbkdf2_v1:"):
-                existing.pin = hash_pin(existing.pin or "0000")
-                session.add(existing)
-    session.commit()
+        session.commit()
+    else:
+        # Guarantee System Admin profile exists if missing and migrate unhashed PINs
+        sa_existing = session.exec(
+            select(Agent).where(
+                Agent.company_id == default_company.id,
+                Agent.agent_initials == "SA",
+            )
+        ).first()
+        if not sa_existing:
+            session.add(
+                Agent(
+                    agent="System Administrator",
+                    agent_name="Sys_Admin",
+                    agent_initials="SA",
+                    is_admin=True,
+                    pin=hash_pin("0000"),
+                    company_id=default_company.id,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+            session.commit()
+
+        for ag in existing_agents:
+            if ag.pin and not ag.pin.startswith("pbkdf2_v1:"):
+                ag.pin = hash_pin(ag.pin or "0000")
+                session.add(ag)
+        session.commit()
 
     # 3. Seed default templates for default company
     local_templates = session.exec(select(Template).where(Template.company_id == default_company.id)).all()
