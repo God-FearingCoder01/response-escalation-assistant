@@ -131,8 +131,8 @@ export const DEFAULT_TEMPLATES = [
 ];
 
 export const DEFAULT_AGENTS = [
-  { id: 1, agent: "System Administrator", agent_name: "Sys_Admin", agent_initials: "SA", is_admin: true },
-  { id: 2, agent: "Chris Whyt", agent_name: "Chris", agent_initials: "CW", is_admin: false },
+  { id: 1, agent: "System Administrator", agent_name: "Sys_Admin", agent_initials: "SA", is_admin: true, is_active: true },
+  { id: 2, agent: "Chris Whyt", agent_name: "Chris", agent_initials: "CW", is_admin: false, is_active: true },
 ];
 
 export function generateInitials(name) {

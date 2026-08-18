@@ -48,6 +48,7 @@ export default function AdminDashboard({
   handleResetAgentForm,
   handleCreateOrUpdateAgent,
   handleDeleteAgent,
+  handleToggleAgentActive,
   adminCurrentPin,
   setAdminCurrentPin,
   adminNewPin,
@@ -783,17 +784,28 @@ export default function AdminDashboard({
                   {agent.agent_initials}
                 </div>
                 <div>
-                  <div className="font-bold text-sm">{agent.agent_name}</div>
+                  <div className="font-bold text-sm flex items-center gap-1.5">
+                    <span>{agent.agent_name}</span>
+                    {agent.is_active === false ? (
+                      <span className="text-[10px] font-extrabold text-[#ff6b6b] bg-[#ff6b6b]/10 border border-[#ff6b6b]/30 px-2 py-0.5 rounded-full">
+                        Deactivated
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-extrabold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2 py-0.5 rounded-full">
+                        Active
+                      </span>
+                    )}
+                  </div>
                   {agent.agent && agent.agent !== agent.agent_name ? (
                     <div className="text-xs text-[var(--text-muted)]">{agent.agent}</div>
                   ) : null}
                   <div className="text-[11px] text-[#4cd34c] mt-0.5">{agent.is_admin ? "System Admin" : "Support Agent"}</div>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => handleEditAgentClick(agent)}
-                  className="px-3 py-1.5 rounded-xl border text-xs font-semibold"
+                  className="px-2.5 py-1.5 rounded-xl border text-xs font-semibold"
                   style={{ borderColor: "var(--badge-border)" }}
                 >
                   Edit
@@ -801,19 +813,32 @@ export default function AdminDashboard({
                 {agent.agent_initials === "SA" || agent.agent_name === "Sys_Admin" ? (
                   <button
                     disabled
-                    className="px-3 py-1.5 rounded-xl border text-xs font-semibold opacity-50 cursor-not-allowed text-[#4cd34c] border-[#4cd34c]/30 bg-[#4cd34c]/10"
-                    title="System Admin profile cannot be deleted"
+                    className="px-2.5 py-1.5 rounded-xl border text-xs font-semibold opacity-50 cursor-not-allowed text-[#4cd34c] border-[#4cd34c]/30 bg-[#4cd34c]/10"
+                    title="System Admin profile cannot be deactivated or deleted"
                   >
                     Protected 🛡️
                   </button>
                 ) : (
-                  <button
-                    onClick={() => handleDeleteAgent(agent.id)}
-                    className="px-3 py-1.5 rounded-xl border text-xs font-semibold"
-                    style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
-                  >
-                    Delete
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleToggleAgentActive && handleToggleAgentActive(agent.id)}
+                      className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition ${
+                        agent.is_active === false
+                          ? "border-[#4cd34c]/40 text-[#4cd34c] hover:bg-[#4cd34c]/10"
+                          : "border-[#f1c84b]/40 text-[#f1c84b] hover:bg-[#f1c84b]/10"
+                      }`}
+                      title={agent.is_active === false ? "Click to reactivate agent profile" : "Deactivate agent (removes from Welcome screen)"}
+                    >
+                      {agent.is_active === false ? "Activate" : "Deactivate"}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteAgent(agent.id)}
+                      className="px-2.5 py-1.5 rounded-xl border text-xs font-semibold"
+                      style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
+                    >
+                      Delete
+                    </button>
+                  </>
                 )}
               </div>
             </div>

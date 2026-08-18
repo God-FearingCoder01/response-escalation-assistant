@@ -77,6 +77,7 @@ class AgentBase(SQLModel):
     agent: Optional[str] = None
     agent_initials: str
     is_admin: bool = False
+    is_active: bool = Field(default=True, nullable=False)
     company_id: int = Field(default=1, foreign_key="company.id", index=True)
 
 
@@ -97,6 +98,7 @@ class AgentUpdate(SQLModel):
     agent: Optional[str] = None
     agent_initials: Optional[str] = None
     is_admin: Optional[bool] = None
+    is_active: Optional[bool] = None
     pin: Optional[str] = None
     company_id: Optional[int] = None
 

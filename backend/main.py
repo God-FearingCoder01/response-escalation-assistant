@@ -1140,6 +1140,7 @@ def create_agent(agent: AgentCreate, company: Company = Depends(get_current_comp
             agent_name=agent.agent_name,
             agent_initials=agent.agent_initials.upper(),
             is_admin=agent.is_admin,
+            is_active=agent.is_active,
             pin=hash_pin(agent.pin or "0000"),
             company_id=cid,
             created_at=now,
@@ -1163,6 +1164,11 @@ def update_agent(agent_id: int, incoming: AgentUpdate, company: Company = Depend
                 status_code=400,
                 detail="Security Protection: System Admin profile (Sys_Admin / SA) must retain admin privileges.",
             )
+        if (existing.agent_initials == "SA" or existing.agent_name == "Sys_Admin") and incoming.is_active is False:
+            raise HTTPException(
+                status_code=400,
+                detail="Security Protection: System Admin profile (Sys_Admin / SA) cannot be deactivated.",
+            )
         if incoming.agent is not None:
             existing.agent = incoming.agent
         if incoming.agent_name is not None:
@@ -1171,6 +1177,8 @@ def update_agent(agent_id: int, incoming: AgentUpdate, company: Company = Depend
             existing.agent_initials = incoming.agent_initials.upper()
         if incoming.is_admin is not None:
             existing.is_admin = incoming.is_admin
+        if incoming.is_active is not None:
+            existing.is_active = incoming.is_active
         if incoming.pin:
             existing.pin = hash_pin(incoming.pin)
         existing.updated_at = datetime.now(timezone.utc)

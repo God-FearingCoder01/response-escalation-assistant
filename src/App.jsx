@@ -97,6 +97,7 @@ export default function App() {
     handleResetAgentForm,
     handleCreateOrUpdateAgent,
     handleDeleteAgent,
+    handleToggleAgentActive,
   } = agentState || {};
 
   // URL route sync effect
@@ -564,6 +565,7 @@ export default function App() {
           handleResetAgentForm={handleResetAgentForm}
           handleCreateOrUpdateAgent={handleCreateOrUpdateAgent}
           handleDeleteAgent={handleDeleteAgent}
+          handleToggleAgentActive={handleToggleAgentActive}
           adminCurrentPin={adminCurrentPin}
           setAdminCurrentPin={setAdminCurrentPin}
           adminNewPin={adminNewPin}

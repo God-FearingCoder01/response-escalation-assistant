@@ -346,6 +346,43 @@ export function useAgents({ apiStatus, showToast }) {
     }
   };
 
+  const handleToggleAgentActive = async (agentId) => {
+    const targetAgent = (agents || []).find((a) => a.id === agentId);
+    if (!targetAgent) return;
+
+    if (targetAgent.agent_initials === "SA" || targetAgent.agent_name === "Sys_Admin") {
+      showToast("Security Protection: System Admin profile (Sys_Admin / SA) cannot be deactivated. 🛡️");
+      return;
+    }
+
+    const newActiveState = targetAgent.is_active === false ? true : false;
+    const payload = { is_active: newActiveState };
+
+    try {
+      if (apiStatus !== "offline") {
+        try {
+          const updated = await updateAgentApi(agentId, payload);
+          setAgents((curr) => curr.map((a) => (a.id === agentId ? updated : a)));
+          showToast(newActiveState ? "Agent profile activated 🟢" : "Agent profile deactivated (hidden from Welcome) 🔴");
+          return;
+        } catch (err) {
+          if (err instanceof Error && err.message === "Failed to fetch") {
+            // Fallback to local offline mode
+          } else {
+            showToast(`Error: ${err instanceof Error ? err.message : "Failed to toggle active status"} ⚠️`);
+            return;
+          }
+        }
+      }
+      setAgents((curr) =>
+        curr.map((a) => (a.id === agentId ? { ...a, is_active: newActiveState } : a))
+      );
+      showToast(newActiveState ? "Agent profile activated 🟢" : "Agent profile deactivated (hidden from Welcome) 🔴");
+    } catch (err) {
+      alert("Failed to toggle agent active status");
+    }
+  };
+
   return {
     agents,
     setAgents,
@@ -354,6 +391,7 @@ export function useAgents({ apiStatus, showToast }) {
     activeScreen,
     setActiveScreen,
     handleSelectAgent,
+    handleToggleAgentActive,
     // PIN Modal
     showPinModal,
     setShowPinModal,
