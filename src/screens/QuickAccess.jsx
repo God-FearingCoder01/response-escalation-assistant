@@ -274,9 +274,10 @@ export default function QuickAccess({
                   else if (customCfg?.auto_fill_type === "date_year") autoVal = dateAuto.year;
                   else if (customCfg?.auto_fill_type === "date_time") autoVal = dateAuto.time;
                   else if (customCfg?.auto_fill_type === "agent_name") autoVal = currentAgent?.agent_name ?? "";
+                  else if (customCfg?.auto_fill_type === "agent_fullname" || customCfg?.auto_fill_type === "agent") autoVal = (currentAgent?.agent || currentAgent?.agent_name) ?? "";
                   else if (customCfg?.auto_fill_type === "agent_initials") autoVal = currentAgent?.agent_initials ?? "";
                   else if (customCfg?.auto_fill_type === "custom") autoVal = customCfg.custom_default ?? "";
-                  else if (isAgentField) autoVal = ph === "agent_initials" ? currentAgent?.agent_initials : currentAgent?.agent_name;
+                  else if (isAgentField) autoVal = ph === "agent_initials" ? currentAgent?.agent_initials : (ph === "agent" ? (currentAgent?.agent || currentAgent?.agent_name) : currentAgent?.agent_name);
                   else if (isDateField) autoVal = dateAuto[ph];
                   else if (isTimeUnitField) autoVal = "hour(s)";
 

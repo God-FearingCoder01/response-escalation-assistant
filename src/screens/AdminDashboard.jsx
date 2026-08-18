@@ -410,12 +410,13 @@ export default function AdminDashboard({
                                 style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                               >
                                 <option value="none">None (Manual Entry)</option>
+                                <option value="agent_name">Agent Display Name (e.g. Sys_Admin, Chris)</option>
+                                <option value="agent_fullname">Agent Full Name (e.g. System Administrator, Chris Whyt)</option>
+                                <option value="agent_initials">Agent Initials (e.g. SA, CW)</option>
                                 <option value="date_day">System Day (DD)</option>
                                 <option value="date_month">System Month (MM)</option>
                                 <option value="date_year">System Year (YYYY)</option>
                                 <option value="date_time">System Time (HH:mm)</option>
-                                <option value="agent_name">Agent Full Name</option>
-                                <option value="agent_initials">Agent Initials</option>
                                 <option value="custom">Custom Default Value</option>
                               </select>
                             </div>

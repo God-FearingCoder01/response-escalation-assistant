@@ -237,6 +237,7 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
         else if (cfg.auto_fill_type === "date_year") customConfigAutoMap[key] = dateAuto.year;
         else if (cfg.auto_fill_type === "date_time") customConfigAutoMap[key] = dateAuto.time;
         else if (cfg.auto_fill_type === "agent_name") customConfigAutoMap[key] = currentAgent?.agent_name ?? "";
+        else if (cfg.auto_fill_type === "agent_fullname" || cfg.auto_fill_type === "agent") customConfigAutoMap[key] = (currentAgent?.agent || currentAgent?.agent_name) ?? "";
         else if (cfg.auto_fill_type === "agent_initials") customConfigAutoMap[key] = currentAgent?.agent_initials ?? "";
         else if (cfg.auto_fill_type === "custom" && cfg.custom_default !== undefined) customConfigAutoMap[key] = cfg.custom_default;
         else if (cfg.control_type === "combobox" && Array.isArray(cfg.options) && cfg.options.length > 0) {
@@ -252,7 +253,7 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
     for (const key of allKeys) {
       let rawVal = resolvedValues[key] ?? customConfigAutoMap[key] ?? autoMap[key] ?? "";
       const cfg = parsedConfig[key];
-      const ctrlType = cfg?.control_type || (key === "date" ? "date" : key === "time" ? "time" : "datetime");
+      const ctrlType = cfg?.control_type || (key === "date" ? "date" : key === "time" ? "time" : key === "datetime" ? "datetime" : "text");
 
       const keyLower = key.toLowerCase();
       const is2DigitDateComp =

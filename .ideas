@@ -31,3 +31,10 @@ More feature
 MF
 1. Pinned sections for the whole team with pinned du
 2. Photo text detector for particularly simple transaction id extraction (and maybe verification through scanning and using given cues for whether the message is associated with the company or not) 
+
+numerical u/D to run on 2 digits when default auto fill is Month (MM)
+Conditional placeholders {animal?game}
+SIR needs to persist 
+Deactive an agent (they don't appear on the Welcome)
+
+Add an update button to the Record Issue Form

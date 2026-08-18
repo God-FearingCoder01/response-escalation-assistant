@@ -169,10 +169,15 @@ export function escapeForTelegramMarkdownV2(text) {
   return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
 }
 
-export function formatDateTimeString(val, controlType = "datetime", dateFormat = "") {
+export function formatDateTimeString(val, controlType = "text", dateFormat = "") {
   if (val === null || val === undefined) return "";
   const strVal = String(val).trim();
   if (!strVal) return "";
+
+  // Guard: If controlType is not explicitly a date/time picker, return raw text value directly
+  if (!["date", "time", "datetime"].includes(controlType)) {
+    return strVal;
+  }
 
   // Enforce no colons for Time Picker (time only) control
   if (controlType === "time") {
@@ -198,6 +203,12 @@ export function formatDateTimeString(val, controlType = "datetime", dateFormat =
       if (dtMatch[8]) mm = dtMatch[8];
     }
   } else {
+    // If the input value is non-date text (e.g., agent name, customer name, manual text), return as-is
+    const isNumericOnly = /^\d+$/.test(strVal.replace(/[/.:-]/g, ""));
+    const isDateParsable = !isNaN(Date.parse(strVal));
+    if (!isNumericOnly && !isDateParsable) {
+      return strVal;
+    }
     // Fallback extraction from system date if raw string doesn't match full ISO pattern
     const now = new Date();
     YYYY = String(now.getFullYear());
