@@ -422,40 +422,69 @@ export default function AdminDashboard({
                           </div>
 
                           {/* Date/Time Format Configurator */}
-                          {(cfg.control_type === "date" || cfg.control_type === "time" || cfg.control_type === "datetime") && (
-                            <div>
-                              <label className="text-[10px] block mb-1 font-bold text-[#4cd34c]">
-                                Output Date/Time Format *
-                              </label>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                <select
-                                  value={cfg.date_format || "default"}
-                                  onChange={(e) => updatePlaceholderConfig(ph, { date_format: e.target.value })}
-                                  className="w-full rounded-lg border p-1.5 text-xs font-semibold focus:outline-none focus:border-[#4cd34c]"
-                                  style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
-                                >
-                                  <option value="default">Default DD/MM/YYYY (18/08/2026)</option>
-                                  <option value="DD/MM/YYYY">DD/MM/YYYY (18/08/2026)</option>
-                                  <option value="DD/MM/YYYY HH:mm">DD/MM/YYYY HH:mm (18/08/2026 07:29)</option>
-                                  <option value="YYYY/MM/DD">YYYY/MM/DD (2026/08/18)</option>
-                                  <option value="YYYY-MM-DD">YYYY-MM-DD (2026-08-18)</option>
-                                  <option value="HHmm">HHMM (0729 - No Colon)</option>
-                                  <option value="custom">Custom Format Pattern...</option>
-                                </select>
+                          {(cfg.control_type === "date" || cfg.control_type === "time" || cfg.control_type === "datetime") && (() => {
+                            const presetFormats = ["default", "DD/MM/YYYY", "DD.MM.YYYY", "DD/MM/YYYY HH:mm", "YYYY/MM/DD", "YYYY-MM-DD", "HHmm"];
+                            const isCustomFormat = cfg.date_format_mode === "custom" || cfg.is_custom_date_format || (cfg.date_format && !presetFormats.includes(cfg.date_format));
 
-                                {cfg.date_format === "custom" && (
-                                  <input
-                                    type="text"
-                                    value={cfg.custom_date_format || ""}
-                                    onChange={(e) => updatePlaceholderConfig(ph, { custom_date_format: e.target.value, date_format: e.target.value })}
-                                    placeholder="e.g. DD/MM/YYYY HH:mm"
-                                    className="w-full rounded-lg border p-1.5 text-xs focus:outline-none focus:border-[#4cd34c]"
+                            return (
+                              <div>
+                                <label className="text-[10px] block mb-1 font-bold text-[#4cd34c]">
+                                  Output Date/Time Format *
+                                </label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  <select
+                                    value={isCustomFormat ? "custom" : (cfg.date_format || "default")}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      if (val === "custom") {
+                                        updatePlaceholderConfig(ph, {
+                                          date_format_mode: "custom",
+                                          is_custom_date_format: true,
+                                          date_format: cfg.custom_date_format || "DD.MM.YYYY",
+                                        });
+                                      } else {
+                                        updatePlaceholderConfig(ph, {
+                                          date_format_mode: "preset",
+                                          is_custom_date_format: false,
+                                          date_format: val,
+                                        });
+                                      }
+                                    }}
+                                    className="w-full rounded-lg border p-1.5 text-xs font-semibold focus:outline-none focus:border-[#4cd34c]"
                                     style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
-                                  />
-                                )}
+                                  >
+                                    <option value="default">Default DD/MM/YYYY (18/08/2026)</option>
+                                    <option value="DD/MM/YYYY">DD/MM/YYYY (18/08/2026)</option>
+                                    <option value="DD.MM.YYYY">DD.MM.YYYY (18.08.2026)</option>
+                                    <option value="DD/MM/YYYY HH:mm">DD/MM/YYYY HH:mm (18/08/2026 07:29)</option>
+                                    <option value="YYYY/MM/DD">YYYY/MM/DD (2026/08/18)</option>
+                                    <option value="YYYY-MM-DD">YYYY-MM-DD (2026-08-18)</option>
+                                    <option value="HHmm">HHMM (0729 - No Colon)</option>
+                                    <option value="custom">Custom Format Pattern...</option>
+                                  </select>
+
+                                  {isCustomFormat && (
+                                    <input
+                                      type="text"
+                                      value={cfg.custom_date_format !== undefined ? cfg.custom_date_format : (cfg.date_format || "")}
+                                      onChange={(e) => {
+                                        const newCustom = e.target.value;
+                                        updatePlaceholderConfig(ph, {
+                                          date_format_mode: "custom",
+                                          is_custom_date_format: true,
+                                          custom_date_format: newCustom,
+                                          date_format: newCustom,
+                                        });
+                                      }}
+                                      placeholder="e.g. DD.MM.YYYY"
+                                      className="w-full rounded-lg border p-1.5 text-xs font-mono font-semibold focus:outline-none focus:border-[#4cd34c]"
+                                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                                    />
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            );
+                          })()}
 
                           {/* Target token notice if starting with : */}
                           {ph.startsWith(":") && (

@@ -170,36 +170,41 @@ export function escapeForTelegramMarkdownV2(text) {
 }
 
 export function formatDateTimeString(val, controlType = "datetime", dateFormat = "") {
-  if (!val || typeof val !== "string") return val || "";
+  if (val === null || val === undefined) return "";
+  const strVal = String(val).trim();
+  if (!strVal) return "";
 
   // Enforce no colons for Time Picker (time only) control
   if (controlType === "time") {
-    return val.replace(/:/g, "");
+    return strVal.replace(/:/g, "");
   }
 
-  // Check if string matches YYYY-MM-DD, DD/MM/YYYY or ISO datetime
-  const dtMatch = val.match(/^(?:(\d{4})[-/](\d{2})[-/](\d{2})|(\d{2})[/.-](\d{2})[/.-](\d{4}))(?:[T\s](\d{2}):?(\d{2}))?/);
-
-  if (!dtMatch) {
-    if (/^\d{2}:\d{2}$/.test(val)) {
-      return val.replace(/:/g, "");
-    }
-    return val;
-  }
+  // Check if string matches YYYY-MM-DD, DD/MM/YYYY, DD.MM.YYYY, DD-MM-YYYY, or ISO datetime
+  const dtMatch = strVal.match(/^(?:(\d{4})[-/.](d{2})[-/.](d{2})|(\d{2})[/.-](\d{2})[/.-](\d{4}))(?:[T\s](\d{2}):?(\d{2}))?/);
 
   let YYYY = "2026", MM = "01", DD = "01", HH = "00", mm = "00";
-  if (dtMatch[1]) {
-    YYYY = dtMatch[1];
-    MM = dtMatch[2];
-    DD = dtMatch[3];
-    if (dtMatch[7]) HH = dtMatch[7];
-    if (dtMatch[8]) mm = dtMatch[8];
-  } else if (dtMatch[4]) {
-    DD = dtMatch[4];
-    MM = dtMatch[5];
-    YYYY = dtMatch[6];
-    if (dtMatch[7]) HH = dtMatch[7];
-    if (dtMatch[8]) mm = dtMatch[8];
+  if (dtMatch) {
+    if (dtMatch[1]) {
+      YYYY = dtMatch[1];
+      MM = dtMatch[2];
+      DD = dtMatch[3];
+      if (dtMatch[7]) HH = dtMatch[7];
+      if (dtMatch[8]) mm = dtMatch[8];
+    } else if (dtMatch[4]) {
+      DD = dtMatch[4];
+      MM = dtMatch[5];
+      YYYY = dtMatch[6];
+      if (dtMatch[7]) HH = dtMatch[7];
+      if (dtMatch[8]) mm = dtMatch[8];
+    }
+  } else {
+    // Fallback extraction from system date if raw string doesn't match full ISO pattern
+    const now = new Date();
+    YYYY = String(now.getFullYear());
+    MM = String(now.getMonth() + 1).padStart(2, "0");
+    DD = String(now.getDate()).padStart(2, "0");
+    HH = String(now.getHours()).padStart(2, "0");
+    mm = String(now.getMinutes()).padStart(2, "0");
   }
 
   if (dateFormat && dateFormat !== "default") {

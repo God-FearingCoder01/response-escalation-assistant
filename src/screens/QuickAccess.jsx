@@ -413,9 +413,9 @@ export default function QuickAccess({
                         />
                         <input
                           type="text"
-                          value={formatDateTimeString(values[ph] ?? autoVal, "date")}
+                          value={formatDateTimeString(values[ph] ?? autoVal, "date", customCfg?.date_format)}
                           onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
-                          placeholder="DD/MM/YYYY"
+                          placeholder={customCfg?.date_format || "DD/MM/YYYY"}
                           className="w-full rounded-xl border p-2 text-xs font-semibold font-mono tracking-wider"
                           style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                         />
