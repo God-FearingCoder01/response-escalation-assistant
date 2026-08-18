@@ -51,6 +51,7 @@ def create_db_and_tables():
             migrations = [
                 "ALTER TABLE agent ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
                 "ALTER TABLE agent ADD COLUMN IF NOT EXISTS pin VARCHAR",
+                "ALTER TABLE agent ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
                 "ALTER TABLE template ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
                 "ALTER TABLE template ADD COLUMN IF NOT EXISTS category_type VARCHAR DEFAULT 'tech_escalation'",
                 "ALTER TABLE template ADD COLUMN IF NOT EXISTS category VARCHAR",
