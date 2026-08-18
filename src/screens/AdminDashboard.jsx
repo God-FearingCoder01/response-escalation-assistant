@@ -457,30 +457,117 @@ export default function AdminDashboard({
                             </div>
                           )}
 
-                          {/* Combobox Options Input */}
+                          {/* Target token notice if starting with : */}
+                          {ph.startsWith(":") && (
+                            <div className="rounded-xl border p-2.5 text-xs bg-[#4cd34c]/10 border-[#4cd34c]/30 text-[#4cd34c] font-semibold space-y-1">
+                              <div className="flex items-center gap-1.5 font-bold">
+                                <span>⚡ Mapped Target Placeholder: {ph}</span>
+                              </div>
+                              <p className="text-[11px] opacity-90 font-normal">
+                                This placeholder is automatically populated at runtime based on the Company Admin predefined mapping for the trigger placeholder. Support agents will not be required to enter this value manually.
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Combobox & Conditional Mapping Configurator */}
                           {isCombobox && (
-                            <div>
-                              <label className="text-[10px] block mb-1 font-bold text-[#4cd34c]">
-                                Predefined Options (Comma Separated) *
-                              </label>
-                              <input
-                                type="text"
-                                value={cfg.options_raw !== undefined ? cfg.options_raw : (Array.isArray(cfg.options) ? cfg.options.join(", ") : "")}
-                                onChange={(e) => {
-                                  const rawVal = e.target.value;
-                                  const parsedArr = rawVal
-                                    .split(",")
-                                    .map((s) => s.trim())
-                                    .filter(Boolean);
-                                  updatePlaceholderConfig(ph, {
-                                    options_raw: rawVal,
-                                    options: parsedArr,
-                                  });
-                                }}
-                                placeholder="e.g. EcoCash, Zipit, InnBucks, Bank Transfer"
-                                className="w-full rounded-lg border p-1.5 text-xs focus:outline-none focus:border-[#4cd34c]"
-                                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
-                              />
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-[10px] block mb-1 font-bold text-[#4cd34c]">
+                                  {ph.endsWith("?") ? "1-to-1 Mapped Target Token Name" : "Mapped Target Token Name (Optional)"}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={cfg.mapped_target !== undefined ? cfg.mapped_target : (ph.endsWith("?") ? `:${ph.replace(/\?$/, "")}` : "")}
+                                  onChange={(e) => updatePlaceholderConfig(ph, { mapped_target: e.target.value })}
+                                  placeholder="e.g. :game"
+                                  className="w-full rounded-lg border p-1.5 text-xs font-mono font-semibold focus:outline-none focus:border-[#4cd34c]"
+                                  style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                                />
+                              </div>
+
+                              {ph.endsWith("?") || cfg.mapped_target ? (
+                                <div>
+                                  <label className="text-[10px] block mb-1 font-bold text-[#4cd34c] flex justify-between">
+                                    <span>1-to-1 Conditional Value Pairings (Trigger ➔ Mapped Target) *</span>
+                                    <span className="text-[9px] opacity-80 text-[var(--text-muted)] font-normal">Format: Trigger Option {"=>"} Mapped Target Value</span>
+                                  </label>
+                                  <textarea
+                                    rows={4}
+                                    value={
+                                      cfg.mapping_raw !== undefined
+                                        ? cfg.mapping_raw
+                                        : (cfg.mapping
+                                          ? Object.entries(cfg.mapping).map(([k, v]) => `${k} => ${v}`).join("\n")
+                                          : (Array.isArray(cfg.options) ? cfg.options.join(", ") : ""))
+                                    }
+                                    onChange={(e) => {
+                                      const rawVal = e.target.value;
+                                      const lines = rawVal.split("\n").map((l) => l.trim()).filter(Boolean);
+                                      const options = [];
+                                      const mapping = {};
+
+                                      lines.forEach((line) => {
+                                        if (line.includes("=>") || line.includes(":") || line.includes("->")) {
+                                          const parts = line.split(/=>|:|-/);
+                                          const k = parts[0]?.trim();
+                                          const v = parts.slice(1).join("=>").replace(/^>/, "").trim();
+                                          if (k) {
+                                            options.push(k);
+                                            if (v) mapping[k] = v;
+                                          }
+                                        } else if (line.includes(",")) {
+                                          line.split(",").forEach((item) => {
+                                            const cleaned = item.trim();
+                                            if (cleaned) options.push(cleaned);
+                                          });
+                                        } else {
+                                          options.push(line);
+                                        }
+                                      });
+
+                                      updatePlaceholderConfig(ph, {
+                                        mapping_raw: rawVal,
+                                        options_raw: options.join(", "),
+                                        options,
+                                        mapping,
+                                      });
+                                    }}
+                                    placeholder={"e.g.\nElephant => Big Game Slot\nRhino => Stampede Slot\nLion => King Jungle Slot\nBuffalo => Buffalo Gold\nLeopard => Leopard Riches"}
+                                    className="w-full rounded-lg border p-2 text-xs font-mono leading-relaxed focus:outline-none focus:border-[#4cd34c]"
+                                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                                  />
+                                  {cfg.mapping && Object.keys(cfg.mapping).length > 0 ? (
+                                    <div className="text-[10px] text-[#4cd34c] font-semibold mt-1">
+                                      ✓ {Object.keys(cfg.mapping).length} conditional pair(s) configured ({Object.entries(cfg.mapping).map(([k,v])=>`${k}➔"${v}"`).slice(0, 3).join(", ")}{Object.keys(cfg.mapping).length > 3 ? "..." : ""})
+                                    </div>
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <div>
+                                  <label className="text-[10px] block mb-1 font-bold text-[#4cd34c]">
+                                    Predefined Options (Comma Separated) *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={cfg.options_raw !== undefined ? cfg.options_raw : (Array.isArray(cfg.options) ? cfg.options.join(", ") : "")}
+                                    onChange={(e) => {
+                                      const rawVal = e.target.value;
+                                      const parsedArr = rawVal
+                                        .split(",")
+                                        .map((s) => s.trim())
+                                        .filter(Boolean);
+                                      updatePlaceholderConfig(ph, {
+                                        options_raw: rawVal,
+                                        options: parsedArr,
+                                      });
+                                    }}
+                                    placeholder="e.g. EcoCash, Zipit, InnBucks, Bank Transfer"
+                                    className="w-full rounded-lg border p-1.5 text-xs focus:outline-none focus:border-[#4cd34c]"
+                                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                                  />
+                                </div>
+                              )}
                             </div>
                           )}
 

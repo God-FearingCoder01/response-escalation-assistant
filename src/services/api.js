@@ -292,19 +292,8 @@ export function resolveConditionalMappings(placeholders = [], parsedConfig = {},
           }
         }
 
-        // Default pairwise fallbacks if not explicitly defined in config
-        if (!mappedVal && triggerVal) {
-          const defaultGameMap = {
-            Elephant: "Big Game Slot",
-            Rhino: "Stampede Slot",
-            Lion: "King Jungle Slot",
-            Buffalo: "Buffalo Gold",
-            Leopard: "Leopard Riches",
-          };
-          mappedVal = defaultGameMap[triggerVal] || `${triggerVal} Game`;
-        }
-
-        resolvedValues[targetKey] = mappedVal;
+        // Strictly resolve from CA-predefined mapping (no hardcoded defaults)
+        resolvedValues[targetKey] = mappedVal || "";
       }
     }
   });
