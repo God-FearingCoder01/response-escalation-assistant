@@ -242,7 +242,7 @@ export default function CustomerReply({
               } catch (e) {}
             }
             const { resolvedValues, mappedTargetKeys } = resolveConditionalMappings(placeholderList, parsedCfgMap, values);
-            const visiblePlaceholders = (placeholderList || []).filter((ph) => !mappedTargetKeys.has(ph));
+            const visiblePlaceholders = (placeholderList || []).filter((ph) => !ph.startsWith(":") && !mappedTargetKeys.has(ph));
 
             return visiblePlaceholders.length > 0 ? (
               <div className="pt-3 border-t space-y-3" style={{ borderColor: "var(--field-border)" }}>

@@ -86,7 +86,7 @@ export default function TechEscalation({
               } catch (e) {}
             }
             const { resolvedValues, mappedTargetKeys } = resolveConditionalMappings(placeholders, parsedCfgMap, values);
-            const visiblePlaceholders = (placeholders || []).filter((ph) => !mappedTargetKeys.has(ph));
+            const visiblePlaceholders = (placeholders || []).filter((ph) => !ph.startsWith(":") && !mappedTargetKeys.has(ph));
 
             return visiblePlaceholders.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

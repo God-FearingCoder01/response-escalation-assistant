@@ -280,6 +280,13 @@ export function resolveConditionalMappings(placeholders = [], parsedConfig = {},
   const resolvedValues = { ...values };
   const mappedTargetKeys = new Set();
 
+  // Automatically classify any target placeholders starting with ':' as mapped targets (hidden from manual input)
+  (placeholders || []).forEach((p) => {
+    if (p.startsWith(":")) {
+      mappedTargetKeys.add(p);
+    }
+  });
+
   (placeholders || []).forEach((ph) => {
     const cfg = parsedConfig?.[ph];
     const isTrigger = ph.endsWith("?") || (Boolean(cfg?.mapped_target) && cfg.mapped_target.trim() !== "");
@@ -288,10 +295,11 @@ export function resolveConditionalMappings(placeholders = [], parsedConfig = {},
       let targetKey = cfg?.mapped_target;
       if (!targetKey && ph.endsWith("?")) {
         const baseName = ph.replace(/\?$/, "");
-        const foundTarget = (placeholders || []).find(
+        const exactMatch = (placeholders || []).find(
           (p) => p === `:${baseName}` || (p.startsWith(":") && p.slice(1) === baseName)
         );
-        targetKey = foundTarget || `:${baseName}`;
+        const firstColonTarget = (placeholders || []).find((p) => p.startsWith(":"));
+        targetKey = exactMatch || firstColonTarget || `:${baseName}`;
       }
 
       if (targetKey && targetKey.trim() !== "") {
