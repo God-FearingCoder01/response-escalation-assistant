@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react";
 import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function ShiftRegisterScreen({
   activeScreen,
@@ -138,8 +140,23 @@ export default function ShiftRegisterScreen({
       const now = new Date();
       const currentMonthName = now.toLocaleString("default", { month: "long" });
       const currentYear = now.getFullYear();
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      const periodLabel = `1–${lastDay} ${currentMonthName} ${currentYear}`;
+
+      // Determine reporting period from actual issue dates
+      let startDateLabel = `1 ${currentMonthName}`;
+      let endDateLabel = `${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()} ${currentMonthName} ${currentYear}`;
+
+      if (issues && issues.length > 0) {
+        const timestamps = issues
+          .map((i) => (i.created_at ? new Date(i.created_at).getTime() : null))
+          .filter(Boolean);
+        if (timestamps.length > 0) {
+          const minDate = new Date(Math.min(...timestamps));
+          const maxDate = new Date(Math.max(...timestamps));
+          startDateLabel = `${minDate.getDate()} ${minDate.toLocaleString("default", { month: "short" })}`;
+          endDateLabel = `${maxDate.getDate()} ${maxDate.toLocaleString("default", { month: "short" })} ${maxDate.getFullYear()}`;
+        }
+      }
+      const periodLabel = `${startDateLabel} – ${endDateLabel}`;
 
       const totalIssuesCount = issues.length;
       const resolvedCount = issues.filter((i) => i.status === "Resolved").length;
@@ -147,8 +164,15 @@ export default function ShiftRegisterScreen({
       const monitoringCount = issues.filter((i) => i.status === "Monitoring").length;
       const escalatedCount = issues.filter((i) => i.escalated_to && i.escalated_to !== "None").length;
 
-      const morningCount = issues.filter((i) => (i.shift_name || "").toLowerCase().includes("morning")).length;
-      const afternoonCount = issues.filter((i) => (i.shift_name || "").toLowerCase().includes("afternoon")).length;
+      // Dynamic shift counts from actual platform data
+      const shiftCounts = {};
+      (shifts || []).forEach((s) => {
+        shiftCounts[s.name] = 0;
+      });
+      (issues || []).forEach((i) => {
+        const sName = i.shift_name || "General Shift";
+        shiftCounts[sName] = (shiftCounts[sName] || 0) + 1;
+      });
 
       // Sheet 1 --- Summary
       const summaryData = [
@@ -164,8 +188,7 @@ export default function ShiftRegisterScreen({
         ["Escalated", escalatedCount],
         [""],
         ["Shift Breakdown", "Count"],
-        ["Morning Shift Issues", morningCount],
-        ["Afternoon Shift Issues", afternoonCount],
+        ...Object.entries(shiftCounts).map(([shiftName, count]) => [`${shiftName} Issues`, count]),
       ];
       const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
 
@@ -233,77 +256,142 @@ export default function ShiftRegisterScreen({
 
   const handleExportManagementReport = () => {
     try {
+      const doc = new jsPDF();
       const now = new Date();
       const currentMonthName = now.toLocaleString("default", { month: "long" });
       const currentYear = now.getFullYear();
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      const periodLabel = `1–${lastDay} ${currentMonthName} ${currentYear}`;
 
-      const totalIssuesCount = issues.length;
+      // Determine reporting period from actual issue dates
+      let startDateLabel = `1 ${currentMonthName}`;
+      let endDateLabel = `${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()} ${currentMonthName} ${currentYear}`;
+
+      if (issues && issues.length > 0) {
+        const timestamps = issues
+          .map((i) => (i.created_at ? new Date(i.created_at).getTime() : null))
+          .filter(Boolean);
+        if (timestamps.length > 0) {
+          const minDate = new Date(Math.min(...timestamps));
+          const maxDate = new Date(Math.max(...timestamps));
+          startDateLabel = `${minDate.getDate()} ${minDate.toLocaleString("default", { month: "short" })}`;
+          endDateLabel = `${maxDate.getDate()} ${maxDate.toLocaleString("default", { month: "short" })} ${maxDate.getFullYear()}`;
+        }
+      }
+      const periodLabel = `${startDateLabel} – ${endDateLabel}`;
+
+      // Metrics calculations from actual platform data
+      const totalCount = issues.length;
       const resolvedCount = issues.filter((i) => i.status === "Resolved").length;
       const ongoingCount = issues.filter((i) => i.status === "Ongoing").length;
       const monitoringCount = issues.filter((i) => i.status === "Monitoring").length;
       const escalatedCount = issues.filter((i) => i.escalated_to && i.escalated_to !== "None").length;
 
-      const morningCount = issues.filter((i) => (i.shift_name || "").toLowerCase().includes("morning")).length;
-      const afternoonCount = issues.filter((i) => (i.shift_name || "").toLowerCase().includes("afternoon")).length;
-
-      const trendsMap = { Payments: 0, Technical: 0, Network: 0, Accounts: 0, Other: 0 };
-      (issues || []).forEach((item) => {
-        const text = `${item.title} ${item.description} ${item.escalated_to}`.toLowerCase();
-        if (text.includes("pay") || text.includes("ecocash") || text.includes("billing") || text.includes("deposit") || text.includes("withdraw")) trendsMap.Payments += 1;
-        else if (text.includes("tech") || text.includes("system") || text.includes("bug") || text.includes("error") || text.includes("login")) trendsMap.Technical += 1;
-        else if (text.includes("net") || text.includes("signal") || text.includes("connection") || text.includes("server")) trendsMap.Network += 1;
-        else if (text.includes("account") || text.includes("verify") || text.includes("pin") || text.includes("kyc")) trendsMap.Accounts += 1;
-        else trendsMap.Other += 1;
+      // Dynamic shift counts from actual platform data
+      const shiftCounts = {};
+      (shifts || []).forEach((s) => {
+        shiftCounts[s.name] = 0;
+      });
+      (issues || []).forEach((i) => {
+        const sName = i.shift_name || "General Shift";
+        shiftCounts[sName] = (shiftCounts[sName] || 0) + 1;
       });
 
-      const reportContent = `=====================================================
-SIR MANAGEMENT SUMMARY REPORT
-=====================================================
-Reporting Period: ${periodLabel}
-Generated On: ${now.toISOString().slice(0, 10)}
+      // Dynamic trends categorization from actual platform data
+      const trendsMap = {
+        "Payments & Financial": 0,
+        "Technical & Systems": 0,
+        "Network & Connectivity": 0,
+        "Account & User Access": 0,
+        "Other Support Queries": 0,
+      };
 
------------------------------------------------------
-1. EXECUTIVE METRICS SUMMARY
------------------------------------------------------
-Total Issues Recorded:      ${totalIssuesCount}
-  - Resolved:               ${resolvedCount} (${totalIssuesCount ? Math.round((resolvedCount / totalIssuesCount) * 100) : 0}%)
-  - Ongoing:                 ${ongoingCount} (${totalIssuesCount ? Math.round((ongoingCount / totalIssuesCount) * 100) : 0}%)
-  - Monitoring:              ${monitoringCount} (${totalIssuesCount ? Math.round((monitoringCount / totalIssuesCount) * 100) : 0}%)
-  - Escalated to Seniors:    ${escalatedCount} (${totalIssuesCount ? Math.round((escalatedCount / totalIssuesCount) * 100) : 0}%)
+      (issues || []).forEach((item) => {
+        const text = `${item.title} ${item.description} ${item.escalated_to}`.toLowerCase();
+        if (text.includes("pay") || text.includes("ecocash") || text.includes("billing") || text.includes("deposit") || text.includes("withdraw") || text.includes("bank") || text.includes("money")) {
+          trendsMap["Payments & Financial"] += 1;
+        } else if (text.includes("tech") || text.includes("system") || text.includes("bug") || text.includes("error") || text.includes("login") || text.includes("app") || text.includes("portal")) {
+          trendsMap["Technical & Systems"] += 1;
+        } else if (text.includes("net") || text.includes("signal") || text.includes("connection") || text.includes("server") || text.includes("down") || text.includes("offline")) {
+          trendsMap["Network & Connectivity"] += 1;
+        } else if (text.includes("account") || text.includes("verify") || text.includes("pin") || text.includes("kyc") || text.includes("profile") || text.includes("password")) {
+          trendsMap["Account & User Access"] += 1;
+        } else {
+          trendsMap["Other Support Queries"] += 1;
+        }
+      });
 
------------------------------------------------------
-2. SHIFT BREAKDOWN
------------------------------------------------------
-  - Morning Shift Issues:     ${morningCount}
-  - Afternoon Shift Issues:   ${afternoonCount}
+      // PDF Formatting & Header Banner
+      doc.setFillColor(15, 155, 0); // Theme Green Accent
+      doc.rect(0, 0, 210, 22, "F");
 
------------------------------------------------------
-3. TOP ISSUE TRENDS
------------------------------------------------------
-  - Payments:               ${trendsMap.Payments} occurrences
-  - Technical:              ${trendsMap.Technical} occurrences
-  - Network:                ${trendsMap.Network} occurrences
-  - Accounts:               ${trendsMap.Accounts} occurrences
-  - Other:                  ${trendsMap.Other} occurrences
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text("SHIFT ISSUE REGISTER (SIR) - MANAGEMENT REPORT", 14, 14);
 
-=====================================================
-RESPONSE ESCALATION ASSISTANT - SHIFT ISSUE REGISTER
-=====================================================`;
+      // Meta Info Header
+      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Reporting Period: ${periodLabel}`, 14, 30);
+      doc.text(`Generated On: ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`, 14, 36);
 
-      const blob = new Blob([reportContent], { type: "text/plain;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `SIR_Management_Report_${currentMonthName}_${currentYear}.txt`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Table 1: Executive Metrics Summary
+      autoTable(doc, {
+        startY: 42,
+        head: [["KPI Metric", "Actual Count", "Percentage Share"]],
+        body: [
+          ["Total Shift Issues Recorded", totalCount.toString(), "100%"],
+          ["Resolved Issues", resolvedCount.toString(), `${totalCount ? Math.round((resolvedCount / totalCount) * 100) : 0}%`],
+          ["Ongoing Issues", ongoingCount.toString(), `${totalCount ? Math.round((ongoingCount / totalCount) * 100) : 0}%`],
+          ["Monitoring Status", monitoringCount.toString(), `${totalCount ? Math.round((monitoringCount / totalCount) * 100) : 0}%`],
+          ["Escalated to Senior Teams", escalatedCount.toString(), `${totalCount ? Math.round((escalatedCount / totalCount) * 100) : 0}%`],
+        ],
+        headStyles: { fillStyle: "F", fillColor: [30, 30, 45], textColor: [76, 211, 76], fontStyle: "bold" },
+        styles: { fontSize: 9 },
+      });
+
+      // Table 2: Shift Breakdown
+      const shiftRows = Object.entries(shiftCounts).map(([shiftName, count]) => [
+        shiftName,
+        count.toString(),
+        `${totalCount ? Math.round((count / totalCount) * 100) : 0}%`,
+      ]);
+
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 8,
+        head: [["Shift Name", "Total Recorded Issues", "Shift Share"]],
+        body: shiftRows,
+        headStyles: { fillStyle: "F", fillColor: [30, 30, 45], textColor: [76, 211, 76], fontStyle: "bold" },
+        styles: { fontSize: 9 },
+      });
+
+      // Table 3: Issue Categories & Trends
+      const trendRows = Object.entries(trendsMap).map(([category, count]) => [
+        category,
+        count.toString(),
+        `${totalCount ? Math.round((count / totalCount) * 100) : 0}%`,
+      ]);
+
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 8,
+        head: [["Category / Topic Trend", "Occurrences", "Trend Share"]],
+        body: trendRows,
+        headStyles: { fillStyle: "F", fillColor: [30, 30, 45], textColor: [76, 211, 76], fontStyle: "bold" },
+        styles: { fontSize: 9 },
+      });
+
+      // Footer notice
+      const finalY = doc.lastAutoTable.finalY + 12;
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.text("Confidential Management Report — Response Escalation Assistant (REA)", 14, finalY);
+
+      // Save PDF file
+      doc.save(`SIR_Management_Report_${currentMonthName}_${currentYear}.pdf`);
       setShowExportModal(false);
     } catch (e) {
-      console.error("Error generating management report:", e);
-      alert("Failed to export Management Report. Please try again.");
+      console.error("Error generating PDF Management Report:", e);
+      alert("Failed to export PDF Management Report. Please try again.");
     }
   };
 
@@ -1025,10 +1113,10 @@ RESPONSE ESCALATION ASSISTANT - SHIFT ISSUE REGISTER
                 <div className="flex items-center justify-between">
                   <span className="font-extrabold text-sm flex items-center gap-2 group-hover:text-[#4cd34c] transition">
                     <span>📄</span>
-                    <span>Management Report</span>
+                    <span>Management Report (.pdf)</span>
                   </span>
                   <span className="text-[11px] font-extrabold text-[#4cd34c] bg-[#4cd34c]/10 px-2 py-0.5 rounded-full border border-[#4cd34c]/30">
-                    Executive
+                    PDF Document
                   </span>
                 </div>
                 <p className="text-xs opacity-75 pl-6" style={{ color: "var(--text-muted)" }}>
