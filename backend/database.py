@@ -82,7 +82,7 @@ def create_db_and_tables():
 def ping_database(session: Session) -> bool:
     from sqlmodel import text
     try:
-        session.execute(text("SELECT 1"))
+        session.exec(text("SELECT 1"))
         return True
     except Exception:
         return False
