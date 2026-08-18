@@ -150,14 +150,35 @@ export function escapeForTelegramMarkdownV2(text) {
 export function formatDateTimeString(val, controlType = "datetime", dateFormat = "") {
   if (!val || typeof val !== "string") return val || "";
 
-  if (controlType === "time" || /^\d{2}:\d{2}$/.test(val)) {
+  // Enforce no colons for Time Picker (time only) control
+  if (controlType === "time") {
+    return val.replace(/:/g, "");
+  }
+
+  // Check if string matches YYYY-MM-DD, DD/MM/YYYY or ISO datetime
+  const dtMatch = val.match(/^(?:(\d{4})[-/](\d{2})[-/](\d{2})|(\d{2})[/.-](\d{2})[/.-](\d{4}))(?:[T\s](\d{2}):?(\d{2}))?/);
+
+  if (!dtMatch) {
+    if (/^\d{2}:\d{2}$/.test(val)) {
+      return val.replace(/:/g, "");
+    }
     return val;
   }
 
-  const dtMatch = val.match(/^(\d{4})[-/](\d{2})[-/](\d{2})(?:[T\s](\d{2}):(\d{2}))?/);
-  if (!dtMatch) return val;
-
-  const [, YYYY, MM, DD, HH = "00", mm = "00"] = dtMatch;
+  let YYYY = "2026", MM = "01", DD = "01", HH = "00", mm = "00";
+  if (dtMatch[1]) {
+    YYYY = dtMatch[1];
+    MM = dtMatch[2];
+    DD = dtMatch[3];
+    if (dtMatch[7]) HH = dtMatch[7];
+    if (dtMatch[8]) mm = dtMatch[8];
+  } else if (dtMatch[4]) {
+    DD = dtMatch[4];
+    MM = dtMatch[5];
+    YYYY = dtMatch[6];
+    if (dtMatch[7]) HH = dtMatch[7];
+    if (dtMatch[8]) mm = dtMatch[8];
+  }
 
   if (dateFormat && dateFormat !== "default") {
     let out = dateFormat;
@@ -166,14 +187,18 @@ export function formatDateTimeString(val, controlType = "datetime", dateFormat =
     out = out.replace(/DD/g, DD);
     out = out.replace(/HH/g, HH);
     out = out.replace(/mm/g, mm);
+    if (controlType === "time") {
+      out = out.replace(/:/g, "");
+    }
     return out;
   }
 
+  // Enforce DD/MM/YYYY format for Date Picker (date only) control
   if (controlType === "date") {
-    return `${YYYY}/${MM}/${DD}`;
+    return `${DD}/${MM}/${YYYY}`;
   }
 
-  return `${YYYY}/${MM}/${DD} ${HH}:${mm}`;
+  return `${DD}/${MM}/${YYYY} ${HH}:${mm}`;
 }
 
 export function getDateAutoValues() {

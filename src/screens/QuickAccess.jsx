@@ -318,21 +318,52 @@ export default function QuickAccess({
                         style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                       />
                     ) : controlType === "date" ? (
-                      <input
-                        type="date"
-                        value={values[ph] ?? autoVal}
-                        onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
-                        className="w-full rounded-xl border p-2 text-xs font-medium"
-                        style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            if (raw) {
+                              const [y, m, d] = raw.split("-");
+                              setValues((s) => ({ ...s, [ph]: `${d}/${m}/${y}` }));
+                            }
+                          }}
+                          className="rounded-xl border p-1.5 text-xs font-medium shrink-0 cursor-pointer"
+                          style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                        />
+                        <input
+                          type="text"
+                          value={formatDateTimeString(values[ph] ?? autoVal, "date")}
+                          onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                          placeholder="DD/MM/YYYY"
+                          className="w-full rounded-xl border p-2 text-xs font-semibold font-mono tracking-wider"
+                          style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                        />
+                      </div>
                     ) : controlType === "time" ? (
-                      <input
-                        type="time"
-                        value={values[ph] ?? autoVal}
-                        onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
-                        className="w-full rounded-xl border p-2 text-xs font-medium"
-                        style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="time"
+                          onChange={(e) => {
+                            const clean = (e.target.value || "").replace(/:/g, "");
+                            setValues((s) => ({ ...s, [ph]: clean }));
+                          }}
+                          className="rounded-xl border p-1.5 text-xs font-medium shrink-0 cursor-pointer"
+                          style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                        />
+                        <input
+                          type="text"
+                          maxLength={4}
+                          value={(values[ph] ?? autoVal ?? "").toString().replace(/:/g, "")}
+                          onChange={(e) => {
+                            const clean = e.target.value.replace(/:/g, "").replace(/\D/g, "").slice(0, 4);
+                            setValues((s) => ({ ...s, [ph]: clean }));
+                          }}
+                          placeholder="HHMM (e.g. 0945)"
+                          className="w-full rounded-xl border p-2 text-xs font-semibold font-mono tracking-wider"
+                          style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                        />
+                      </div>
                     ) : controlType === "datetime" ? (
                       <input
                         type="datetime-local"

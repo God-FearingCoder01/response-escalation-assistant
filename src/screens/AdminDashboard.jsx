@@ -433,14 +433,12 @@ export default function AdminDashboard({
                                   className="w-full rounded-lg border p-1.5 text-xs font-semibold focus:outline-none focus:border-[#4cd34c]"
                                   style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                                 >
-                                  <option value="default">Default Slashes (12/08/2026 07:29)</option>
-                                  <option value="YYYY/MM/DD HH:mm">YYYY/MM/DD HH:mm (2026/08/12 07:29)</option>
-                                  <option value="DD/MM/YYYY HH:mm">DD/MM/YYYY HH:mm (12/08/2026 07:29)</option>
-                                  <option value="YYYY-MM-DD HH:mm">YYYY-MM-DD HH:mm (2026-08-12 07:29)</option>
-                                  <option value="YYYY/MM/DD">YYYY/MM/DD (2026/08/12)</option>
-                                  <option value="DD/MM/YYYY">DD/MM/YYYY (12/08/2026)</option>
-                                  <option value="YYYY-MM-DD">YYYY-MM-DD (2026-08-12)</option>
-                                  <option value="HH:mm">HH:mm (07:29)</option>
+                                  <option value="default">Default DD/MM/YYYY (18/08/2026)</option>
+                                  <option value="DD/MM/YYYY">DD/MM/YYYY (18/08/2026)</option>
+                                  <option value="DD/MM/YYYY HH:mm">DD/MM/YYYY HH:mm (18/08/2026 07:29)</option>
+                                  <option value="YYYY/MM/DD">YYYY/MM/DD (2026/08/18)</option>
+                                  <option value="YYYY-MM-DD">YYYY-MM-DD (2026-08-18)</option>
+                                  <option value="HHmm">HHMM (0729 - No Colon)</option>
                                   <option value="custom">Custom Format Pattern...</option>
                                 </select>
 
