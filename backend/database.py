@@ -59,6 +59,7 @@ def create_db_and_tables():
                 "ALTER TABLE template ADD COLUMN IF NOT EXISTS placeholder_config VARCHAR",
                 "ALTER TABLE company ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
                 "ALTER TABLE company ADD COLUMN IF NOT EXISTS reporting_week_start VARCHAR DEFAULT 'Monday'",
+                "ALTER TABLE company ADD COLUMN IF NOT EXISTS logo_url TEXT",
                 "CREATE TABLE IF NOT EXISTS supportrequest (id SERIAL PRIMARY KEY, org_name VARCHAR, requester_name VARCHAR, contact_email VARCHAR, request_type VARCHAR, details VARCHAR, status VARCHAR DEFAULT 'pending', created_at TIMESTAMP, updated_at TIMESTAMP)",
                 "CREATE TABLE IF NOT EXISTS suggestion (id SERIAL PRIMARY KEY, name VARCHAR, body VARCHAR, category_type VARCHAR DEFAULT 'tech_escalation', category VARCHAR, subcategory VARCHAR, suggested_by_name VARCHAR, suggested_by_initials VARCHAR, status VARCHAR DEFAULT 'pending', company_id INTEGER DEFAULT 1, created_at TIMESTAMP, updated_at TIMESTAMP)",
                 "ALTER TABLE suggestion ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",

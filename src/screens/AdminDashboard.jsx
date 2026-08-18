@@ -104,6 +104,29 @@ export default function AdminDashboard({
 
   const [newTargetName, setNewTargetName] = useState("");
   const [companyWeekStart, setCompanyWeekStart] = useState(() => localStorage.getItem("REA_COMPANY_WEEK_START") || "Monday");
+  const [companyLogo, setCompanyLogo] = useState(() => localStorage.getItem("REA_COMPANY_LOGO") || "");
+
+  const handleLogoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      alert("Logo image file size must be smaller than 3MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const base64 = evt.target?.result || "";
+      setCompanyLogo(base64);
+      localStorage.setItem("REA_COMPANY_LOGO", base64);
+      alert("Company logo uploaded successfully! It will now appear on your PDF management reports.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    setCompanyLogo("");
+    localStorage.removeItem("REA_COMPANY_LOGO");
+  };
 
   const handleSaveShiftForm = async (e) => {
     e.preventDefault();
@@ -1429,8 +1452,46 @@ export default function AdminDashboard({
               localStorage.setItem("REA_COMPANY_WEEK_START", companyWeekStart);
               alert(`Saved Reporting Week Start day: ${companyWeekStart}`);
             }}
-            className="space-y-4"
+            className="space-y-5"
           >
+            {/* COMPANY LOGO BRANDING UPLOAD */}
+            <div className="p-4 rounded-2xl border space-y-3" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+              <label className="text-xs font-bold block text-[#4cd34c]">
+                Company Branding Logo (PNG / JPEG)
+              </label>
+
+              {companyLogo ? (
+                <div className="flex items-center gap-4">
+                  <div className="p-2 rounded-xl border bg-white/5 shrink-0" style={{ borderColor: "var(--field-border)" }}>
+                    <img src={companyLogo} alt="Company Logo" className="h-12 w-auto max-w-[140px] object-contain" />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-xs font-bold text-[#4cd34c] block">✓ Logo active on PDF exports</span>
+                    <button
+                      type="button"
+                      onClick={handleRemoveLogo}
+                      className="px-3 py-1 rounded-lg border text-[11px] font-bold text-red-400 hover:bg-red-500/10 transition"
+                      style={{ borderColor: "var(--field-border)" }}
+                    >
+                      Remove Logo
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="block w-full text-xs text-[var(--text-muted)] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#4cd34c]/20 file:text-[#4cd34c] hover:file:bg-[#4cd34c]/30 cursor-pointer"
+                  />
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    Upload your official organization logo to automatically brand generated SIR Management PDF Reports.
+                  </p>
+                </div>
+              )}
+            </div>
+
             <div>
               <label className="text-xs font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
                 Reporting Week Starts On *

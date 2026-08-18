@@ -931,6 +931,8 @@ def update_company(company_id: int, payload: CompanyUpdate):
             comp.is_active = payload.is_active
         if payload.reporting_week_start is not None:
             comp.reporting_week_start = payload.reporting_week_start.strip()
+        if payload.logo_url is not None:
+            comp.logo_url = payload.logo_url
         comp.updated_at = datetime.now(timezone.utc)
         session.add(comp)
         session.commit()

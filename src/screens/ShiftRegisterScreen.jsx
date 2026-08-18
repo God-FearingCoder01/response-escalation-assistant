@@ -337,10 +337,22 @@ export default function ShiftRegisterScreen({
       doc.setFillColor(15, 155, 0);
       doc.rect(0, 0, 210, 22, "F");
 
+      const savedLogo = localStorage.getItem("REA_COMPANY_LOGO") || "";
+      let textX = 14;
+
+      if (savedLogo) {
+        try {
+          doc.addImage(savedLogo, "PNG", 10, 2.5, 17, 17);
+          textX = 32;
+        } catch (e) {
+          textX = 14;
+        }
+      }
+
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(13);
-      doc.text("SHIFT ISSUE REGISTER (SIR) - MANAGEMENT REPORT", 14, 14);
+      doc.setFontSize(savedLogo ? 11 : 13);
+      doc.text("SHIFT ISSUE REGISTER (SIR) - MANAGEMENT REPORT", textX, 14);
 
       doc.setTextColor(50, 50, 50);
       doc.setFontSize(9);

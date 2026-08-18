@@ -13,6 +13,7 @@ class CompanyBase(SQLModel):
     slug: str = Field(unique=True, index=True)
     is_active: bool = True
     reporting_week_start: str = Field(default="Monday")
+    logo_url: Optional[str] = None
 
 
 class Company(CompanyBase, table=True):
@@ -30,6 +31,7 @@ class CompanyUpdate(SQLModel):
     slug: Optional[str] = None
     is_active: Optional[bool] = None
     reporting_week_start: Optional[str] = None
+    logo_url: Optional[str] = None
 
 
 class CompanyRead(CompanyBase):
