@@ -504,19 +504,19 @@ export default function AdminDashboard({
                             <div className="space-y-3">
                               <div>
                                 <label className="text-[10px] block mb-1 font-bold text-[#4cd34c]">
-                                  {ph.endsWith("?") ? "1-to-1 Mapped Target Token Name" : "Mapped Target Token Name (Optional)"}
+                                  {ph.endsWith("?") ? "1-to-1 Mapped Target Token Name *" : "Mapped Target Token Name (Optional - Only if mapping to another token)"}
                                 </label>
                                 <input
                                   type="text"
                                   value={cfg.mapped_target !== undefined ? cfg.mapped_target : (ph.endsWith("?") ? `:${ph.replace(/\?$/, "")}` : "")}
                                   onChange={(e) => updatePlaceholderConfig(ph, { mapped_target: e.target.value })}
-                                  placeholder="e.g. :game"
+                                  placeholder={ph.endsWith("?") ? "e.g. :game" : "Leave blank for standalone dropdown (e.g. :game)"}
                                   className="w-full rounded-lg border p-1.5 text-xs font-mono font-semibold focus:outline-none focus:border-[#4cd34c]"
                                   style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                                 />
                               </div>
 
-                              {ph.endsWith("?") || cfg.mapped_target ? (
+                              {ph.endsWith("?") || (Boolean(cfg.mapped_target) && cfg.mapped_target.trim() !== "") ? (
                                 <div>
                                   <label className="text-[10px] block mb-1 font-bold text-[#4cd34c] flex justify-between">
                                     <span>1-to-1 Conditional Value Pairings (Trigger ➔ Mapped Target) *</span>

@@ -282,19 +282,19 @@ export function resolveConditionalMappings(placeholders = [], parsedConfig = {},
 
   (placeholders || []).forEach((ph) => {
     const cfg = parsedConfig?.[ph];
-    const isTrigger = ph.endsWith("?") || Boolean(cfg?.mapped_target);
+    const isTrigger = ph.endsWith("?") || (Boolean(cfg?.mapped_target) && cfg.mapped_target.trim() !== "");
 
     if (isTrigger) {
       let targetKey = cfg?.mapped_target;
-      if (!targetKey) {
+      if (!targetKey && ph.endsWith("?")) {
         const baseName = ph.replace(/\?$/, "");
         const foundTarget = (placeholders || []).find(
-          (p) => p === `:${baseName}` || p.startsWith(":") || (p.startsWith(":") && p.slice(1) === baseName)
+          (p) => p === `:${baseName}` || (p.startsWith(":") && p.slice(1) === baseName)
         );
         targetKey = foundTarget || `:${baseName}`;
       }
 
-      if (targetKey) {
+      if (targetKey && targetKey.trim() !== "") {
         mappedTargetKeys.add(targetKey);
         const triggerVal = resolvedValues[ph] ?? cfg?.options?.[0] ?? "";
         let mappedVal = "";

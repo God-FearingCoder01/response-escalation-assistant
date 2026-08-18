@@ -287,7 +287,8 @@ export default function CustomerReply({
                       options = ["Elephant", "Rhino", "Lion", "Buffalo", "Leopard"];
                     }
 
-                    const targetKey = customCfg?.mapped_target || (ph.endsWith("?") ? `:${ph.replace(/\?$/, "")}` : null);
+                    const isTrigger = ph.endsWith("?") || (Boolean(customCfg?.mapped_target) && customCfg.mapped_target.trim() !== "");
+                    const targetKey = isTrigger ? (customCfg?.mapped_target || `:${ph.replace(/\?$/, "")}`) : null;
                     const autoMappedVal = targetKey ? resolvedValues[targetKey] : null;
 
                     return (
