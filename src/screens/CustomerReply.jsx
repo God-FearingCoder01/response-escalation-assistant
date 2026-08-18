@@ -319,16 +319,74 @@ export default function CustomerReply({
                           )}
                         </select>
                       ) : controlType === "number" ? (
-                        <input
-                          type="number"
-                          min={1}
-                          max={isDayField ? 31 : isMonthNumberField ? 12 : 999999}
-                          value={valMap[ph] ?? autoVal}
-                          onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
-                          placeholder={`Enter ${ph.replace("_", " ")}`}
-                          className="w-full rounded-xl border p-2.5 text-sm font-semibold"
-                          style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                        />
+                        (isMonthNumberField || isDayField || cfg?.auto_fill_type === "month_number" || cfg?.auto_fill_type === "day_number" || ["month_number", "month_num", "month", "mm", "day_number", "day_num", "day", "dd"].includes(ph.toLowerCase())) ? (
+                          <div className="flex items-center rounded-xl border overflow-hidden" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                            <input
+                              type="text"
+                              maxLength={2}
+                              value={
+                                valMap[ph] !== undefined
+                                  ? (valMap[ph] ? String(parseInt(valMap[ph], 10) || 1).padStart(2, "0") : "")
+                                  : (autoVal ? String(parseInt(autoVal, 10) || 1).padStart(2, "0") : "01")
+                              }
+                              onChange={(e) => {
+                                const digits = e.target.value.replace(/\D/g, "");
+                                if (!digits) {
+                                  setValues((s) => ({ ...s, [ph]: "" }));
+                                  return;
+                                }
+                                let n = parseInt(digits, 10);
+                                const maxVal = (isMonthNumberField || cfg?.auto_fill_type === "month_number" || ["month_number", "month_num", "month", "mm"].includes(ph.toLowerCase())) ? 12 : 31;
+                                if (n > maxVal) n = maxVal;
+                                setValues((s) => ({ ...s, [ph]: String(n).padStart(2, "0") }));
+                              }}
+                              placeholder="01"
+                              className="w-full p-2.5 text-sm font-bold font-mono tracking-wider text-center bg-transparent focus:outline-none"
+                              style={{ color: "var(--app-text)" }}
+                            />
+                            <div className="flex flex-col border-l" style={{ borderColor: "var(--field-border)" }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const maxVal = (isMonthNumberField || cfg?.auto_fill_type === "month_number" || ["month_number", "month_num", "month", "mm"].includes(ph.toLowerCase())) ? 12 : 31;
+                                  const current = parseInt(valMap[ph] ?? autoVal ?? "1", 10) || 1;
+                                  let next = current + 1;
+                                  if (next > maxVal) next = 1;
+                                  setValues((s) => ({ ...s, [ph]: String(next).padStart(2, "0") }));
+                                }}
+                                className="px-2.5 py-1 text-[10px] font-black hover:bg-[#4cd34c]/20 transition select-none"
+                                style={{ color: "var(--app-text)" }}
+                              >
+                                ▲
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const maxVal = (isMonthNumberField || cfg?.auto_fill_type === "month_number" || ["month_number", "month_num", "month", "mm"].includes(ph.toLowerCase())) ? 12 : 31;
+                                  const current = parseInt(valMap[ph] ?? autoVal ?? "1", 10) || 1;
+                                  let next = current - 1;
+                                  if (next < 1) next = maxVal;
+                                  setValues((s) => ({ ...s, [ph]: String(next).padStart(2, "0") }));
+                                }}
+                                className="px-2.5 py-1 text-[10px] font-black hover:bg-[#4cd34c]/20 transition border-t select-none"
+                                style={{ borderColor: "var(--field-border)", color: "var(--app-text)" }}
+                              >
+                                ▼
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <input
+                            type="number"
+                            min={1}
+                            max={999999}
+                            value={valMap[ph] ?? autoVal}
+                            onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                            placeholder={`Enter ${ph.replace("_", " ")}`}
+                            className="w-full rounded-xl border p-2.5 text-sm font-semibold"
+                            style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                          />
+                        )
                       ) : controlType === "date" ? (
                         <div className="flex items-center gap-2">
                           <input

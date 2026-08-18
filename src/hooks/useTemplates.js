@@ -249,6 +249,17 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
       let rawVal = values[key] ?? customConfigAutoMap[key] ?? autoMap[key] ?? "";
       const cfg = parsedConfig[key];
       const ctrlType = cfg?.control_type || (key === "date" ? "date" : key === "time" ? "time" : "datetime");
+
+      const keyLower = key.toLowerCase();
+      const is2DigitDateComp =
+        cfg?.auto_fill_type === "month_number" ||
+        cfg?.auto_fill_type === "day_number" ||
+        ["month_number", "month_num", "month", "mm", "day_number", "day_num", "day", "dd"].includes(keyLower);
+
+      if (is2DigitDateComp && rawVal !== "" && !isNaN(Number(rawVal))) {
+        rawVal = String(parseInt(rawVal, 10)).padStart(2, "0");
+      }
+
       let formattedVal = formatDateTimeString(rawVal, ctrlType, cfg?.date_format);
       out = out.split(`{${key}}`).join(formattedVal);
     }
