@@ -102,13 +102,14 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
     }));
   }, [templates]);
 
-  // Available categories & subcategories for Customer Reply screen
+  // Available categories & subcategories for Customer Reply screen (sorted alphabetically)
   const customerCategories = useMemo(() => {
     const cats = new Set();
     customerTemplates.forEach((t) => {
       if (t.category) cats.add(t.category);
     });
-    return ["All", ...Array.from(cats)];
+    const sorted = Array.from(cats).sort((a, b) => a.localeCompare(b));
+    return ["All", ...sorted];
   }, [customerTemplates]);
 
   const customerSubcategories = useMemo(() => {
@@ -118,7 +119,8 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
         if (t.subcategory) subcats.add(t.subcategory);
       }
     });
-    return ["All", ...Array.from(subcats)];
+    const sorted = Array.from(subcats).sort((a, b) => a.localeCompare(b));
+    return ["All", ...sorted];
   }, [customerTemplates, selectedCategory]);
 
   // Filtered customer templates

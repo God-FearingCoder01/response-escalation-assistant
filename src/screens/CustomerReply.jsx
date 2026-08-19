@@ -125,13 +125,13 @@ export default function CustomerReply({
             />
           </div>
 
-          {/* Level 1: Category Pills */}
+          {/* Level 1: Category Pills (Always Alphabetical) */}
           <div>
             <label className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "var(--text-muted)" }}>
               Primary Category:
             </label>
             <div className="flex flex-wrap gap-2">
-              {categoriesList.map((cat) => (
+              {(["All", ...categoriesList.filter((c) => c !== "All").sort((a, b) => a.localeCompare(b))]).map((cat) => (
                 <button
                   key={cat}
                   type="button"
@@ -152,28 +152,38 @@ export default function CustomerReply({
             </div>
           </div>
 
-          {/* Level 2: Subcategory Chips */}
+          {/* Level 2: Subcategory Chips (Collapsible - Hover to Reveal All Options) */}
           {subcategoriesList.length > 1 ? (
-            <div>
-              <label className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "var(--text-muted)" }}>
-                Subcategory:
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {subcategoriesList.map((subcat) => (
-                  <button
-                    key={subcat}
-                    type="button"
-                    onClick={() => setSelectedSubcategory(subcat)}
-                    className={`rounded-xl border px-2.5 py-0.5 text-[11px] transition ${
-                      selectedSubcategory === subcat
-                        ? "border-[#4cd34c] bg-[#4cd34c]/20 text-[#4cd34c] font-bold"
-                        : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
-                    }`}
-                    style={{ borderColor: selectedSubcategory === subcat ? "#4cd34c" : "var(--field-border)" }}
-                  >
-                    {subcat}
-                  </button>
-                ))}
+            <div className="group space-y-1 rounded-2xl border p-2.5 transition-all duration-300" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-semibold uppercase tracking-wider block" style={{ color: "var(--text-muted)" }}>
+                  Subcategory ({subcategoriesList.length}):
+                </label>
+                <span className="text-[10px] text-[#4cd34c] font-semibold transition-opacity duration-200 opacity-70 group-hover:opacity-100 flex items-center gap-1">
+                  <span>Hover to reveal options</span>
+                  <span className="transition-transform duration-300 group-hover:rotate-180">▾</span>
+                </span>
+              </div>
+              <div className="relative overflow-hidden transition-all duration-300 max-h-[2.8rem] group-hover:max-h-[24rem]">
+                <div className="flex flex-wrap gap-1.5 pb-1 pt-0.5">
+                  {subcategoriesList.map((subcat) => (
+                    <button
+                      key={subcat}
+                      type="button"
+                      onClick={() => setSelectedSubcategory(subcat)}
+                      className={`rounded-xl border px-2.5 py-1 text-[11px] transition ${
+                        selectedSubcategory === subcat
+                          ? "border-[#4cd34c] bg-[#4cd34c]/20 text-[#4cd34c] font-bold"
+                          : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
+                      }`}
+                      style={{ borderColor: selectedSubcategory === subcat ? "#4cd34c" : "var(--field-border)" }}
+                    >
+                      {subcat}
+                    </button>
+                  ))}
+                </div>
+                {/* Visual fade hint at bottom when collapsed */}
+                <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-[var(--field-bg)] to-transparent pointer-events-none transition-opacity duration-200 group-hover:opacity-0" />
               </div>
             </div>
           ) : null}
