@@ -71,6 +71,7 @@ def create_db_and_tables():
                 "CREATE TABLE IF NOT EXISTS shiftconfig (id SERIAL PRIMARY KEY, name VARCHAR, start_time VARCHAR DEFAULT '07:00', end_time VARCHAR DEFAULT '15:00', is_active BOOLEAN DEFAULT TRUE, company_id INTEGER DEFAULT 1, created_at TIMESTAMP, updated_at TIMESTAMP)",
                 "CREATE TABLE IF NOT EXISTS escalationtarget (id SERIAL PRIMARY KEY, name VARCHAR, company_id INTEGER DEFAULT 1, created_at TIMESTAMP, updated_at TIMESTAMP)",
                 "CREATE TABLE IF NOT EXISTS shiftissue (id SERIAL PRIMARY KEY, reference_no VARCHAR, title VARCHAR, time_noticed VARCHAR, description VARCHAR, actions_taken VARCHAR, customer_response VARCHAR, status VARCHAR DEFAULT 'Ongoing', escalated_to VARCHAR DEFAULT 'None', additional_notes VARCHAR, carry_forward BOOLEAN DEFAULT FALSE, next_shift_instructions VARCHAR, logged_by_name VARCHAR, logged_by_initials VARCHAR, shift_name VARCHAR, company_id INTEGER DEFAULT 1, created_at TIMESTAMP, updated_at TIMESTAMP)",
+                "CREATE TABLE IF NOT EXISTS privatenote (id SERIAL PRIMARY KEY, name VARCHAR, body VARCHAR, category_type VARCHAR DEFAULT 'customer_reply', category VARCHAR DEFAULT 'Personal Notes', subcategory VARCHAR, placeholder_config VARCHAR, use_count INTEGER DEFAULT 0, submitted_as_suggestion BOOLEAN DEFAULT FALSE, agent_initials VARCHAR, company_id INTEGER DEFAULT 1, created_at TIMESTAMP, updated_at TIMESTAMP)",
             ]
             for statement in migrations:
                 try:

@@ -791,3 +791,67 @@ export async function deleteSirIssueApi(id) {
   }
   return await res.json();
 }
+
+// --- PRIVATE NOTES API ENDPOINTS ---
+
+export async function fetchPrivateNotesApi(agentInitials) {
+  const headers = { ...getCompanyHeaders() };
+  if (agentInitials) headers["X-Agent-Initials"] = agentInitials;
+  return await safeFetchJson(`${API_BASE}/private-notes`, { headers });
+}
+
+export async function createPrivateNoteApi(payload, agentInitials) {
+  const headers = { "Content-Type": "application/json", ...getCompanyHeaders() };
+  if (agentInitials) headers["X-Agent-Initials"] = agentInitials;
+  const res = await fetch(`${API_BASE}/private-notes`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to create private note"));
+  }
+  return await res.json();
+}
+
+export async function updatePrivateNoteApi(id, payload, agentInitials) {
+  const headers = { "Content-Type": "application/json", ...getCompanyHeaders() };
+  if (agentInitials) headers["X-Agent-Initials"] = agentInitials;
+  const res = await fetch(`${API_BASE}/private-notes/${id}`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to update private note"));
+  }
+  return await res.json();
+}
+
+export async function deletePrivateNoteApi(id, agentInitials) {
+  const headers = { ...getCompanyHeaders() };
+  if (agentInitials) headers["X-Agent-Initials"] = agentInitials;
+  const res = await fetch(`${API_BASE}/private-notes/${id}`, {
+    method: "DELETE",
+    headers,
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to delete private note"));
+  }
+  return await res.json();
+}
+
+export async function trackPrivateNoteUsageApi(id) {
+  const res = await fetch(`${API_BASE}/private-notes/${id}/use`, {
+    method: "POST",
+    headers: getCompanyHeaders(),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to track private note usage"));
+  }
+  return await res.json();
+}

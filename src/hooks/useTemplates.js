@@ -11,8 +11,13 @@ import {
   resolveConditionalMappings,
 } from "../services/api";
 
-export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteIds, usageCounts, recentlyUsed, showToast }) {
+export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteIds, usageCounts, recentlyUsed, showToast, privateNotes = [] }) {
   const [templates, setTemplates] = useState(DEFAULT_TEMPLATES);
+
+  // Combined list of system templates and agent private notes
+  const combinedTemplates = useMemo(() => {
+    return [...templates, ...(privateNotes || [])];
+  }, [templates, privateNotes]);
 
   // Tech Escalation screen state
   const [selectedTechId, setSelectedTechId] = useState(null);
@@ -129,23 +134,27 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
     });
   }, [customerTemplates, selectedCategory, selectedSubcategory, searchQuery]);
 
-  // Favorites templates list
+  // Favorites templates list (system templates + starred private notes)
   const favoriteTemplates = useMemo(() => {
     const favList = favoriteIds || [];
-    return templates.filter((t) => favList.includes(t.id));
-  }, [templates, favoriteIds]);
+    return combinedTemplates.filter((t) => favList.includes(t.id));
+  }, [combinedTemplates, favoriteIds]);
 
   // Most used templates list
   const mostUsedTemplates = useMemo(() => {
     const counts = usageCounts || {};
-    return [...templates]
-      .filter((t) => (counts[t.id] || 0) > 0)
-      .sort((a, b) => (counts[b.id] || 0) - (counts[a.id] || 0));
-  }, [templates, usageCounts]);
+    return [...combinedTemplates]
+      .filter((t) => (counts[t.id] || 0) > 0 || (t.use_count || 0) > 0)
+      .sort((a, b) => {
+        const countA = (counts[a.id] || 0) + (a.use_count || 0);
+        const countB = (counts[b.id] || 0) + (b.use_count || 0);
+        return countB - countA;
+      });
+  }, [combinedTemplates, usageCounts]);
 
   // Recently used templates list
   const recentlyUsedTemplates = useMemo(() => {
-    const map = new Map(templates.map((t) => [t.id, t]));
+    const map = new Map(combinedTemplates.map((t) => [t.id, t]));
     const list = [];
     const recents = recentlyUsed || [];
     recents.forEach((item) => {
@@ -155,18 +164,20 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
       }
     });
     return list;
-  }, [templates, recentlyUsed]);
+  }, [combinedTemplates, recentlyUsed]);
 
   // Active template for Quick Access screen
   const quickAccessActiveTemplate = useMemo(() => {
     const activeList =
       quickTab === "favorites"
-        ? (favoriteTemplates.length > 0 ? favoriteTemplates : templates)
+        ? (favoriteTemplates.length > 0 ? favoriteTemplates : combinedTemplates)
         : quickTab === "most_used"
-          ? (mostUsedTemplates.length > 0 ? mostUsedTemplates : templates)
-          : (recentlyUsedTemplates.length > 0 ? recentlyUsedTemplates : templates);
-    return activeList.find((t) => t.id === selectedQuickId) ?? activeList[0] ?? templates[0] ?? null;
-  }, [quickTab, favoriteTemplates, mostUsedTemplates, recentlyUsedTemplates, selectedQuickId, templates]);
+          ? (mostUsedTemplates.length > 0 ? mostUsedTemplates : combinedTemplates)
+          : quickTab === "private_notes"
+            ? (privateNotes.length > 0 ? privateNotes : combinedTemplates)
+            : (recentlyUsedTemplates.length > 0 ? recentlyUsedTemplates : combinedTemplates);
+    return combinedTemplates.find((t) => String(t.id) === String(selectedQuickId)) ?? activeList.find((t) => String(t.id) === String(selectedQuickId)) ?? activeList[0] ?? combinedTemplates[0] ?? null;
+  }, [quickTab, favoriteTemplates, mostUsedTemplates, privateNotes, recentlyUsedTemplates, selectedQuickId, combinedTemplates]);
 
   // Selected template object for current activeScreen
   const activeTemplate = useMemo(() => {

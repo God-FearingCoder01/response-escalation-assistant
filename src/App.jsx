@@ -8,6 +8,7 @@ import { useTemplates } from "./hooks/useTemplates";
 import { useSuggestions } from "./hooks/useSuggestions";
 import { useTranslator } from "./hooks/useTranslator";
 import { useShiftRegister } from "./hooks/useShiftRegister";
+import { usePrivateNotes } from "./hooks/usePrivateNotes";
 
 import Sidebar from "./components/Sidebar";
 import PinModal from "./components/PinModal";
@@ -182,7 +183,14 @@ export default function App() {
     copyText = () => {},
   } = userInteractions || {};
 
-  // 3. Templates hook
+  // 3. Private Notes hook
+  const privateNotesHook = usePrivateNotes({
+    currentAgent,
+    showToast,
+    refreshSuggestions: () => suggestionState?.refreshSuggestions?.(),
+  });
+
+  // 4. Templates hook
   const templateState = useTemplates({
     apiStatus,
     activeScreen,
@@ -191,6 +199,7 @@ export default function App() {
     usageCounts,
     recentlyUsed,
     showToast,
+    privateNotes: privateNotesHook.privateNotes,
   });
 
   const {
@@ -601,6 +610,7 @@ export default function App() {
           handleApproveSuggestion={handleApproveSuggestion}
           handleRejectSuggestion={handleRejectSuggestion}
           handleDeleteSuggestion={handleDeleteSuggestion}
+          privateNotesHook={privateNotesHook}
         />
 
         <QuickAccess
@@ -622,6 +632,7 @@ export default function App() {
           setValues={setValues}
           generatedMsg={generatedMsg}
           copyText={copyText}
+          privateNotesHook={privateNotesHook}
         />
 
         {activeScreen === "translator" && (

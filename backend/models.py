@@ -167,6 +167,47 @@ class UsageHistory(SQLModel, table=True):
     copied_at: datetime = Field(default_factory=get_utc_now, nullable=False)
 
 
+class PrivateNoteBase(SQLModel):
+    name: str
+    body: str
+    category_type: str = "customer_reply"  # "tech_escalation" or "customer_reply"
+    category: Optional[str] = "Personal Notes"
+    subcategory: Optional[str] = None
+    placeholder_config: Optional[str] = None
+    use_count: int = 0
+    submitted_as_suggestion: bool = False
+    agent_initials: Optional[str] = Field(default="SA", index=True)
+    company_id: int = Field(default=1, foreign_key="company.id", index=True)
+
+
+class PrivateNote(PrivateNoteBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+
+
+class PrivateNoteCreate(PrivateNoteBase):
+    company_id: int = 1
+
+
+class PrivateNoteUpdate(SQLModel):
+    name: Optional[str] = None
+    body: Optional[str] = None
+    category_type: Optional[str] = None
+    category: Optional[str] = None
+    subcategory: Optional[str] = None
+    placeholder_config: Optional[str] = None
+    use_count: Optional[int] = None
+    submitted_as_suggestion: Optional[bool] = None
+
+
+class PrivateNoteRead(PrivateNoteBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+
 class SuperAdminBase(SQLModel):
     email: str = Field(index=True)
 

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString } from "../services/api";
 
 export default function QuickAccess({
@@ -19,12 +20,32 @@ export default function QuickAccess({
   setValues,
   generatedMsg,
   copyText,
+  privateNotesHook,
 }) {
+  const [showCreateNote, setShowCreateNote] = useState(false);
+  const [editingNote, setEditingNote] = useState(null);
+  const [newNoteName, setNewNoteName] = useState("");
+  const [newNoteBody, setNewNoteBody] = useState("");
+  const [newNoteType, setNewNoteType] = useState("customer_reply");
+  const [creatingNote, setCreatingNote] = useState(false);
+
   if (activeScreen !== "quick_access" || !currentAgent) return null;
+
+  const {
+    privateNotes = [],
+    createPrivateNote,
+    updatePrivateNote,
+    deletePrivateNote,
+    trackPrivateNoteUsage,
+    promoteToSuggestion,
+    promptBannerNote,
+    dismissPromptBanner,
+  } = privateNotesHook || {};
 
   const favList = favoriteTemplates || [];
   const mostList = mostUsedTemplates || [];
   const recList = recentlyUsedTemplates || [];
+  const privList = privateNotes || [];
   const allTemplates = templates || [];
   const favIds = favoriteIds || [];
   const counts = usageCounts || {};
@@ -35,31 +56,215 @@ export default function QuickAccess({
       ? favList
       : quickTab === "most_used"
         ? mostList
-        : recList;
+        : quickTab === "private_notes"
+          ? privList
+          : recList;
+
+  const handleStartCreateNote = () => {
+    setEditingNote(null);
+    setNewNoteName("");
+    setNewNoteBody("");
+    setNewNoteType("customer_reply");
+    setShowCreateNote(true);
+  };
+
+  const handleStartEditNote = (note) => {
+    setEditingNote(note);
+    setNewNoteName(note.name || "");
+    setNewNoteBody(note.body || "");
+    setNewNoteType(note.category_type || "customer_reply");
+    setShowCreateNote(true);
+  };
+
+  const handleSavePrivateNote = async (e) => {
+    e.preventDefault();
+    if (!newNoteName.trim() || !newNoteBody.trim()) return;
+    setCreatingNote(true);
+    try {
+      if (editingNote && updatePrivateNote) {
+        const updated = await updatePrivateNote(editingNote.id, {
+          name: newNoteName.trim(),
+          body: newNoteBody.trim(),
+          category_type: newNoteType,
+        });
+        if (updated && setSelectedQuickId) {
+          setSelectedQuickId(updated.id);
+        }
+      } else if (createPrivateNote) {
+        const created = await createPrivateNote({
+          name: newNoteName.trim(),
+          body: newNoteBody.trim(),
+          category_type: newNoteType,
+          category: "Personal Notes",
+        });
+        if (created && setSelectedQuickId) {
+          setSelectedQuickId(created.id);
+        }
+      }
+      setEditingNote(null);
+      setNewNoteName("");
+      setNewNoteBody("");
+      setShowCreateNote(false);
+    } catch (e) {
+    } finally {
+      setCreatingNote(false);
+    }
+  };
+
+  const handleCopyAction = () => {
+    copyText(generatedMsg, "Quick message copied to clipboard! 📋", activeTemplate?.id);
+    if (activeTemplate && (activeTemplate.is_private_note || activeTemplate.agent_initials || quickTab === "private_notes" || privList.some(n => n.id === activeTemplate.id))) {
+      if (trackPrivateNoteUsage) {
+        trackPrivateNoteUsage(activeTemplate.id);
+      }
+    }
+  };
 
   return (
-    <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto">
-      {/* Left Panel: Favorites & Recents Selector */}
+    <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto space-y-4 lg:space-y-0">
+      {/* High-frequency Private Note Smart Suggestion Banner */}
+      {promptBannerNote && (
+        <div className="lg:col-span-12 p-4 rounded-2xl border border-[#4cd34c]/40 bg-[#4cd34c]/10 text-xs flex flex-wrap items-center justify-between gap-3 shadow-md animate-fade-in">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">💡</span>
+            <div>
+              <div className="font-bold text-sm text-[var(--app-text)]">
+                Smart Suggestion: Frequently Used Private Note!
+              </div>
+              <div style={{ color: "var(--text-muted)" }}>
+                You've used your private template <strong>"{promptBannerNote.name}"</strong> {promptBannerNote.use_count} times. Would you like to share it as a Team Suggestion?
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => promoteToSuggestion(promptBannerNote)}
+              className="px-3.5 py-1.5 rounded-xl bg-[#4cd34c] text-black font-extrabold text-xs shadow-sm hover:opacity-90 transition flex items-center gap-1.5"
+            >
+              🚀 Submit to Team Suggestions
+            </button>
+            <button
+              type="button"
+              onClick={dismissPromptBanner}
+              className="px-2.5 py-1.5 rounded-xl border text-xs font-semibold hover:bg-[var(--neutral-bg)] transition"
+              style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Left Panel: Favorites & Recents & Private Notes Selector */}
       <div
         className="lg:col-span-7 rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-5"
         style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}
       >
-        <div>
-          <h2 className="text-xl font-bold mb-1 flex items-center gap-2" style={{ color: "var(--app-text)" }}>
-            <span className="text-xl">⭐</span>
-            Quick Access & Favorites Center
-          </h2>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            Instant access to your starred, most used, and recently copied response templates.
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold mb-1 flex items-center gap-2" style={{ color: "var(--app-text)" }}>
+              <span className="text-xl">⭐</span>
+              Quick Access & Favorites Center
+            </h2>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Instant access to your starred, most used, recently copied, and private agent response templates.
+            </p>
+          </div>
+          {quickTab === "private_notes" && (
+            <button
+              type="button"
+              onClick={() => {
+                if (showCreateNote) {
+                  setShowCreateNote(false);
+                  setEditingNote(null);
+                } else {
+                  handleStartCreateNote();
+                }
+              }}
+              className="px-3 py-1.5 rounded-xl bg-[#4cd34c] text-black font-bold text-xs shadow-sm hover:opacity-90 transition flex items-center gap-1 shrink-0"
+            >
+              {showCreateNote ? "✕ Close Form" : "+ Add Private Note"}
+            </button>
+          )}
         </div>
 
+        {/* Create / Edit Private Note Form */}
+        {showCreateNote && (
+          <form onSubmit={handleSavePrivateNote} className="p-4 rounded-2xl border bg-[var(--field-bg)] space-y-3 shadow-md" style={{ borderColor: "#4cd34c" }}>
+            <div className="font-bold text-xs text-[#4cd34c] flex items-center justify-between">
+              <span>{editingNote ? "✏️ Edit Private Agent Template" : "🔒 Create Private Agent Template"}</span>
+              {editingNote && (
+                <span className="text-[10px] bg-[#4cd34c]/20 px-2 py-0.5 rounded-full">Editing ID: {editingNote.id}</span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] uppercase font-bold block mb-1" style={{ color: "var(--text-muted)" }}>Template Title *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. My Personal Verification Response"
+                  value={newNoteName}
+                  onChange={(e) => setNewNoteName(e.target.value)}
+                  className="w-full rounded-xl border p-2 text-xs font-semibold focus:outline-none focus:border-[#4cd34c]"
+                  style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase font-bold block mb-1" style={{ color: "var(--text-muted)" }}>Template Type</label>
+                <select
+                  value={newNoteType}
+                  onChange={(e) => setNewNoteType(e.target.value)}
+                  className="w-full rounded-xl border p-2 text-xs font-semibold focus:outline-none focus:border-[#4cd34c]"
+                  style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                >
+                  <option value="customer_reply">Customer Reply</option>
+                  <option value="tech_escalation">Tech Escalation</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] uppercase font-bold block mb-1" style={{ color: "var(--text-muted)" }}>Message Body (Use {"{customer_name}"}, {"{greeting}"}, {"{reason}"} for placeholders) *</label>
+              <textarea
+                required
+                rows={3}
+                placeholder="Good {greeting} {customer_name}, your request is being handled..."
+                value={newNoteBody}
+                onChange={(e) => setNewNoteBody(e.target.value)}
+                className="w-full rounded-xl border p-2 text-xs font-mono focus:outline-none focus:border-[#4cd34c]"
+                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCreateNote(false);
+                  setEditingNote(null);
+                }}
+                className="px-3 py-1.5 rounded-xl border text-xs font-semibold hover:bg-[var(--neutral-bg)]"
+                style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={creatingNote}
+                className="px-4 py-1.5 rounded-xl bg-[#4cd34c] text-black font-bold text-xs hover:opacity-90 transition"
+              >
+                {creatingNote ? "Saving..." : (editingNote ? "Update Private Note" : "Save Private Note")}
+              </button>
+            </div>
+          </form>
+        )}
+
         {/* Sub-Tab Navigation */}
-        <div className="grid grid-cols-3 gap-2 border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
           <button
             type="button"
             onClick={() => setQuickTab("favorites")}
-            className={`rounded-xl border py-2 px-3 text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
+            className={`rounded-xl border py-2 px-2.5 text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
               quickTab === "favorites"
                 ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] shadow-sm"
                 : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
@@ -73,15 +278,15 @@ export default function QuickAccess({
           <button
             type="button"
             onClick={() => setQuickTab("most_used")}
-            className={`rounded-xl border py-2 px-3 text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
+            className={`rounded-xl border py-2 px-2.5 text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
               quickTab === "most_used"
                 ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] shadow-sm"
                 : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
             }`}
             style={{ borderColor: quickTab === "most_used" ? "#4cd34c" : "var(--field-border)" }}
           >
-            <span className="flex items-center gap-1">
-              <img src="/fire.png" alt="Most Used" className="h-4 w-4 shrink-0 object-contain" />
+            <span className="flex items-center gap-1 truncate">
+              <img src="/fire.png" alt="Most Used" className="h-3.5 w-3.5 shrink-0 object-contain" />
               Most Used
             </span>
             <span className="text-[10px] rounded-full px-1.5 py-0.2 bg-[#4cd34c]/20 font-bold">{mostList.length}</span>
@@ -90,18 +295,32 @@ export default function QuickAccess({
           <button
             type="button"
             onClick={() => setQuickTab("recently_used")}
-            className={`rounded-xl border py-2 px-3 text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
+            className={`rounded-xl border py-2 px-2.5 text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
               quickTab === "recently_used"
                 ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] shadow-sm"
                 : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
             }`}
             style={{ borderColor: quickTab === "recently_used" ? "#4cd34c" : "var(--field-border)" }}
           >
-            <span className="flex items-center gap-1">
-              <img src="/clock.png" alt="Recents" className="h-4 w-4 shrink-0 object-contain" />
+            <span className="flex items-center gap-1 truncate">
+              <img src="/clock.png" alt="Recents" className="h-3.5 w-3.5 shrink-0 object-contain" />
               Recents
             </span>
             <span className="text-[10px] rounded-full px-1.5 py-0.2 bg-[#4cd34c]/20 font-bold">{recList.length}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setQuickTab("private_notes")}
+            className={`rounded-xl border py-2 px-2.5 text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
+              quickTab === "private_notes"
+                ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] shadow-sm"
+                : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
+            }`}
+            style={{ borderColor: quickTab === "private_notes" ? "#4cd34c" : "var(--field-border)" }}
+          >
+            <span>🔒 Private Notes</span>
+            <span className="text-[10px] rounded-full px-1.5 py-0.2 bg-[#4cd34c]/20 font-bold">{privList.length}</span>
           </button>
         </div>
 
@@ -119,39 +338,156 @@ export default function QuickAccess({
                     ? "No Starred Favorites Yet"
                     : quickTab === "most_used"
                       ? "No Copy Statistics Recorded Yet"
-                      : "No Recently Used Templates"}
+                      : quickTab === "private_notes"
+                        ? "No Private Notes Created Yet"
+                        : "No Recently Used Templates"}
                 </div>
                 <p className="text-xs max-w-sm mx-auto">
-                  Click the ⭐ Star icon on any template below or across Tech Escalation and Customer Reply to add it to your Favorites list!
+                  {quickTab === "private_notes"
+                    ? "Create private response templates that are visible only to you. High-frequency notes can be shared with the team!"
+                    : "Click the ⭐ Star icon on any template below or across Tech Escalation and Customer Reply to add it to your Favorites list!"}
                 </p>
+                {quickTab === "private_notes" && (
+                  <button
+                    type="button"
+                    onClick={handleStartCreateNote}
+                    className="mt-2 px-4 py-2 rounded-xl bg-[#4cd34c] text-black font-bold text-xs shadow-sm hover:opacity-90 transition"
+                  >
+                    + Create First Private Note
+                  </button>
+                )}
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[11px] font-semibold uppercase tracking-wider block" style={{ color: "var(--text-muted)" }}>
-                  All Templates Library (Click ⭐ to add to Favorites):
-                </label>
-                {allTemplates.map((t) => (
-                  <div
-                    key={t.id}
-                    onClick={() => setSelectedQuickId(t.id)}
-                    className={`p-3 rounded-2xl border cursor-pointer transition flex items-center justify-between ${
-                      t.id === activeTemplate?.id
-                        ? "border-[#4cd34c] ring-1 ring-[#4cd34c]/30 bg-[#4cd34c]/5"
-                        : "hover:border-[#4cd34c]/50"
-                    }`}
-                    style={{ borderColor: t.id === activeTemplate?.id ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
-                  >
-                    <div className="space-y-0.5 max-w-md">
-                      <div className="font-bold text-sm flex items-center gap-2">
-                        {t.name}
-                        <span className="text-[10px] rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
-                          {t.category_type === "tech_escalation" ? "Tech Escalation" : "Customer Reply"}
-                        </span>
+              {quickTab !== "private_notes" && (
+                <div className="space-y-2">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider block" style={{ color: "var(--text-muted)" }}>
+                    All Templates Library (Click ⭐ to add to Favorites):
+                  </label>
+                  {allTemplates.map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() => setSelectedQuickId(t.id)}
+                      className={`p-3 rounded-2xl border cursor-pointer transition flex items-center justify-between ${
+                        t.id === activeTemplate?.id
+                          ? "border-[#4cd34c] ring-1 ring-[#4cd34c]/30 bg-[#4cd34c]/5"
+                          : "hover:border-[#4cd34c]/50"
+                      }`}
+                      style={{ borderColor: t.id === activeTemplate?.id ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
+                    >
+                      <div className="space-y-0.5 max-w-md">
+                        <div className="font-bold text-sm flex items-center gap-2">
+                          {t.name}
+                          <span className="text-[10px] rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                            {t.category_type === "tech_escalation" ? "Tech Escalation" : "Customer Reply"}
+                          </span>
+                        </div>
+                        <div className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
+                          {t.body}
+                        </div>
                       </div>
-                      <div className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
-                        {t.body}
-                      </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite(t.id);
+                        }}
+                        className="p-1 rounded-lg text-sm hover:scale-125 transition shrink-0 ml-2"
+                        title={favIds.includes(t.id) ? "Remove from Favorites" : "Add to Favorites"}
+                      >
+                        {favIds.includes(t.id) ? "⭐" : "☆"}
+                      </button>
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            currentTabTemplates.map((t) => {
+              const isPrivateNote = t.is_private_note || String(t.id).startsWith("priv_") || t.agent_initials !== undefined;
+              const copyCount = isPrivateNote ? (t.use_count || 0) : (counts[t.id] || 0);
+
+              return (
+                <div
+                  key={t.id}
+                  onClick={() => setSelectedQuickId(t.id)}
+                  className={`p-3.5 rounded-2xl border cursor-pointer transition flex items-center justify-between ${
+                    t.id === activeTemplate?.id
+                      ? "border-[#4cd34c] ring-1 ring-[#4cd34c]/30 bg-[#4cd34c]/5"
+                      : "hover:border-[#4cd34c]/50"
+                  }`}
+                  style={{ borderColor: t.id === activeTemplate?.id ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
+                >
+                  <div className="space-y-1 max-w-md">
+                    <div className="font-bold text-sm flex items-center gap-2">
+                      {t.name}
+                      {quickTab !== "private_notes" && isPrivateNote ? (
+                        <span className="text-[10px] rounded-full border px-2 py-0.5 font-semibold border-[#4cd34c] text-[#4cd34c]">
+                          🔒 Private Note
+                        </span>
+                      ) : (
+                        quickTab !== "private_notes" && (
+                          <span className="text-[10px] rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                            {t.category_type === "tech_escalation" ? "Tech Escalation" : "Customer Reply"}
+                          </span>
+                        )
+                      )}
+                    </div>
+                    <div className="text-xs truncate font-mono" style={{ color: "var(--text-muted)" }}>
+                      {t.body}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {copyCount > 0 ? (
+                      <span className="text-[10px] font-semibold rounded-full bg-[#4cd34c]/10 text-[#4cd34c] border border-[#4cd34c]/30 px-2 py-0.5">
+                        {copyCount} {copyCount === 1 ? "use" : "uses"}
+                      </span>
+                    ) : null}
+
+                    {isPrivateNote && copyCount >= 3 && !t.submitted_as_suggestion && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (promoteToSuggestion) promoteToSuggestion(t);
+                        }}
+                        className="px-2 py-1 rounded-lg bg-[#4cd34c]/20 text-[#4cd34c] text-[10px] font-bold border border-[#4cd34c]/40 hover:bg-[#4cd34c] hover:text-black transition"
+                        title="Submit this high-frequency note as a Team Suggestion"
+                      >
+                        🚀 Suggest
+                      </button>
+                    )}
+
+                    {isPrivateNote && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartEditNote(t);
+                        }}
+                        className="p-1 rounded-lg text-xs hover:text-[#4cd34c] transition"
+                        title="Edit Private Note"
+                      >
+                        ✏️
+                      </button>
+                    )}
+
+                    {isPrivateNote && quickTab === "private_notes" && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (deletePrivateNote && confirm(`Delete private note "${t.name}"?`)) {
+                            deletePrivateNote(t.id);
+                          }
+                        }}
+                        className="p-1 rounded-lg text-xs hover:text-red-400 transition"
+                        title="Delete Private Note"
+                      >
+                        🗑️
+                      </button>
+                    )}
 
                     <button
                       type="button"
@@ -159,59 +495,15 @@ export default function QuickAccess({
                         e.stopPropagation();
                         toggleFavorite(t.id);
                       }}
-                      className="p-1 rounded-lg text-sm hover:scale-125 transition shrink-0 ml-2"
+                      className="p-1 rounded-lg text-sm hover:scale-125 transition"
                       title={favIds.includes(t.id) ? "Remove from Favorites" : "Add to Favorites"}
                     >
                       {favIds.includes(t.id) ? "⭐" : "☆"}
                     </button>
                   </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            currentTabTemplates.map((t) => (
-              <div
-                key={t.id}
-                onClick={() => setSelectedQuickId(t.id)}
-                className={`p-3.5 rounded-2xl border cursor-pointer transition flex items-center justify-between ${
-                  t.id === activeTemplate?.id
-                    ? "border-[#4cd34c] ring-1 ring-[#4cd34c]/30 bg-[#4cd34c]/5"
-                    : "hover:border-[#4cd34c]/50"
-                }`}
-                style={{ borderColor: t.id === activeTemplate?.id ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
-              >
-                <div className="space-y-1 max-w-md">
-                  <div className="font-bold text-sm flex items-center gap-2">
-                    {t.name}
-                    <span className="text-[10px] rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
-                      {t.category_type === "tech_escalation" ? "Tech Escalation" : "Customer Reply"}
-                    </span>
-                  </div>
-                  <div className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
-                    {t.body}
-                  </div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  {counts[t.id] ? (
-                    <span className="text-[10px] font-semibold rounded-full bg-[#4cd34c]/10 text-[#4cd34c] border border-[#4cd34c]/30 px-2 py-0.5">
-                      {counts[t.id]} copies
-                    </span>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFavorite(t.id);
-                    }}
-                    className="p-1 rounded-lg text-sm hover:scale-125 transition"
-                    title={favIds.includes(t.id) ? "Remove from Favorites" : "Add to Favorites"}
-                  >
-                    {favIds.includes(t.id) ? "⭐" : "☆"}
-                  </button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
@@ -227,9 +519,20 @@ export default function QuickAccess({
               Quick Message Preview
             </h2>
             {activeTemplate ? (
-              <span className="text-xs font-semibold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2.5 py-0.5 rounded-full">
-                {activeTemplate.name}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2.5 py-0.5 rounded-full">
+                  {activeTemplate.name}
+                </span>
+                {activeTemplate.is_private_note && (
+                  <button
+                    type="button"
+                    onClick={() => handleStartEditNote(activeTemplate)}
+                    className="text-xs text-[#4cd34c] font-bold hover:underline"
+                  >
+                    ✏️ Edit
+                  </button>
+                )}
+              </div>
             ) : null}
           </div>
           {(() => {
@@ -503,7 +806,7 @@ export default function QuickAccess({
         <div className="space-y-2 mt-6">
           <button
             type="button"
-            onClick={() => copyText(generatedMsg, "Quick message copied to clipboard! 📋", activeTemplate?.id)}
+            onClick={handleCopyAction}
             disabled={!generatedMsg}
             className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3 font-semibold text-[#071007] shadow-lg disabled:opacity-50 transition hover:opacity-90"
           >

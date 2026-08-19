@@ -52,11 +52,14 @@ export default function SuggestionsHub({
   handleApproveSuggestion,
   handleRejectSuggestion,
   handleDeleteSuggestion,
+  privateNotesHook,
 }) {
   const [groupingMode, setGroupingMode] = useState("date"); // 'date' | 'category'
   const [expandedGroups, setExpandedGroups] = useState({});
 
   if (activeScreen !== "suggestions" || !currentAgent) return null;
+
+  const { frequentNotes = [], promoteToSuggestion } = privateNotesHook || {};
 
   const sugList = suggestions || [];
   const filteredSuggestions = sugList.filter(
@@ -122,6 +125,50 @@ export default function SuggestionsHub({
           Standardization Center
         </span>
       </div>
+
+      {frequentNotes.length > 0 && (
+        <div className="p-5 rounded-3xl border border-[#4cd34c]/40 bg-[#4cd34c]/10 shadow-md space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">💡</span>
+            <div>
+              <h3 className="font-bold text-sm text-[var(--app-text)]">
+                Frequent Private Notes Suggested for Team Sharing
+              </h3>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                The system detected private notes you use frequently. Share them with your team in 1 click!
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-1">
+            {frequentNotes.map((note) => (
+              <div
+                key={note.id}
+                className="p-3.5 rounded-2xl border bg-[var(--field-bg)] flex flex-col justify-between space-y-2"
+                style={{ borderColor: "var(--field-border)" }}
+              >
+                <div>
+                  <div className="font-bold text-xs flex items-center justify-between text-[var(--app-text)]">
+                    <span className="truncate">{note.name}</span>
+                    <span className="text-[10px] rounded-full bg-[#4cd34c]/20 text-[#4cd34c] font-extrabold px-2 py-0.5 border border-[#4cd34c]/40">
+                      {note.use_count} uses
+                    </span>
+                  </div>
+                  <p className="text-[11px] line-clamp-2 mt-1 font-mono" style={{ color: "var(--text-muted)" }}>
+                    {note.body}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => promoteToSuggestion(note)}
+                  className="w-full py-1.5 rounded-xl bg-[#4cd34c] text-black font-extrabold text-xs shadow-sm hover:opacity-90 transition flex items-center justify-center gap-1"
+                >
+                  🚀 Submit as Team Suggestion
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Submission Form */}
