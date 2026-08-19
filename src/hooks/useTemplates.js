@@ -236,6 +236,9 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
         else if (cfg.auto_fill_type === "date_month") customConfigAutoMap[key] = dateAuto.month_number;
         else if (cfg.auto_fill_type === "date_year") customConfigAutoMap[key] = dateAuto.year;
         else if (cfg.auto_fill_type === "date_time") customConfigAutoMap[key] = dateAuto.time;
+        else if (cfg.auto_fill_type === "greeting" || cfg.auto_fill_type === "time_of_day") customConfigAutoMap[key] = dateAuto.greeting;
+        else if (cfg.auto_fill_type === "Greeting" || cfg.auto_fill_type === "greeting_cap") customConfigAutoMap[key] = dateAuto.Greeting;
+        else if (cfg.auto_fill_type === "good_greeting") customConfigAutoMap[key] = dateAuto.good_greeting;
         else if (cfg.auto_fill_type === "agent_name") customConfigAutoMap[key] = currentAgent?.agent_name ?? "";
         else if (cfg.auto_fill_type === "agent_fullname" || cfg.auto_fill_type === "agent") customConfigAutoMap[key] = (currentAgent?.agent || currentAgent?.agent_name) ?? "";
         else if (cfg.auto_fill_type === "agent_initials") customConfigAutoMap[key] = currentAgent?.agent_initials ?? "";

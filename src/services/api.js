@@ -97,7 +97,7 @@ export const DEFAULT_TEMPLATES = [
   {
     id: 5,
     name: "Standard Welcome Greeting",
-    body: "Hi {customer_name}, my name is {agent_name} from Customer Support. How may I assist you today?",
+    body: "Good {greeting} {customer_name}, my name is {agent_name} from Customer Support. How may I assist you today?",
     category_type: "customer_reply",
     category: "Agent Introductions",
     subcategory: "Welcome",
@@ -248,6 +248,15 @@ export function getDateAutoValues() {
   const min = String(now.getMinutes()).padStart(2, "0");
   const monthName = now.toLocaleString("default", { month: "long" });
 
+  const hoursNum = now.getHours();
+  let greeting = "morning";
+  if (hoursNum >= 12 && hoursNum < 17) {
+    greeting = "afternoon";
+  } else if (hoursNum >= 17) {
+    greeting = "evening";
+  }
+  const greetingCap = greeting.charAt(0).toUpperCase() + greeting.slice(1);
+
   return {
     day: d,
     date: d,
@@ -273,6 +282,14 @@ export function getDateAutoValues() {
     min: min,
     minute: min,
     minutes: min,
+    greeting: greeting,
+    Greeting: greetingCap,
+    greeting_time: greeting,
+    greeting_period: greeting,
+    time_of_day: greeting,
+    tod: greeting,
+    good_greeting: `Good ${greeting}`,
+    Good_greeting: `Good ${greetingCap}`,
   };
 }
 

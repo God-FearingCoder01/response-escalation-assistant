@@ -255,7 +255,7 @@ export default function CustomerReply({
                     const customCfg = parsedCfgMap[ph] || null;
 
                     const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
-                    const isDateField = dateAuto[ph] !== undefined;
+                    const isDateField = dateAuto[ph] !== undefined || dateAuto[ph.toLowerCase()] !== undefined;
                     const isTimeUnitField = /^time_unit/i.test(ph);
                     const isReasonField = ph.toLowerCase().includes("reason") || ph.toLowerCase().includes("details") || ph.toLowerCase().includes("note") || ph.toLowerCase().includes("description");
                     const isDayField = ph === "day" || ph === "day_number" || ph === "day_num" || ph === "dd";
@@ -274,12 +274,15 @@ export default function CustomerReply({
                     else if (customCfg?.auto_fill_type === "date_month") autoVal = dateAuto.month_number;
                     else if (customCfg?.auto_fill_type === "date_year") autoVal = dateAuto.year;
                     else if (customCfg?.auto_fill_type === "date_time") autoVal = dateAuto.time;
+                    else if (customCfg?.auto_fill_type === "greeting" || customCfg?.auto_fill_type === "time_of_day") autoVal = dateAuto.greeting;
+                    else if (customCfg?.auto_fill_type === "Greeting" || customCfg?.auto_fill_type === "greeting_cap") autoVal = dateAuto.Greeting;
+                    else if (customCfg?.auto_fill_type === "good_greeting") autoVal = dateAuto.good_greeting;
                     else if (customCfg?.auto_fill_type === "agent_name") autoVal = currentAgent?.agent_name ?? "";
                     else if (customCfg?.auto_fill_type === "agent_fullname" || customCfg?.auto_fill_type === "agent") autoVal = (currentAgent?.agent || currentAgent?.agent_name) ?? "";
                     else if (customCfg?.auto_fill_type === "agent_initials") autoVal = currentAgent?.agent_initials ?? "";
                     else if (customCfg?.auto_fill_type === "custom") autoVal = customCfg.custom_default ?? "";
                     else if (isAgentField) autoVal = ph === "agent_initials" ? currentAgent?.agent_initials : (ph === "agent" ? (currentAgent?.agent || currentAgent?.agent_name) : currentAgent?.agent_name);
-                    else if (isDateField) autoVal = dateAuto[ph];
+                    else if (isDateField) autoVal = dateAuto[ph] ?? dateAuto[ph.toLowerCase()];
                     else if (isTimeUnitField) autoVal = "hour(s)";
 
                     let options = Array.isArray(customCfg?.options) ? customCfg.options : [];

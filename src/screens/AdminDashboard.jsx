@@ -437,6 +437,9 @@ export default function AdminDashboard({
                                 <option value="agent_name">Agent Display Name (e.g. Sys_Admin, Chris)</option>
                                 <option value="agent_fullname">Agent Full Name (e.g. System Administrator, Chris Whyt)</option>
                                 <option value="agent_initials">Agent Initials (e.g. SA, CW)</option>
+                                <option value="greeting">Clock Greeting (morning / afternoon / evening)</option>
+                                <option value="Greeting">Capitalized Greeting (Morning / Afternoon / Evening)</option>
+                                <option value="good_greeting">Full Greeting (Good morning / afternoon / evening)</option>
                                 <option value="date_day">System Day (DD)</option>
                                 <option value="date_month">System Month (MM)</option>
                                 <option value="date_year">System Year (YYYY)</option>
