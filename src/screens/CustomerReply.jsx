@@ -203,9 +203,9 @@ export default function CustomerReply({
                     }`}
                     style={{ borderColor: String(t.id) === String(activeTemplate?.id) ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
                   >
-                    <div>
-                      <div className="font-semibold text-sm">{t.name}</div>
-                      <div className="text-xs truncate max-w-md mt-0.5" style={{ color: "var(--text-muted)" }}>
+                    <div className="min-w-0 flex-1 pr-2">
+                      <div className="font-semibold text-sm truncate">{t.name}</div>
+                      <div className="text-xs truncate mt-0.5" style={{ color: "var(--text-muted)" }}>
                         {t.body}
                       </div>
                     </div>

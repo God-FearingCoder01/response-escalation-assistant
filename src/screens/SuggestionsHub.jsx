@@ -424,7 +424,7 @@ export default function SuggestionsHub({
                               </span>
                             </div>
 
-                            <div className="rounded-xl border p-3 font-mono text-xs whitespace-pre-wrap leading-relaxed" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}>
+                            <div className="rounded-xl border p-3 font-mono text-xs whitespace-pre-wrap break-words [overflow-wrap:anywhere] leading-relaxed" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}>
                               {sug.body}
                             </div>
 

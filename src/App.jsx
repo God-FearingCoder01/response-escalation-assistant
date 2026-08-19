@@ -447,7 +447,7 @@ export default function App() {
         />
       )}
 
-      <div className={`flex-1 p-6 transition-all duration-300 ${currentAgent && activeScreen !== "welcome" && activeScreen !== "monitor" ? "ml-16" : ""}`}>
+      <div className={`flex-1 p-3 sm:p-6 min-w-0 transition-all duration-300 ${currentAgent && activeScreen !== "welcome" && activeScreen !== "monitor" ? "ml-14 sm:ml-16" : ""}`}>
         <HeaderStatusBar
           activeScreen={activeScreen}
           apiStatus={apiStatus}

@@ -374,10 +374,10 @@ export default function QuickAccess({
                       }`}
                       style={{ borderColor: t.id === activeTemplate?.id ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
                     >
-                      <div className="space-y-0.5 max-w-md">
-                        <div className="font-bold text-sm flex items-center gap-2">
-                          {t.name}
-                          <span className="text-[10px] rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                      <div className="space-y-0.5 min-w-0 flex-1 pr-2">
+                        <div className="font-bold text-sm flex flex-wrap items-center gap-1.5 min-w-0">
+                          <span className="truncate">{t.name}</span>
+                          <span className="text-[10px] shrink-0 rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
                             {t.category_type === "tech_escalation" ? "Tech Escalation" : "Customer Reply"}
                           </span>
                         </div>
@@ -392,7 +392,7 @@ export default function QuickAccess({
                           e.stopPropagation();
                           toggleFavorite(t.id);
                         }}
-                        className="p-1 rounded-lg text-sm hover:scale-125 transition shrink-0 ml-2"
+                        className="p-1 rounded-lg text-sm hover:scale-125 transition shrink-0 ml-1"
                         title={favIds.includes(t.id) ? "Remove from Favorites" : "Add to Favorites"}
                       >
                         {favIds.includes(t.id) ? "⭐" : "☆"}
@@ -418,16 +418,16 @@ export default function QuickAccess({
                   }`}
                   style={{ borderColor: t.id === activeTemplate?.id ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
                 >
-                  <div className="space-y-1 max-w-md">
-                    <div className="font-bold text-sm flex items-center gap-2">
-                      {t.name}
+                  <div className="space-y-1 min-w-0 flex-1 pr-2">
+                    <div className="font-bold text-sm flex flex-wrap items-center gap-1.5 min-w-0">
+                      <span className="truncate">{t.name}</span>
                       {quickTab !== "private_notes" && isPrivateNote ? (
-                        <span className="text-[10px] rounded-full border px-2 py-0.5 font-semibold border-[#4cd34c] text-[#4cd34c]">
+                        <span className="text-[10px] shrink-0 rounded-full border px-2 py-0.5 font-semibold border-[#4cd34c] text-[#4cd34c]">
                           🔒 Private Note
                         </span>
                       ) : (
                         quickTab !== "private_notes" && (
-                          <span className="text-[10px] rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                          <span className="text-[10px] shrink-0 rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
                             {t.category_type === "tech_escalation" ? "Tech Escalation" : "Customer Reply"}
                           </span>
                         )

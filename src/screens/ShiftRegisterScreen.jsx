@@ -792,12 +792,12 @@ export default function ShiftRegisterScreen({
                   className="rounded-2xl border p-3 flex items-center justify-between transition hover:border-[#4cd34c]"
                   style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}
                 >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-black" style={{ color: "var(--app-text)" }}>{item.title}</span>
-                      <span className="text-[10px] font-mono opacity-80" style={{ color: "var(--text-muted)" }}>{item.time_noticed}</span>
+                  <div className="space-y-1 min-w-0 flex-1 pr-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                      <span className="text-xs font-black truncate">{item.title}</span>
+                      <span className="text-[10px] font-mono opacity-80 shrink-0" style={{ color: "var(--text-muted)" }}>{item.time_noticed}</span>
                     </div>
-                    <p className="text-xs line-clamp-1" style={{ color: "var(--text-muted)" }}>{item.actions_taken}</p>
+                    <p className="text-xs line-clamp-1 truncate" style={{ color: "var(--text-muted)" }}>{item.actions_taken}</p>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">

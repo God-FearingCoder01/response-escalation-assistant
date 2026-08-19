@@ -15,18 +15,18 @@ export default function HeaderStatusBar({
     <>
       {/* TOP HEADER BAR */}
       <header
-        className="mb-6 flex flex-col gap-4 rounded-3xl border p-4 shadow-[var(--panel-shadow)] backdrop-blur md:flex-row md:items-center md:justify-between"
+        className="mb-6 flex flex-col gap-4 rounded-3xl border p-4 shadow-[var(--panel-shadow)] backdrop-blur md:flex-row md:items-center md:justify-between min-w-0"
         style={{ borderColor: "var(--header-border)", backgroundColor: "var(--header-bg)" }}
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <img
             src="/REA.png"
             alt="REA Logo"
-            className="h-12 w-12 shrink-0 object-contain rounded-2xl shadow-md border border-[#4cd34c]/30"
+            className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 object-contain rounded-2xl shadow-md border border-[#4cd34c]/30"
           />
-          <div>
+          <div className="min-w-0">
             <div
-              className="mb-1 inline-flex rounded-full border px-3 py-1 text-xs uppercase tracking-[0.2em]"
+              className="mb-1 inline-flex rounded-full border px-2.5 py-0.5 text-[10px] sm:text-xs uppercase tracking-[0.15em] sm:tracking-[0.2em] truncate max-w-full"
               style={{
                 borderColor: "var(--badge-border)",
                 backgroundColor: "var(--badge-bg)",
@@ -35,7 +35,7 @@ export default function HeaderStatusBar({
             >
               RESPONSE & ESCALATION ASSISTANT
             </div>
-            <h1 className="text-2xl font-bold md:text-3xl" style={{ color: "var(--header-text)" }}>
+            <h1 className="text-xl sm:text-2xl font-bold md:text-3xl truncate" style={{ color: "var(--header-text)" }}>
               {activeScreen === "welcome"
                 ? "Welcome Portal"
                 : activeScreen === "monitor"
@@ -57,43 +57,45 @@ export default function HeaderStatusBar({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 text-sm" style={{ color: "var(--header-muted)" }}>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm shrink-0" style={{ color: "var(--header-muted)" }}>
           {companies && companies.length > 0 ? (
             <div
-              className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs"
+              className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs"
               style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--badge-bg)" }}
             >
               <span className="text-[#4cd34c] font-semibold">Org:</span>
-              <span className="font-bold" style={{ color: "var(--header-text)" }}>
+              <span className="font-bold truncate max-w-[120px]" style={{ color: "var(--header-text)" }}>
                 {(companies.find((c) => c.id === activeCompanyId) || companies[0])?.name}
               </span>
             </div>
           ) : null}
 
-          <span
-            className={`h-2.5 w-2.5 rounded-full ${
-              apiStatus === "checking"
-                ? "bg-[#f1c84b]"
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                apiStatus === "checking"
+                  ? "bg-[#f1c84b]"
+                  : apiStatus === "offline"
+                    ? "bg-[#b83838]"
+                    : "bg-[#4cd34c]"
+              }`}
+            />
+            <span className="whitespace-nowrap">
+              {loading
+                ? "Connecting..."
                 : apiStatus === "offline"
-                  ? "bg-[#b83838]"
-                  : "bg-[#4cd34c]"
-            }`}
-          />
-          <span>
-            {loading
-              ? "Connecting..."
-              : apiStatus === "offline"
-                ? "Offline Mode"
-                : "Backend Connected"}
-          </span>
+                  ? "Offline Mode"
+                  : "Backend Connected"}
+            </span>
+          </div>
 
           {currentAgent ? (
             <div
-              className="ml-2 flex items-center gap-2 rounded-full border px-3 py-1 text-xs"
+              className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs"
               style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--badge-bg)" }}
             >
-              <span>Signed in:</span>
-              <strong className="text-[#4cd34c]">
+              <span className="hidden sm:inline">Signed in:</span>
+              <strong className="text-[#4cd34c] truncate max-w-[140px]">
                 {currentAgent.agent_name} ({currentAgent.agent_initials})
               </strong>
             </div>
