@@ -15,7 +15,7 @@
   ],
   "routes": [
     {
-      "src": "/(health|companies|superadmin|templates|agents|suggestions|support-requests|sir|favorites|history|export|import|translate)(.*)",
+      "src": "/(health|companies|superadmin|templates|agents|suggestions|support-requests|sir|favorites|history|export|import|translate|private-notes)(.*)",
       "dest": "backend/main.py"
     },
     {
