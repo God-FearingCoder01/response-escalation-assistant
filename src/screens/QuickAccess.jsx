@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString } from "../services/api";
+import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
 
 export default function QuickAccess({
   activeScreen,
@@ -795,27 +796,20 @@ export default function QuickAccess({
             ) : null;
           })()}
 
-          <div
-            className="rounded-2xl border p-4 min-h-[10rem] max-h-[22rem] overflow-y-auto break-words [overflow-wrap:anywhere] font-mono text-sm leading-relaxed"
-            style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-          >
-            {generatedMsg || <span style={{ color: "var(--field-placeholder)" }}>Select a template from Quick Access...</span>}
-          </div>
-        </div>
+          <SentenceSnippetSelector
+            generatedMsg={generatedMsg}
+            activeTemplate={activeTemplate}
+            copyText={copyText}
+            trackPrivateNoteUsage={trackPrivateNoteUsage}
+            createPrivateNote={createPrivateNote}
+            quickTab={quickTab}
+            privList={privList}
+          />
 
-        <div className="space-y-2 mt-6">
-          <button
-            type="button"
-            onClick={handleCopyAction}
-            disabled={!generatedMsg}
-            className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3 font-semibold text-[#071007] shadow-lg disabled:opacity-50 transition hover:opacity-90"
-          >
-            Copy Message Text 📋
-          </button>
           <button
             type="button"
             onClick={() => setValues({})}
-            className="w-full rounded-xl border py-2 text-sm font-medium transition hover:opacity-90"
+            className="w-full rounded-xl border py-2 text-sm font-medium transition hover:opacity-90 mt-3"
             style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
           >
             Clear Parameter Inputs

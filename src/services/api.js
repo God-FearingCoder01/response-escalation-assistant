@@ -293,6 +293,23 @@ export function getDateAutoValues() {
   };
 }
 
+export function splitIntoSentences(text) {
+  if (!text || typeof text !== "string") return [];
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+  const matches = trimmed.match(/[^.!?\n]+[.!?\n]+/g);
+  if (!matches || matches.length === 0) return [trimmed];
+  const sentences = matches.map((s) => s.trim()).filter(Boolean);
+  
+  const matchedLength = matches.reduce((acc, curr) => acc + curr.length, 0);
+  if (matchedLength < trimmed.length) {
+    const remainder = trimmed.slice(matchedLength).trim();
+    if (remainder) sentences.push(remainder);
+  }
+  
+  return sentences.length > 0 ? sentences : [trimmed];
+}
+
 export function resolveConditionalMappings(placeholders = [], parsedConfig = {}, values = {}) {
   const resolvedValues = { ...values };
   const mappedTargetKeys = new Set();

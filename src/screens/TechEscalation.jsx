@@ -1,4 +1,5 @@
 import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString } from "../services/api";
+import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
 
 export default function TechEscalation({
   activeScreen,
@@ -14,7 +15,9 @@ export default function TechEscalation({
   setValues,
   generatedMsg,
   copyText,
+  privateNotesHook,
 }) {
+  const { createPrivateNote, trackPrivateNoteUsage, showToast } = privateNotesHook || {};
   if (activeScreen !== "tech_escalation" || !currentAgent) return null;
 
   return (
@@ -353,27 +356,21 @@ export default function TechEscalation({
             Telegram Escalation Preview
           </h2>
 
-          <div
-            className="rounded-2xl border p-4 min-h-[12rem] max-h-[22rem] overflow-y-auto break-words [overflow-wrap:anywhere] font-mono text-sm leading-relaxed"
-            style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-          >
-            {generatedMsg || <span style={{ color: "var(--field-placeholder)" }}>Select an escalation template...</span>}
-          </div>
+          <SentenceSnippetSelector
+            generatedMsg={generatedMsg}
+            activeTemplate={activeTemplate}
+            copyText={copyText}
+            trackPrivateNoteUsage={trackPrivateNoteUsage}
+            createPrivateNote={createPrivateNote}
+            showToast={showToast}
+          />
 
-          <p className="text-xs italic" style={{ color: "var(--text-muted)" }}>
+          <p className="text-xs italic mt-2" style={{ color: "var(--text-muted)" }}>
             💡 Tech Escalation messages automatically end with signature <code className="text-[#4cd34c]">#{currentAgent?.agent_name || ""}</code>.
           </p>
         </div>
 
-        <div className="space-y-2 mt-6">
-          <button
-            type="button"
-            onClick={() => copyText(generatedMsg, "Telegram escalation copied! 📋", activeTemplate?.id)}
-            disabled={!generatedMsg}
-            className="w-full rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3.5 font-bold text-[#071007] shadow-[var(--btn-glow)] transition hover:opacity-90 disabled:opacity-40"
-          >
-            Copy Escalation Message 🚀
-          </button>
+        <div className="space-y-2 mt-4">
 
           <button
             type="button"

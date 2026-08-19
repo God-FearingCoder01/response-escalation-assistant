@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString } from "../services/api";
 import { translateText } from "../services/translationService";
+import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
 
 export default function CustomerReply({
   activeScreen,
@@ -25,6 +26,7 @@ export default function CustomerReply({
   setValues,
   generatedMsg,
   copyText,
+  privateNotesHook,
 }) {
   const [translatedText, setTranslatedText] = useState("");
   const [translatedLangLabel, setTranslatedLangLabel] = useState("Shona");
@@ -45,6 +47,8 @@ export default function CustomerReply({
       setIsTranslating(false);
     }
   };
+
+  const { createPrivateNote, trackPrivateNoteUsage, showToast } = privateNotesHook || {};
 
   const categoriesList = customerCategories || [];
   const subcategoriesList = customerSubcategories || [];
@@ -553,38 +557,27 @@ export default function CustomerReply({
             </div>
           </div>
 
-          <div
-            className="rounded-2xl border p-4 min-h-[12rem] max-h-[22rem] overflow-y-auto break-words [overflow-wrap:anywhere] font-mono text-sm leading-relaxed"
-            style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-          >
-            {viewMode === "translated" && translatedText
-              ? translatedText
-              : generatedMsg || <span style={{ color: "var(--field-placeholder)" }}>Select a response template...</span>}
-          </div>
+          <SentenceSnippetSelector
+            generatedMsg={viewMode === "translated" && translatedText ? translatedText : generatedMsg}
+            activeTemplate={activeTemplate}
+            copyText={copyText}
+            trackPrivateNoteUsage={trackPrivateNoteUsage}
+            createPrivateNote={createPrivateNote}
+            showToast={showToast}
+          />
 
           {replyChannel === "signed" ? (
-            <p className="text-xs italic" style={{ color: "var(--text-muted)" }}>
+            <p className="text-xs italic mt-2" style={{ color: "var(--text-muted)" }}>
               💡 Signed format automatically appends agent initials signature <code className="text-[#4cd34c]">^{currentAgent?.agent_initials || ""}</code>.
             </p>
           ) : (
-            <p className="text-xs italic" style={{ color: "var(--text-muted)" }}>
+            <p className="text-xs italic mt-2" style={{ color: "var(--text-muted)" }}>
               💡 Unsigned format presents clean customer-facing response text without trailing signature.
             </p>
           )}
         </div>
 
-        <div className="space-y-2 mt-6">
-          <button
-            type="button"
-            onClick={() => {
-              const activeText = viewMode === "translated" ? translatedText : generatedMsg;
-              copyText(activeText, "Customer reply message copied! 📋", activeTemplate?.id);
-            }}
-            disabled={!generatedMsg}
-            className="w-full rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3.5 font-bold text-[#071007] shadow-[var(--btn-glow)] transition hover:opacity-90 disabled:opacity-40"
-          >
-            Copy Customer Response 🚀
-          </button>
+        <div className="space-y-2 mt-4">
 
           <div className="grid grid-cols-2 gap-2">
             <button

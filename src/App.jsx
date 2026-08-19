@@ -500,6 +500,7 @@ export default function App() {
           setValues={setValues}
           generatedMsg={generatedMsg}
           copyText={copyText}
+          privateNotesHook={privateNotesHook}
         />
 
         <CustomerReply
@@ -525,6 +526,7 @@ export default function App() {
           setValues={setValues}
           generatedMsg={generatedMsg}
           copyText={copyText}
+          privateNotesHook={privateNotesHook}
         />
 
         <AdminDashboard
