@@ -135,7 +135,7 @@ export default function SuggestionsHub({
                 Frequent Private Notes Suggested for Team Sharing
               </h3>
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                The system detected private notes you use frequently. Share them with your team in 1 click!
+                The system detected private notes you used 150+ times today. Share them with your team in 1 click!
               </p>
             </div>
           </div>

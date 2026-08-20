@@ -7,6 +7,10 @@ import {
   recordHistoryApi,
 } from "../services/api";
 
+function getTodayDateStr() {
+  return new Date().toISOString().split("T")[0];
+}
+
 export function useUserInteractions({ currentAgent, apiStatus }) {
   const [toast, setToast] = useState({ show: false, message: "" });
   const [favoriteIds, setFavoriteIds] = useState([]);
@@ -28,14 +32,23 @@ export function useUserInteractions({ currentAgent, apiStatus }) {
   useEffect(() => {
     if (!currentAgent?.agent_initials) return;
     const initials = currentAgent.agent_initials;
+    const today = getTodayDateStr();
 
-    // Load local agent-scoped storage immediately
+    // Load local agent-scoped storage immediately & enforce daily stats reset
     try {
       const favStored = localStorage.getItem(`REA_FAVORITES_${initials}`);
       setFavoriteIds(favStored ? JSON.parse(favStored) : []);
 
-      const countsStored = localStorage.getItem(`REA_USAGE_COUNTS_${initials}`);
-      setUsageCounts(countsStored ? JSON.parse(countsStored) : {});
+      const storedDate = localStorage.getItem(`REA_USAGE_DATE_${initials}`);
+      let countsToUse = {};
+      if (storedDate === today) {
+        const countsStored = localStorage.getItem(`REA_USAGE_COUNTS_${initials}`);
+        countsToUse = countsStored ? JSON.parse(countsStored) : {};
+      } else {
+        localStorage.setItem(`REA_USAGE_DATE_${initials}`, today);
+        localStorage.setItem(`REA_USAGE_COUNTS_${initials}`, JSON.stringify({}));
+      }
+      setUsageCounts(countsToUse);
 
       const recentsStored = localStorage.getItem(`REA_RECENTLY_USED_${initials}`);
       setRecentlyUsed(recentsStored ? JSON.parse(recentsStored) : []);
@@ -102,11 +115,19 @@ export function useUserInteractions({ currentAgent, apiStatus }) {
   async function recordCopyAction(templateId) {
     if (!templateId) return;
     const initials = currentAgent?.agent_initials || "DEFAULT";
+    const today = getTodayDateStr();
 
-    // Update usage counts
-    const nextCounts = { ...usageCounts, [templateId]: (usageCounts[templateId] || 0) + 1 };
+    // Check if stored date is current day
+    const storedDate = localStorage.getItem(`REA_USAGE_DATE_${initials}`);
+    const baseCounts = storedDate === today ? usageCounts : {};
+
+    // Update daily usage counts
+    const nextCounts = { ...baseCounts, [templateId]: (baseCounts[templateId] || 0) + 1 };
     setUsageCounts(nextCounts);
-    try { localStorage.setItem(`REA_USAGE_COUNTS_${initials}`, JSON.stringify(nextCounts)); } catch (e) {}
+    try {
+      localStorage.setItem(`REA_USAGE_COUNTS_${initials}`, JSON.stringify(nextCounts));
+      localStorage.setItem(`REA_USAGE_DATE_${initials}`, today);
+    } catch (e) {}
 
     // Update recently used
     const filteredRecents = recentlyUsed.filter((item) => item.templateId !== templateId);

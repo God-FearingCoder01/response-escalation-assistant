@@ -150,10 +150,10 @@ export default function QuickAccess({
             <span className="text-2xl">💡</span>
             <div>
               <div className="font-bold text-sm text-[var(--app-text)]">
-                Smart Suggestion: Frequently Used Private Note!
+                Smart Suggestion: High Daily Frequency Private Note!
               </div>
               <div style={{ color: "var(--text-muted)" }}>
-                You've used your private template <strong>"{promptBannerNote.name}"</strong> {promptBannerNote.use_count} times. Would you like to share it as a Team Suggestion?
+                You've used your private template <strong>"{promptBannerNote.name}"</strong> <strong>{promptBannerNote.use_count} times today</strong> (reaching the 150 daily uses threshold!). Would you like to share it as a Team Suggestion?
               </div>
             </div>
           </div>
@@ -506,7 +506,7 @@ export default function QuickAccess({
                       </span>
                     ) : null}
 
-                    {isPrivateNote && copyCount >= 3 && !t.submitted_as_suggestion && (
+                    {isPrivateNote && copyCount >= 150 && !t.submitted_as_suggestion && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -514,7 +514,7 @@ export default function QuickAccess({
                           if (promoteToSuggestion) promoteToSuggestion(t);
                         }}
                         className="px-2 py-1 rounded-lg bg-[#4cd34c]/20 text-[#4cd34c] text-[10px] font-bold border border-[#4cd34c]/40 hover:bg-[#4cd34c] hover:text-black transition"
-                        title="Submit this high-frequency note as a Team Suggestion"
+                        title="Submit this high-frequency note (150+ daily uses) as a Team Suggestion"
                       >
                         🚀 Suggest
                       </button>

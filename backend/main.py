@@ -1144,12 +1144,17 @@ def list_private_notes(
     if not agent_initials:
         return []
     with Session(engine) as session:
-        return session.exec(
+        notes = session.exec(
             select(PrivateNote)
             .where(PrivateNote.company_id == cid)
             .where(PrivateNote.agent_initials == agent_initials.upper())
             .order_by(col(PrivateNote.updated_at).desc())
         ).all()
+        today = datetime.now(timezone.utc).date()
+        for n in notes:
+            if n.updated_at and n.updated_at.date() < today:
+                n.use_count = 0
+        return notes
 
 
 @app.post("/private-notes", response_model=PrivateNoteRead)
@@ -1249,8 +1254,12 @@ def track_private_note_usage(
         existing = session.get(PrivateNote, note_id)
         if not existing or existing.company_id != cid:
             raise HTTPException(status_code=404, detail="Private note not found")
-        existing.use_count = (existing.use_count or 0) + 1
-        existing.updated_at = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)
+        if existing.updated_at and existing.updated_at.date() < now.date():
+            existing.use_count = 1
+        else:
+            existing.use_count = (existing.use_count or 0) + 1
+        existing.updated_at = now
         session.add(existing)
         session.commit()
         session.refresh(existing)
@@ -1592,6 +1601,9 @@ def toggle_agent_favorite(agent_initials: str, template_id: int, company: Compan
 def get_agent_history(agent_initials: str, company: Company = Depends(get_current_company)):
     with Session(engine) as session:
         initials = agent_initials.upper()
+        now = datetime.now(timezone.utc)
+        start_of_today = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
+
         history = session.exec(
             select(UsageHistory)
             .where(
@@ -1606,7 +1618,8 @@ def get_agent_history(agent_initials: str, company: Company = Depends(get_curren
         seen = set()
 
         for h in history:
-            counts[h.template_id] = counts.get(h.template_id, 0) + 1
+            if h.copied_at and h.copied_at >= start_of_today:
+                counts[h.template_id] = counts.get(h.template_id, 0) + 1
             if h.template_id not in seen:
                 seen.add(h.template_id)
                 recents.append({

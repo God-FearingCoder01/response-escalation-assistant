@@ -28,6 +28,12 @@ function formatNote(n) {
   };
 }
 
+const DAILY_SUGGESTION_THRESHOLD = 150;
+
+function getTodayDateStr() {
+  return new Date().toISOString().split("T")[0];
+}
+
 export function usePrivateNotes({ currentAgent, showToast, refreshSuggestions }) {
   const [privateNotes, setPrivateNotes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -41,7 +47,18 @@ export function usePrivateNotes({ currentAgent, showToast, refreshSuggestions })
     try {
       const data = await fetchPrivateNotesApi(agentInitials);
       if (Array.isArray(data)) {
-        setPrivateNotes(data.map(formatNote));
+        const today = getTodayDateStr();
+        const formatted = data.map((n) => {
+          const note = formatNote(n);
+          if (note.updated_at) {
+            const noteDate = new Date(note.updated_at).toISOString().split("T")[0];
+            if (noteDate !== today) {
+              note.use_count = 0;
+            }
+          }
+          return note;
+        });
+        setPrivateNotes(formatted);
       }
     } catch (e) {
       console.error("Failed to load private notes:", e);
@@ -54,9 +71,9 @@ export function usePrivateNotes({ currentAgent, showToast, refreshSuggestions })
     refreshPrivateNotes();
   }, [refreshPrivateNotes]);
 
-  // High-frequency private notes (used 3+ times, not yet submitted as team suggestion)
+  // High-frequency private notes (used 150+ times in a single day, not yet submitted as team suggestion)
   const frequentNotes = useMemo(() => {
-    return privateNotes.filter((n) => (n.use_count || 0) >= 3 && !n.submitted_as_suggestion);
+    return privateNotes.filter((n) => (n.use_count || 0) >= DAILY_SUGGESTION_THRESHOLD && !n.submitted_as_suggestion);
   }, [privateNotes]);
 
   const handleCreateNote = async (payload) => {
@@ -112,8 +129,8 @@ export function usePrivateNotes({ currentAgent, showToast, refreshSuggestions })
       const updated = formatNote(rawRes);
       setPrivateNotes((prev) => prev.map((n) => (getRawId(n.id) === numericId ? updated : n)));
       
-      // If note reaches usage threshold (e.g. 3 uses) and hasn't been submitted yet, trigger prompt banner!
-      if ((updated.use_count || 0) >= 3 && !updated.submitted_as_suggestion) {
+      // If note reaches daily usage threshold (150 uses today) and hasn't been submitted yet, trigger prompt banner!
+      if ((updated.use_count || 0) >= DAILY_SUGGESTION_THRESHOLD && !updated.submitted_as_suggestion) {
         setPromptBannerNote(updated);
       }
       return updated;
