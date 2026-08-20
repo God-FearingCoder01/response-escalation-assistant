@@ -635,6 +635,10 @@ export default function App() {
           generatedMsg={generatedMsg}
           copyText={copyText}
           privateNotesHook={privateNotesHook}
+          replyChannel={replyChannel}
+          setReplyChannel={setReplyChannel}
+          translatorState={translatorState}
+          showToast={showToast}
         />
 
         {activeScreen === "translator" && (

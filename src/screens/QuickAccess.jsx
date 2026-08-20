@@ -22,6 +22,10 @@ export default function QuickAccess({
   generatedMsg,
   copyText,
   privateNotesHook,
+  replyChannel = "signed",
+  setReplyChannel,
+  translatorState,
+  showToast,
 }) {
   const [showCreateNote, setShowCreateNote] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
@@ -42,6 +46,22 @@ export default function QuickAccess({
     promptBannerNote,
     dismissPromptBanner,
   } = privateNotesHook || {};
+
+  const {
+    sourceLang = "en",
+    setSourceLang,
+    targetLang = "sn",
+    setTargetLang,
+    translatedText = "",
+    setTranslatedText,
+    isTranslating = false,
+    translationProvider = "",
+    handleSwapLanguages = () => {},
+    handleTranslate = () => {},
+    handleSelectPreset = () => {},
+    presetPhrases = [],
+    handleClear = () => {},
+  } = translatorState || {};
 
   const favList = favoriteTemplates || [];
   const mostList = mostUsedTemplates || [];
@@ -188,6 +208,46 @@ export default function QuickAccess({
               {showCreateNote ? "✕ Close Form" : "+ Add Private Note"}
             </button>
           )}
+        </div>
+
+        {/* Target Channel Selector (Signed / Unsigned Format Option) */}
+        <div className="p-3.5 rounded-2xl border bg-[var(--field-bg)] space-y-2 shadow-sm" style={{ borderColor: "var(--field-border)" }}>
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-bold uppercase tracking-wider block" style={{ color: "var(--text-muted)" }}>
+              Response Format Option:
+            </label>
+            <span className="text-[10px] font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2.5 py-0.5 rounded-full">
+              {replyChannel === "signed" ? `Signed: ^${currentAgent?.agent_initials || ""}` : "Unsigned: Plain Text"}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setReplyChannel && setReplyChannel("signed")}
+              className={`rounded-xl border py-2 px-3 text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
+                replyChannel === "signed"
+                  ? "border-[#4cd34c] bg-[#4cd34c]/15 text-[#4cd34c] font-bold shadow-sm"
+                  : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
+              }`}
+              style={{ borderColor: replyChannel === "signed" ? "#4cd34c" : "var(--field-border)" }}
+            >
+              <img src="/signed.png" alt="Signed" className="h-3.5 w-3.5 shrink-0 object-contain" />
+              <span>Signed (^{currentAgent?.agent_initials || ""})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setReplyChannel && setReplyChannel("unsigned")}
+              className={`rounded-xl border py-2 px-3 text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
+                replyChannel === "unsigned"
+                  ? "border-[#4cd34c] bg-[#4cd34c]/15 text-[#4cd34c] font-bold shadow-sm"
+                  : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
+              }`}
+              style={{ borderColor: replyChannel === "unsigned" ? "#4cd34c" : "var(--field-border)" }}
+            >
+              <img src="/unsigned.png" alt="Unsigned" className="h-3.5 w-3.5 shrink-0 object-contain" />
+              <span>Unsigned (Plain)</span>
+            </button>
+          </div>
         </div>
 
         {/* Create / Edit Private Note Form */}
@@ -802,9 +862,126 @@ export default function QuickAccess({
             copyText={copyText}
             trackPrivateNoteUsage={trackPrivateNoteUsage}
             createPrivateNote={createPrivateNote}
+            showToast={showToast}
             quickTab={quickTab}
             privList={privList}
           />
+
+          {/* Quick Access Multilingual Translator Widget */}
+          <div className="mt-4 pt-4 border-t space-y-3" style={{ borderColor: "var(--field-border)" }}>
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
+                <img src="/globe.png" alt="Translation" className="h-4 w-4 shrink-0 object-contain" />
+                Multilingual Support Translation
+              </label>
+              {translatedText && (
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  className="text-[10px] font-bold text-red-400 hover:underline"
+                >
+                  Clear Translation
+                </button>
+              )}
+            </div>
+
+            {/* Language Selectors & Swap */}
+            <div className="flex items-center gap-2 rounded-xl border p-1.5 bg-[var(--field-bg)]" style={{ borderColor: "var(--field-border)" }}>
+              <select
+                value={sourceLang}
+                onChange={(e) => setSourceLang && setSourceLang(e.target.value)}
+                className="w-full rounded-lg border px-2 py-1 text-xs font-bold uppercase tracking-wider text-[#4cd34c] outline-none cursor-pointer"
+                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)" }}
+              >
+                <option value="en">English 🇬🇧</option>
+                <option value="sn">Shona 🇿🇼</option>
+                <option value="nd">IsiNdebele 🇿🇼</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={handleSwapLanguages}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition hover:scale-110 active:scale-95 bg-[var(--neutral-bg)] text-[var(--neutral-text)] border"
+                style={{ borderColor: "var(--field-border)" }}
+                title="Swap Languages"
+              >
+                ⇄
+              </button>
+
+              <select
+                value={targetLang}
+                onChange={(e) => setTargetLang && setTargetLang(e.target.value)}
+                className="w-full rounded-lg border px-2 py-1 text-xs font-bold uppercase tracking-wider text-[#4cd34c] outline-none cursor-pointer"
+                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)" }}
+              >
+                <option value="sn">Shona 🇿🇼</option>
+                <option value="nd">IsiNdebele 🇿🇼</option>
+                <option value="en">English 🇬🇧</option>
+              </select>
+            </div>
+
+            {/* Translation Action Buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleTranslate && handleTranslate(generatedMsg, sourceLang, targetLang)}
+                disabled={isTranslating || !generatedMsg}
+                className="flex-1 px-3 py-2 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-black font-extrabold text-xs shadow-sm hover:opacity-90 transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              >
+                <span>{isTranslating ? "Translating..." : "🌐 Translate Quick Message"}</span>
+              </button>
+
+              {presetPhrases && presetPhrases.length > 0 && (
+                <select
+                  onChange={(e) => {
+                    const selected = presetPhrases.find((p) => String(p.id) === e.target.value);
+                    if (selected && handleSelectPreset) handleSelectPreset(selected);
+                  }}
+                  defaultValue=""
+                  className="rounded-xl border px-2.5 py-2 text-xs font-semibold max-w-[140px] truncate cursor-pointer"
+                  style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                >
+                  <option value="" disabled>Presets...</option>
+                  {presetPhrases.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.en}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {/* Translated Output Card */}
+            {translatedText && (
+              <div className="p-3.5 rounded-2xl border bg-[#4cd34c]/10 border-[#4cd34c]/40 space-y-2 animate-fade-in shadow-md">
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="font-bold text-[#4cd34c] uppercase tracking-wider">
+                    Translated Output ({targetLang === "en" ? "English" : targetLang === "sn" ? "Shona" : "IsiNdebele"}):
+                  </span>
+                  {translationProvider && (
+                    <span className="rounded-full bg-[#4cd34c]/20 px-2 py-0.5 text-[#4cd34c] font-semibold border border-[#4cd34c]/30">
+                      {translationProvider}
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs font-medium leading-relaxed font-sans" style={{ color: "var(--app-text)" }}>
+                  {translatedText}
+                </div>
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (copyText) copyText(translatedText, "Translated quick response copied to clipboard! 📋");
+                      if (showToast) showToast("Translated text copied to clipboard!", "success");
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-[#4cd34c] text-black font-extrabold text-xs shadow-sm hover:opacity-90 transition flex items-center gap-1 cursor-pointer"
+                  >
+                    📋 Copy Translation
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           <button
             type="button"

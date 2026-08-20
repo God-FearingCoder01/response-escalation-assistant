@@ -293,8 +293,8 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
       }
     }
 
-    // Customer Reply rule: WhatsApp/Signed appends ^{agent_initials} only if template body does NOT already include an agent signature placeholder
-    if (activeScreen === "customer_reply" && replyChannel === "signed") {
+    // Customer Reply & Quick Access rule: WhatsApp/Signed appends ^{agent_initials} only if template body does NOT already include an agent signature placeholder
+    if ((activeScreen === "customer_reply" || activeScreen === "quick_access") && replyChannel === "signed") {
       const hasAgentPlaceholder = activeTemplate?.body && /\{agent(_name|_initials)?\}/.test(activeTemplate.body);
       if (!hasAgentPlaceholder && currentAgent?.agent_initials) {
         const initialsSig = ` ^${currentAgent.agent_initials}`;
