@@ -559,29 +559,35 @@ export default function ShiftRegisterScreen({
   if (activeScreen !== "shift_register") return null;
 
   return (
-    <section className="max-w-7xl mx-auto space-y-8 animate-fadeIn pb-16">
+    <section className="max-w-7xl mx-auto space-y-6 animate-fadeIn pb-16">
       {/* OPERATIONAL DASHBOARD HEADER */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b pb-6" style={{ borderColor: "var(--panel-border)" }}>
-        <div>
-          <div className="flex items-center gap-3">
-            <img src="/clipboard.png" alt="Register" className="h-8 w-8 object-contain shrink-0" />
-            <h2 className="text-3xl font-extrabold tracking-tight" style={{ color: "var(--app-text)" }}>
-              Shift Issue Register (SIR)
-            </h2>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b pb-6" style={{ borderColor: "var(--panel-border)" }}>
+        <div className="flex items-start gap-3.5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border p-2 bg-[var(--field-bg)] shadow-md" style={{ borderColor: "var(--field-border)" }}>
+            <svg className="h-6 w-6 text-[#4cd34c]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
           </div>
-          <p className="text-sm mt-1.5 font-medium" style={{ color: "var(--text-muted)" }}>
-            Operational Intelligence Dashboard & Multi-Shift Issue Archive for Team Operations.
-          </p>
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: "var(--app-text)" }}>
+              Shift Issue Register (SIR)
+            </h1>
+            <p className="text-xs font-medium text-[var(--text-muted)] mt-0.5">
+              Operational Intelligence Dashboard & Multi-Shift Issue Archive for Team Operations.
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
           {/* Active Shift Selector Pill */}
-          <div className="flex items-center gap-2 px-3 py-2 rounded-2xl border backdrop-blur text-xs font-bold" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}>
-            <span className="text-base">{getShiftIcon(currentShiftName)}</span>
+          <div className="flex items-center gap-2 px-3 py-2 rounded-2xl border backdrop-blur text-xs font-bold shadow-sm" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}>
+            <svg className="h-4 w-4 text-[#4cd34c] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
             <select
               value={currentShiftName}
               onChange={(e) => handleSelectActiveShift(e.target.value)}
-              className="bg-transparent font-bold focus:outline-none cursor-pointer"
+              className="bg-transparent font-bold focus:outline-none cursor-pointer text-xs"
               style={{ color: "var(--app-text)" }}
             >
               {(shifts || []).map((s) => (
@@ -593,100 +599,125 @@ export default function ShiftRegisterScreen({
           </div>
 
           <button
+            type="button"
             onClick={() => setShowExportModal(true)}
-            className="px-4 py-2.5 rounded-2xl border text-xs font-extrabold backdrop-blur shadow-sm transition hover:scale-[1.02] active:scale-95 flex items-center gap-2"
-            style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
+            className="px-4 py-2 rounded-2xl border text-xs font-bold backdrop-blur shadow-sm transition hover:opacity-90 flex items-center gap-2 cursor-pointer"
+            style={{ borderColor: "var(--field-border)", color: "var(--app-text)", backgroundColor: "var(--panel-bg)" }}
           >
-            <span className="text-sm">📥</span>
+            <svg className="h-4 w-4 text-[var(--text-muted)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
             <span>Export & Reports</span>
           </button>
 
           <button
+            type="button"
             onClick={handleOpenRecordModal}
-            className="px-5 py-2.5 rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-extrabold shadow-lg transition hover:scale-[1.02] active:scale-95 flex items-center gap-2"
+            className="px-4.5 py-2 rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-black shadow-md transition hover:opacity-90 flex items-center gap-1.5 cursor-pointer"
           >
-            <span className="text-base font-black">+</span>
+            <span className="text-base font-black leading-none">+</span>
             <span>Record Issue</span>
           </button>
         </div>
       </div>
 
       {/* ROW 1: SITUATION SUMMARY METRIC CARDS */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Ongoing */}
-        <div className="rounded-3xl border p-4 shadow-sm backdrop-blur transition hover:border-red-500/50" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-red-400">🔴 Ongoing</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-red-500/10 text-red-400">{metrics.ongoingPct}%</span>
+        <div className="rounded-2xl border p-4 shadow-md backdrop-blur flex items-center gap-3.5" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-red-500/40 bg-red-500/10 text-red-500">
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
           </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-3xl font-black" style={{ color: "var(--app-text)" }}>{metrics.ongoing}</span>
-            <span className="text-xs text-[var(--text-muted)] font-medium">Unresolved</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-red-400">ONGOING</span>
+              <span className="text-[10px] font-extrabold text-red-400">{metrics.ongoingPct}%</span>
+            </div>
+            <div className="text-2xl font-black text-[var(--app-text)] leading-tight mt-0.5">{metrics.ongoing}</div>
+            <div className="text-[11px] font-medium text-[var(--text-muted)]">Unresolved</div>
           </div>
         </div>
 
         {/* Monitoring */}
-        <div className="rounded-3xl border p-4 shadow-sm backdrop-blur transition hover:border-orange-500/50" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">🟠 Monitoring</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-amber-500/10 text-amber-400">{metrics.monitoringPct}%</span>
+        <div className="rounded-2xl border p-4 shadow-md backdrop-blur flex items-center gap-3.5" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-500">
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
           </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-3xl font-black" style={{ color: "var(--app-text)" }}>{metrics.monitoring}</span>
-            <span className="text-xs text-[var(--text-muted)] font-medium">Under Observation</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-400">MONITORING</span>
+              <span className="text-[10px] font-extrabold text-amber-400">{metrics.monitoringPct}%</span>
+            </div>
+            <div className="text-2xl font-black text-[var(--app-text)] leading-tight mt-0.5">{metrics.monitoring}</div>
+            <div className="text-[11px] font-medium text-[var(--text-muted)]">Under Observation</div>
           </div>
         </div>
 
         {/* Carried Forward */}
-        <div className="rounded-3xl border p-4 shadow-sm backdrop-blur transition hover:border-blue-500/50" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-blue-400">↪ Carried Forward</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-blue-500/10 text-blue-400">{metrics.carriedPct}%</span>
+        <div className="rounded-2xl border p-4 shadow-md backdrop-blur flex items-center gap-3.5" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-blue-500/40 bg-blue-500/10 text-blue-400">
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
           </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-3xl font-black" style={{ color: "var(--app-text)" }}>{metrics.carried}</span>
-            <span className="text-xs text-[var(--text-muted)] font-medium">From Shifts</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-blue-400">CARRIED FORWARD</span>
+              <span className="text-[10px] font-extrabold text-blue-400">{metrics.carriedPct}%</span>
+            </div>
+            <div className="text-2xl font-black text-[var(--app-text)] leading-tight mt-0.5">{metrics.carried}</div>
+            <div className="text-[11px] font-medium text-[var(--text-muted)]">From Previous Shifts</div>
           </div>
         </div>
 
         {/* Resolved */}
-        <div className="rounded-3xl border p-4 shadow-sm backdrop-blur transition hover:border-emerald-500/50" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#4cd34c]">🟢 Resolved</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-[#4cd34c]/10 text-[#4cd34c]">{metrics.resolvedPct}%</span>
+        <div className="rounded-2xl border p-4 shadow-md backdrop-blur flex items-center gap-3.5" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#4cd34c]/40 bg-[#4cd34c]/10 text-[#4cd34c]">
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
           </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-3xl font-black" style={{ color: "var(--app-text)" }}>{metrics.resolved}</span>
-            <span className="text-xs text-[var(--text-muted)] font-medium">Closed</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#4cd34c]">RESOLVED</span>
+              <span className="text-[10px] font-extrabold text-[#4cd34c]">{metrics.resolvedPct}%</span>
+            </div>
+            <div className="text-2xl font-black text-[var(--app-text)] leading-tight mt-0.5">{metrics.resolved}</div>
+            <div className="text-[11px] font-medium text-[var(--text-muted)]">Closed</div>
           </div>
         </div>
       </div>
 
-      {/* ROW 2: ⚠ NEEDS ATTENTION (OPERATIONAL CENTERPIECE WITH LIVE PULSE DOT) */}
-      <div className="rounded-3xl border p-6 shadow-md backdrop-blur space-y-4 relative overflow-hidden" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+      {/* ROW 2: NEEDS ATTENTION */}
+      <div className="rounded-3xl border p-5 shadow-md backdrop-blur space-y-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
         <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
-          <div className="flex items-center gap-3">
-            {/* Live Pulsing Red Dot Indicator */}
-            <span className="relative flex h-3.5 w-3.5 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]"></span>
-            </span>
-            <h3 className="text-lg font-black tracking-tight text-red-400 flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            <svg className="h-5 w-5 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <h3 className="text-xs font-black tracking-wider text-red-400 uppercase flex items-center gap-2">
               <span>NEEDS ATTENTION</span>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-red-500/20 text-red-400 border border-red-500/30 font-mono shadow-[0_0_10px_rgba(239,68,68,0.2)]">
+              <span className="px-2 py-0.2 rounded-full text-xs font-black bg-red-500/20 text-red-400 border border-red-500/30">
                 {needsAttentionList.length}
               </span>
             </h3>
           </div>
           <span className="text-xs font-medium text-[var(--text-muted)] hidden sm:inline">
-            Auto-surfaced active, carried, & persistent incidents requiring immediate operational focus
+            Auto-surfaced active, carried, & persistent incidents requiring immediate operational focus.
           </span>
         </div>
 
         {needsAttentionList.length === 0 ? (
-          <div className="p-8 text-center border-2 border-dashed rounded-2xl" style={{ borderColor: "var(--field-border)" }}>
-            <span className="text-3xl block mb-2">🎉</span>
-            <p className="text-sm font-bold text-[#4cd34c]">All clear! No open or unresolved issues requiring attention.</p>
+          <div className="p-8 text-center border border-dashed rounded-2xl flex flex-col items-center justify-center space-y-2" style={{ borderColor: "var(--field-border)" }}>
+            <svg className="h-8 w-8 text-[#4cd34c]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            <p className="text-xs font-bold text-[#4cd34c]">All clear! No open or unresolved issues requiring attention.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -751,8 +782,9 @@ export default function ShiftRegisterScreen({
                     )}
 
                     <button
+                      type="button"
                       onClick={() => setTimelineModalIssue(issue)}
-                      className="w-full py-1.5 rounded-xl border text-xs font-bold text-[#4cd34c] hover:bg-[#4cd34c]/10 transition-all active:scale-95 flex items-center justify-center gap-1"
+                      className="w-full py-1.5 rounded-xl border text-xs font-bold text-[#4cd34c] hover:bg-[#4cd34c]/10 transition-all active:scale-95 flex items-center justify-center gap-1 cursor-pointer"
                       style={{ borderColor: "var(--badge-border)" }}
                     >
                       <span>View Issue Story</span>
@@ -766,14 +798,16 @@ export default function ShiftRegisterScreen({
         )}
       </div>
 
-      {/* ROW 3: 📌 THIS SHIFT & 📈 RECURRING ISSUES (2-COLUMN GRID) */}
+      {/* ROW 3: THIS SHIFT & RECURRING ISSUES (2-COLUMN GRID) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* THIS SHIFT ISSUES */}
         <div className="rounded-3xl border p-5 shadow-md backdrop-blur space-y-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
           <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
             <div className="flex items-center gap-2">
-              <span className="text-lg">📌</span>
-              <h3 className="text-base font-black tracking-tight" style={{ color: "var(--app-text)" }}>
+              <svg className="h-5 w-5 text-[var(--text-muted)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 className="text-xs font-black tracking-wider uppercase text-[var(--app-text)]">
                 THIS SHIFT ({currentShiftName})
               </h3>
             </div>
@@ -781,8 +815,11 @@ export default function ShiftRegisterScreen({
           </div>
 
           {thisShiftIssuesList.length === 0 ? (
-            <div className="p-6 text-center text-xs text-[var(--text-muted)] border border-dashed rounded-2xl" style={{ borderColor: "var(--field-border)" }}>
-              No issues recorded during {currentShiftName} yet.
+            <div className="p-8 text-center text-xs text-[var(--text-muted)] border border-dashed rounded-2xl flex flex-col items-center justify-center space-y-2" style={{ borderColor: "var(--field-border)" }}>
+              <svg className="h-6 w-6 text-[var(--text-muted)] opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>No issues recorded during {currentShiftName} yet.</span>
             </div>
           ) : (
             <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
@@ -805,8 +842,9 @@ export default function ShiftRegisterScreen({
                       {item.status}
                     </span>
                     <button
+                      type="button"
                       onClick={() => setTimelineModalIssue(item)}
-                      className="px-2 py-1 rounded-lg border text-[11px] font-bold text-[#4cd34c] hover:bg-[#4cd34c]/20"
+                      className="px-2 py-1 rounded-lg border text-[11px] font-bold text-[#4cd34c] hover:bg-[#4cd34c]/20 cursor-pointer"
                       style={{ borderColor: "var(--badge-border)" }}
                     >
                       Story
@@ -822,8 +860,10 @@ export default function ShiftRegisterScreen({
         <div className="rounded-3xl border p-5 shadow-md backdrop-blur space-y-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
           <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
             <div className="flex items-center gap-2">
-              <span className="text-lg">📈</span>
-              <h3 className="text-base font-black tracking-tight" style={{ color: "var(--app-text)" }}>
+              <svg className="h-5 w-5 text-[var(--text-muted)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+              <h3 className="text-xs font-black tracking-wider uppercase text-[var(--app-text)]">
                 RECURRING ISSUE PATTERNS
               </h3>
             </div>
@@ -831,8 +871,11 @@ export default function ShiftRegisterScreen({
           </div>
 
           {recurringPatterns.length === 0 ? (
-            <div className="p-6 text-center text-xs text-[var(--text-muted)] border border-dashed rounded-2xl" style={{ borderColor: "var(--field-border)" }}>
-              No issue patterns recorded yet.
+            <div className="p-8 text-center text-xs text-[var(--text-muted)] border border-dashed rounded-2xl flex flex-col items-center justify-center space-y-2" style={{ borderColor: "var(--field-border)" }}>
+              <svg className="h-6 w-6 text-[var(--text-muted)] opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>No issue patterns recorded yet.</span>
             </div>
           ) : (
             <div className="space-y-3.5 max-h-80 overflow-y-auto pr-1">
@@ -855,58 +898,69 @@ export default function ShiftRegisterScreen({
         </div>
       </div>
 
-      {/* ROW 4: 📁 ISSUE HISTORY & ARCHIVE (COLLAPSIBLE MANAGEMENT TABLE GRID) */}
-      <div className="rounded-3xl border p-6 shadow-md backdrop-blur space-y-5 transition-all duration-300" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+      {/* ROW 4: ISSUE HISTORY & ARCHIVE */}
+      <div className="rounded-3xl border p-6 shadow-md backdrop-blur space-y-5" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: "var(--field-border)" }}>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xl">📁</span>
-              <h3 className="text-lg font-black tracking-tight" style={{ color: "var(--app-text)" }}>
-                ISSUE HISTORY & ARCHIVE ({filteredIssues.length})
+          <div className="flex items-start gap-3">
+            <svg className="h-6 w-6 text-[var(--text-muted)] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s-8-1.79-8-4" />
+            </svg>
+            <div>
+              <h3 className="text-base font-black tracking-wider uppercase text-[var(--app-text)] flex items-center gap-2">
+                <span>ISSUE HISTORY & ARCHIVE</span>
+                <span className="text-xs text-[var(--text-muted)]">({filteredIssues.length})</span>
               </h3>
+              <p className="text-xs font-medium text-[var(--text-muted)] mt-0.5">
+                Search, filter, and inspect detailed historical records across shifts and reporting periods.
+              </p>
             </div>
-            <p className="text-xs font-medium mt-0.5" style={{ color: "var(--text-muted)" }}>
-              Search, filter, and inspect detailed historical records across shifts and reporting periods.
-            </p>
           </div>
 
           <div className="flex items-center gap-3">
             {!archiveCollapsed && (
-              /* View Mode Toggle */
-              <div className="flex items-center p-1 rounded-2xl border backdrop-blur animate-fadeIn" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+              <div className="flex items-center p-1 rounded-xl border bg-[var(--field-bg)] shadow-inner" style={{ borderColor: "var(--field-border)" }}>
                 <button
+                  type="button"
                   onClick={() => setViewMode("table")}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${viewMode === "table" ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007]" : "text-[var(--text-muted)]"}`}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${viewMode === "table" ? "bg-[#4cd34c] text-black shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--app-text)]"}`}
                 >
-                  📋 Table View
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span>Table View</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setViewMode("cards")}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${viewMode === "cards" ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007]" : "text-[var(--text-muted)]"}`}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${viewMode === "cards" ? "bg-[#4cd34c] text-black shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--app-text)]"}`}
                 >
-                  🎴 Cards View
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                  <span>Cards View</span>
                 </button>
               </div>
             )}
 
-            {/* Collapse / Expand Toggle Button */}
             <button
+              type="button"
               onClick={() => setArchiveCollapsed(!archiveCollapsed)}
-              className="px-3.5 py-2 rounded-2xl border text-xs font-bold backdrop-blur transition hover:scale-105 active:scale-95 flex items-center gap-1.5"
-              style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--neutral-bg)", color: "var(--app-text)" }}
+              className="px-3.5 py-1.5 rounded-xl border text-xs font-bold transition hover:opacity-90 flex items-center gap-1.5 cursor-pointer"
+              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
             >
-              <span>{archiveCollapsed ? "Expand Archive" : "Collapse Archive"}</span>
-              <span className="text-sm font-black">{archiveCollapsed ? "▼" : "▲"}</span>
+              <span>Collapse Archive</span>
+              <span className="text-xs font-black">{archiveCollapsed ? "∨" : "∧"}</span>
             </button>
           </div>
         </div>
 
         {archiveCollapsed ? (
-          /* COLLAPSED ARCHIVE BANNER */
-          <div className="p-8 text-center border-2 border-dashed rounded-2xl space-y-3 animate-fadeIn" style={{ borderColor: "var(--field-border)" }}>
+          <div className="p-8 text-center border border-dashed rounded-2xl space-y-3" style={{ borderColor: "var(--field-border)" }}>
             <div className="flex items-center justify-center gap-2">
-              <span className="text-2xl">📁</span>
-              <span className="text-sm font-extrabold" style={{ color: "var(--app-text)" }}>
+              <svg className="h-6 w-6 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+              </svg>
+              <span className="text-xs font-bold" style={{ color: "var(--app-text)" }}>
                 Historical Issue Archive ({filteredIssues.length} records) is currently collapsed
               </span>
             </div>
@@ -914,31 +968,32 @@ export default function ShiftRegisterScreen({
               Focusing on active shift operations. Click expand to search, filter, or export historical records.
             </p>
             <button
+              type="button"
               onClick={() => setArchiveCollapsed(false)}
-              className="px-6 py-2.5 rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-extrabold shadow-lg transition hover:scale-105 active:scale-95 inline-flex items-center gap-2"
+              className="px-5 py-2 rounded-xl bg-[#4cd34c] text-black text-xs font-bold shadow transition hover:opacity-90 inline-flex items-center gap-1.5 cursor-pointer"
             >
               <span>Expand Historical Archive</span>
-              <span>▼</span>
+              <span>∨</span>
             </button>
           </div>
         ) : (
-          /* EXPANDED ARCHIVE CONTENT */
-          <div className="space-y-5 animate-fadeIn">
+          <div className="space-y-4">
             {/* SEARCH & FILTERS BAR */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* Search Input */}
-              <div className="relative">
+              <div className="relative flex items-center">
+                <svg className="absolute left-3 h-4 w-4 text-[var(--text-muted)] pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search ID, title, shift, agent..."
-                  className="w-full rounded-xl border p-2.5 text-xs font-medium focus:outline-none focus:border-[#4cd34c]"
+                  className="w-full rounded-xl border p-2.5 pl-9 text-xs font-medium focus:outline-none focus:border-[#4cd34c]"
                   style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                 />
               </div>
 
-              {/* Status Filter */}
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -946,12 +1001,11 @@ export default function ShiftRegisterScreen({
                 style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
               >
                 <option value="All">Status: All Records</option>
-                <option value="Ongoing">Status: 🔴 Ongoing Only</option>
-                <option value="Monitoring">Status: 🟠 Monitoring Only</option>
-                <option value="Resolved">Status: 🟢 Resolved Only</option>
+                <option value="Ongoing">Status: Ongoing</option>
+                <option value="Monitoring">Status: Monitoring</option>
+                <option value="Resolved">Status: Resolved</option>
               </select>
 
-              {/* Shift Filter */}
               <select
                 value={shiftFilter}
                 onChange={(e) => setShiftFilter(e.target.value)}
@@ -964,47 +1018,52 @@ export default function ShiftRegisterScreen({
                 ))}
               </select>
 
-              {/* Carry Forward Toggle */}
-              <button
-                onClick={() => setCarryForwardOnly(!carryForwardOnly)}
-                className={`w-full py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 ${carryForwardOnly ? "bg-blue-500/20 text-blue-400 border-blue-500/50" : ""}`}
-                style={!carryForwardOnly ? { borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" } : {}}
-              >
-                <span>↪</span>
-                <span>{carryForwardOnly ? "Showing Carried Only" : "Show Carried Only"}</span>
-              </button>
+              <label className="flex items-center justify-center gap-2 p-2.5 rounded-xl border cursor-pointer select-none" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                <input
+                  type="checkbox"
+                  checked={carryForwardOnly}
+                  onChange={(e) => setCarryForwardOnly(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 accent-[#4cd34c]"
+                />
+                <span className="text-xs font-bold" style={{ color: "var(--app-text)" }}>Show Carried Only</span>
+              </label>
             </div>
 
             {/* ARCHIVE CONTENT TABLE / CARDS */}
             {filteredIssues.length === 0 ? (
-              <div className="p-12 text-center border-2 border-dashed rounded-2xl space-y-2" style={{ borderColor: "var(--field-border)" }}>
-                <span className="text-3xl block">🔍</span>
-                <p className="text-sm font-bold" style={{ color: "var(--app-text)" }}>No matching issues found.</p>
-                <p className="text-xs text-[var(--text-muted)]">Try adjusting your search terms or filter criteria.</p>
+              <div className="p-12 text-center border border-dashed rounded-2xl flex flex-col items-center justify-center space-y-2" style={{ borderColor: "var(--field-border)" }}>
+                <svg className="h-10 w-10 text-[var(--text-muted)] opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+                <p className="text-xs font-bold text-[var(--app-text)]">No records found</p>
+                <p className="text-[11px] font-medium text-[var(--text-muted)]">No issues match your current filters.</p>
               </div>
             ) : viewMode === "table" ? (
-              /* MANAGEMENT DENSE TABLE VIEW */
               <div className="overflow-x-auto rounded-2xl border" style={{ borderColor: "var(--field-border)" }}>
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="border-b bg-[var(--field-bg)] text-[var(--text-muted)] uppercase tracking-wider font-extrabold" style={{ borderColor: "var(--field-border)" }}>
+                    <tr className="border-b bg-[var(--field-bg)] text-[var(--text-muted)] uppercase tracking-wider text-[11px] font-extrabold" style={{ borderColor: "var(--field-border)" }}>
+                      <th className="p-3 w-8 text-center"><input type="checkbox" className="rounded accent-[#4cd34c]" /></th>
                       <th className="p-3 font-bold">ID</th>
-                      <th className="p-3 font-bold">Issue Title</th>
-                      <th className="p-3 font-bold">Shift</th>
-                      <th className="p-3 font-bold">Time Noticed</th>
-                      <th className="p-3 font-bold">Issue Age</th>
-                      <th className="p-3 font-bold">Status</th>
-                      <th className="p-3 font-bold text-center">Shifts</th>
-                      <th className="p-3 font-bold text-right">Actions</th>
+                      <th className="p-3 font-bold">TITLE</th>
+                      <th className="p-3 font-bold">SHIFT</th>
+                      <th className="p-3 font-bold">AGENT</th>
+                      <th className="p-3 font-bold">STATUS</th>
+                      <th className="p-3 font-bold">AGE</th>
+                      <th className="p-3 font-bold text-center">AFFECTED SHIFTS</th>
+                      <th className="p-3 font-bold">LAST UPDATED</th>
+                      <th className="p-3 font-bold text-right">ACTIONS</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y" style={{ borderColor: "var(--panel-border)" }}>
                     {filteredIssues.map((issue) => {
                       const age = calculateIssueAge(issue.created_at);
                       const shiftsAffected = calculateShiftsAffected(issue);
+                      const lastUpdated = issue.updated_at ? new Date(issue.updated_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "N/A";
 
                       return (
                         <tr key={issue.id} className="hover:bg-[#4cd34c]/5 transition">
+                          <td className="p-3 text-center"><input type="checkbox" className="rounded accent-[#4cd34c]" /></td>
                           <td className="p-3 font-mono font-bold text-[var(--text-muted)]">
                             {issue.reference_no || `#SIR-${issue.id}`}
                           </td>
@@ -1019,32 +1078,37 @@ export default function ShiftRegisterScreen({
                           <td className="p-3 text-[var(--text-muted)] font-medium">
                             {getShiftIcon(issue.shift_name)} {issue.shift_name || "General"}
                           </td>
-                          <td className="p-3 font-mono text-[var(--text-muted)]">
-                            {issue.time_noticed}
-                          </td>
-                          <td className="p-3 font-mono font-extrabold text-amber-400">
-                            {age}
+                          <td className="p-3 text-[var(--text-muted)] font-medium">
+                            {issue.logged_by_name || "Agent"} ({issue.logged_by_initials || "AG"})
                           </td>
                           <td className="p-3">
                             <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${issue.status === "Resolved" ? "bg-emerald-500/20 text-emerald-400" : issue.status === "Monitoring" ? "bg-amber-500/20 text-amber-400" : "bg-red-500/20 text-red-400 shadow-[0_0_8px_rgba(239,68,68,0.2)]"}`}>
                               {issue.status}
                             </span>
                           </td>
+                          <td className="p-3 font-mono font-extrabold text-amber-400">
+                            {age}
+                          </td>
                           <td className="p-3 text-center font-extrabold text-red-400 font-mono">
                             {shiftsAffected}
+                          </td>
+                          <td className="p-3 font-mono text-xs text-[var(--text-muted)]">
+                            {lastUpdated}
                           </td>
                           <td className="p-3 text-right">
                             <div className="flex items-center justify-end gap-2">
                               <button
+                                type="button"
                                 onClick={() => setTimelineModalIssue(issue)}
-                                className="px-2.5 py-1 rounded-lg border text-[11px] font-bold text-[#4cd34c] hover:bg-[#4cd34c]/20 transition active:scale-95"
+                                className="px-2.5 py-1 rounded-lg border text-[11px] font-bold text-[#4cd34c] hover:bg-[#4cd34c]/20 transition cursor-pointer"
                                 style={{ borderColor: "var(--badge-border)" }}
                               >
                                 View Story
                               </button>
                               <button
+                                type="button"
                                 onClick={() => handleOpenEditModal(issue)}
-                                className="px-2 py-1 rounded-lg border text-[11px] font-bold text-[var(--app-text)] hover:opacity-80 transition active:scale-95"
+                                className="px-2 py-1 rounded-lg border text-[11px] font-bold text-[var(--app-text)] hover:opacity-80 transition cursor-pointer"
                                 style={{ borderColor: "var(--field-border)" }}
                               >
                                 Edit
@@ -1073,8 +1137,9 @@ export default function ShiftRegisterScreen({
                     <div className="pt-2 border-t flex items-center justify-between text-xs" style={{ borderColor: "var(--panel-border)" }}>
                       <span className="font-mono text-amber-400">⏱️ {calculateIssueAge(issue.created_at)}</span>
                       <button
+                        type="button"
                         onClick={() => setTimelineModalIssue(issue)}
-                        className="px-3 py-1 rounded-xl border font-bold text-[#4cd34c] hover:bg-[#4cd34c]/10 transition active:scale-95"
+                        className="px-3 py-1 rounded-xl border font-bold text-[#4cd34c] hover:bg-[#4cd34c]/10 transition cursor-pointer"
                         style={{ borderColor: "var(--badge-border)" }}
                       >
                         View Story →
