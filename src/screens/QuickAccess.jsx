@@ -893,23 +893,25 @@ export default function QuickAccess({
                 disabled={isTranslating || !generatedMsg}
                 className="flex-1 px-3 py-2 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-black font-extrabold text-xs shadow-sm hover:opacity-90 transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
-                <span>{isTranslating ? "Translating..." : "🌐 Translate Quick Message"}</span>
+                <img src="/globe.png" alt="Globe" className="h-4 w-4 shrink-0 object-contain" />
+                <span>{isTranslating ? "Translating..." : "Translate Quick Message"}</span>
               </button>
 
               {presetPhrases && presetPhrases.length > 0 && (
                 <select
+                  value=""
                   onChange={(e) => {
-                    const selected = presetPhrases.find((p) => String(p.id) === e.target.value);
+                    const idx = parseInt(e.target.value, 10);
+                    const selected = presetPhrases[idx];
                     if (selected && handleSelectPreset) handleSelectPreset(selected);
                   }}
-                  defaultValue=""
                   className="rounded-xl border px-2.5 py-2 text-xs font-semibold max-w-[140px] truncate cursor-pointer"
                   style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                 >
                   <option value="" disabled>Presets...</option>
-                  {presetPhrases.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.en}
+                  {presetPhrases.map((p, idx) => (
+                    <option key={p.id || idx} value={idx}>
+                      {p.en || p.label || `Preset ${idx + 1}`}
                     </option>
                   ))}
                 </select>
@@ -936,8 +938,12 @@ export default function QuickAccess({
                   <button
                     type="button"
                     onClick={() => {
-                      if (copyText) copyText(translatedText, "Translated quick response copied to clipboard! 📋");
-                      if (showToast) showToast("Translated text copied to clipboard!", "success");
+                      if (copyText) copyText(translatedText, "Translated quick response copied to clipboard! 📋", activeTemplate?.id);
+                      if (activeTemplate && (activeTemplate.is_private_note || activeTemplate.agent_initials || quickTab === "private_notes" || privList.some((n) => n.id === activeTemplate.id))) {
+                        if (trackPrivateNoteUsage) {
+                          trackPrivateNoteUsage(activeTemplate.id);
+                        }
+                      }
                     }}
                     className="px-3 py-1.5 rounded-xl bg-[#4cd34c] text-black font-extrabold text-xs shadow-sm hover:opacity-90 transition flex items-center gap-1 cursor-pointer"
                   >
