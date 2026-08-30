@@ -210,45 +210,7 @@ export default function QuickAccess({
           )}
         </div>
 
-        {/* Target Channel Selector (Signed / Unsigned Format Option) */}
-        <div className="p-3.5 rounded-2xl border bg-[var(--field-bg)] space-y-2 shadow-sm" style={{ borderColor: "var(--field-border)" }}>
-          <div className="flex items-center justify-between">
-            <label className="text-[11px] font-bold uppercase tracking-wider block" style={{ color: "var(--text-muted)" }}>
-              Response Format Option:
-            </label>
-            <span className="text-[10px] font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2.5 py-0.5 rounded-full">
-              {replyChannel === "signed" ? `Signed: ^${currentAgent?.agent_initials || ""}` : "Unsigned: Plain Text"}
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setReplyChannel && setReplyChannel("signed")}
-              className={`rounded-xl border py-2 px-3 text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
-                replyChannel === "signed"
-                  ? "border-[#4cd34c] bg-[#4cd34c]/15 text-[#4cd34c] font-bold shadow-sm"
-                  : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
-              }`}
-              style={{ borderColor: replyChannel === "signed" ? "#4cd34c" : "var(--field-border)" }}
-            >
-              <img src="/signed.png" alt="Signed" className="h-3.5 w-3.5 shrink-0 object-contain" />
-              <span>Signed (^{currentAgent?.agent_initials || ""})</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setReplyChannel && setReplyChannel("unsigned")}
-              className={`rounded-xl border py-2 px-3 text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
-                replyChannel === "unsigned"
-                  ? "border-[#4cd34c] bg-[#4cd34c]/15 text-[#4cd34c] font-bold shadow-sm"
-                  : "hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
-              }`}
-              style={{ borderColor: replyChannel === "unsigned" ? "#4cd34c" : "var(--field-border)" }}
-            >
-              <img src="/unsigned.png" alt="Unsigned" className="h-3.5 w-3.5 shrink-0 object-contain" />
-              <span>Unsigned (Plain)</span>
-            </button>
-          </div>
-        </div>
+
 
         {/* Create / Edit Private Note Form */}
         {showCreateNote && (
@@ -865,6 +827,9 @@ export default function QuickAccess({
             showToast={showToast}
             quickTab={quickTab}
             privList={privList}
+            replyChannel={replyChannel}
+            setReplyChannel={setReplyChannel}
+            currentAgent={currentAgent}
           />
 
           {/* Quick Access Multilingual Translator Widget */}

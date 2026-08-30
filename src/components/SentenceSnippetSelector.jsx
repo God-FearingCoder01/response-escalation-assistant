@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { splitIntoSentences } from "../services/api";
 
 export default function SentenceSnippetSelector({
@@ -10,12 +10,27 @@ export default function SentenceSnippetSelector({
   showToast,
   quickTab,
   privList = [],
+  replyChannel,
+  setReplyChannel,
+  currentAgent,
 }) {
   const [mode, setMode] = useState("full"); // "full" | "sentences"
   const [checkedIndexes, setCheckedIndexes] = useState([]);
   const [savingSnippet, setSavingSnippet] = useState(false);
   const [snippetTitle, setSnippetTitle] = useState("");
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Split generatedMsg into individual sentences whenever it changes
   const sentences = useMemo(() => {
@@ -173,19 +188,112 @@ export default function SentenceSnippetSelector({
 
       {/* Primary Copy & Save Snippet Actions */}
       <div className="space-y-2 pt-2">
-        <button
-          type="button"
-          onClick={handleCopy}
-          disabled={!effectiveCopyMsg}
-          className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-3 font-semibold text-[#071007] shadow-lg disabled:opacity-50 transition hover:opacity-90 flex items-center justify-center gap-2"
-        >
-          <span>Copy Message Text 📋</span>
-          {mode === "sentences" && checkedIndexes.length < sentences.length && (
-            <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full font-bold">
-              ({checkedIndexes.length} of {sentences.length} sentences)
-            </span>
+        <div className="relative" ref={dropdownRef}>
+          <div className="flex w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] shadow-lg overflow-hidden transition hover:opacity-95">
+            {/* Main Clickable Area */}
+            <button
+              type="button"
+              onClick={handleCopy}
+              disabled={!effectiveCopyMsg}
+              className="flex-1 py-3 px-4 font-semibold text-[#071007] disabled:opacity-50 transition flex items-center justify-center gap-2 outline-none select-none text-sm md:text-base cursor-pointer"
+            >
+              {replyChannel === "signed" ? (
+                <>
+                  <img src="/signed.png" alt="Signed" className="h-5 w-5 shrink-0 object-contain" />
+                  <span>Copy Message Text (Signed)</span>
+                </>
+              ) : replyChannel === "unsigned" ? (
+                <>
+                  <img src="/unsigned.png" alt="Unsigned" className="h-5 w-5 shrink-0 object-contain" />
+                  <span>Copy Message Text (Unsigned)</span>
+                </>
+              ) : (
+                <span>Copy Message Text 📋</span>
+              )}
+
+              {mode === "sentences" && checkedIndexes.length < sentences.length && (
+                <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full font-bold">
+                  ({checkedIndexes.length} of {sentences.length} sentences)
+                </span>
+              )}
+            </button>
+
+            {/* Dropdown Arrow Toggle Button */}
+            {setReplyChannel && (
+              <button
+                type="button"
+                onClick={() => setDropdownOpen((prev) => !prev)}
+                disabled={!effectiveCopyMsg}
+                className="px-3.5 border-l border-black/20 text-[#071007] hover:bg-black/10 transition flex items-center justify-center outline-none select-none cursor-pointer"
+                title="Change Signed / Unsigned Option"
+              >
+                <span className={`text-xs font-bold transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}>
+                  ▼
+                </span>
+              </button>
+            )}
+          </div>
+
+          {/* Dropdown Popup Menu */}
+          {dropdownOpen && setReplyChannel && (
+            <div
+              className="absolute right-0 mt-2 w-64 rounded-2xl border p-2 shadow-2xl z-50 animate-fade-in backdrop-blur-md"
+              style={{ borderColor: "#4cd34c", backgroundColor: "var(--panel-bg)" }}
+            >
+              <div className="px-2 py-1.5 border-b mb-1" style={{ borderColor: "var(--field-border)" }}>
+                <span className="text-[10px] uppercase font-extrabold tracking-wider" style={{ color: "var(--text-muted)" }}>
+                  Select Response Format Option:
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setReplyChannel("signed");
+                  setDropdownOpen(false);
+                }}
+                className={`w-full p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-between gap-2 text-left mb-1.5 cursor-pointer ${
+                  replyChannel === "signed"
+                    ? "border-[#4cd34c] bg-[#4cd34c]/20 text-[#4cd34c]"
+                    : "hover:bg-[var(--field-bg)] border-transparent text-[var(--app-text)]"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <img src="/signed.png" alt="Signed" className="h-4 w-4 shrink-0 object-contain" />
+                  <div className="flex flex-col">
+                    <span className="font-bold">Signed</span>
+                    <span className="text-[10px] font-mono opacity-80">
+                      (^{currentAgent?.agent_initials || "Initials"})
+                    </span>
+                  </div>
+                </div>
+                {replyChannel === "signed" && <span className="text-xs font-black text-[#4cd34c]">✓</span>}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setReplyChannel("unsigned");
+                  setDropdownOpen(false);
+                }}
+                className={`w-full p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-between gap-2 text-left cursor-pointer ${
+                  replyChannel === "unsigned"
+                    ? "border-[#4cd34c] bg-[#4cd34c]/20 text-[#4cd34c]"
+                    : "hover:bg-[var(--field-bg)] border-transparent text-[var(--app-text)]"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <img src="/unsigned.png" alt="Unsigned" className="h-4 w-4 shrink-0 object-contain" />
+                  <div className="flex flex-col">
+                    <span className="font-bold">Unsigned</span>
+                    <span className="text-[10px] font-mono opacity-80">(Plain Text)</span>
+                  </div>
+                </div>
+                {replyChannel === "unsigned" && <span className="text-xs font-black text-[#4cd34c]">✓</span>}
+              </button>
+            </div>
           )}
-        </button>
+        </div>
 
         {effectiveCopyMsg && (
           <button

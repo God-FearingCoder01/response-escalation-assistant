@@ -76,44 +76,7 @@ export default function CustomerReply({
           </p>
         </div>
 
-        {/* Target Channel Selector */}
-        <div>
-          <label className="text-xs font-semibold uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>
-            Select Response Format:
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setReplyChannel("signed")}
-              className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
-                replyChannel === "signed"
-                  ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
-                  : "hover:bg-[var(--neutral-bg)]"
-              }`}
-              style={{ borderColor: replyChannel === "signed" ? "#4cd34c" : "var(--field-border)" }}
-            >
-              <span className="flex items-center gap-1.5">
-                <img src="/signed.png" alt="Signed" className="h-4 w-4 shrink-0 object-contain" />
-                Signed (^{currentAgent?.agent_initials || ""})
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setReplyChannel("unsigned")}
-              className={`rounded-xl border py-2.5 px-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
-                replyChannel === "unsigned"
-                  ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] font-bold shadow-sm"
-                  : "hover:bg-[var(--neutral-bg)]"
-              }`}
-              style={{ borderColor: replyChannel === "unsigned" ? "#4cd34c" : "var(--field-border)" }}
-            >
-              <span className="flex items-center gap-1.5">
-                <img src="/unsigned.png" alt="Unsigned" className="h-4 w-4 shrink-0 object-contain" />
-                Unsigned (Plain Text)
-              </span>
-            </button>
-          </div>
-        </div>
+
 
         {/* SEARCH & CATEGORY BROWSER */}
         <div className="space-y-3 pt-2 border-t" style={{ borderColor: "var(--field-border)" }}>
@@ -564,6 +527,9 @@ export default function CustomerReply({
             trackPrivateNoteUsage={trackPrivateNoteUsage}
             createPrivateNote={createPrivateNote}
             showToast={showToast}
+            replyChannel={replyChannel}
+            setReplyChannel={setReplyChannel}
+            currentAgent={currentAgent}
           />
 
           {replyChannel === "signed" ? (
