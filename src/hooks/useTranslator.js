@@ -124,12 +124,14 @@ export function useTranslator({ currentAgent = null, showToast = () => {} } = {}
     let srcT = "";
     let transT = "";
 
+    const isNdebele = (lang) => lang === "nde" || lang === "nd";
+
     if (sourceLang === "en") {
       srcT = preset.en;
-      transT = targetLang === "nd" ? (preset.nd || preset.sn) : preset.sn;
+      transT = isNdebele(targetLang) ? (preset.nd || preset.sn) : preset.sn;
     } else if (sourceLang === "sn") {
       srcT = preset.sn;
-      transT = targetLang === "nd" ? (preset.nd || preset.en) : preset.en;
+      transT = isNdebele(targetLang) ? (preset.nd || preset.en) : preset.en;
     } else {
       srcT = preset.nd || preset.en;
       transT = targetLang === "sn" ? preset.sn : preset.en;

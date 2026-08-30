@@ -30,7 +30,7 @@ export default function TranslatorScreen({
   const getLangName = (code) => {
     if (code === "en") return "English";
     if (code === "sn") return "Shona";
-    if (code === "nd") return "IsiNdebele";
+    if (code === "nde" || code === "nd") return "isiNdebele (Zimbabwe)";
     return code;
   };
 
@@ -49,32 +49,30 @@ export default function TranslatorScreen({
     <div className="space-y-6">
       {/* Header section */}
       <div
-        className="rounded-3xl border p-6 shadow-xl backdrop-blur-xl transition-all"
+        className="flex flex-col gap-4 rounded-3xl border p-5 shadow-xl backdrop-blur-xl md:flex-row md:items-center md:justify-between"
         style={{
           borderColor: "var(--panel-border)",
           backgroundColor: "var(--panel-bg)",
         }}
       >
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] shadow-lg">
-              <img src="/globe.png" alt="Translator" className="h-7 w-7 object-contain" />
-            </div>
-            <div>
-              <h1 className="text-xl font-extrabold tracking-tight">
-                Multilingual Support Translator (EN ⇄ SN / ND)
-              </h1>
-              <p className="text-xs opacity-75">
-                Instant bidirectional translation across English, Shona & IsiNdebele for support queries
-              </p>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-black shadow-lg">
+            <img src="/globe.png" alt="Globe" className="h-6 w-6 object-contain" />
           </div>
+          <div>
+            <h2 className="text-xl font-bold tracking-tight">Multi Lingual Support Translation</h2>
+            <p className="text-xs text-[var(--text-muted)]">
+              Instant translation between English, Shona, and isiNdebele (Zimbabwe)
+            </p>
+          </div>
+        </div>
 
-          {/* Language direction selectors bar */}
+        {/* Controls: Language Selectors + Swap */}
+        <div className="flex items-center gap-2 self-start md:self-auto">
           <div
-            className="flex items-center gap-2 rounded-2xl border p-2 shadow-sm"
+            className="flex items-center gap-2 rounded-2xl border p-1.5 shadow-inner"
             style={{
-              borderColor: "var(--badge-border)",
+              borderColor: "var(--panel-border)",
               backgroundColor: "var(--app-bg)",
             }}
           >
@@ -86,7 +84,7 @@ export default function TranslatorScreen({
             >
               <option value="en">English 🇬🇧</option>
               <option value="sn">Shona 🇿🇼</option>
-              <option value="nd">IsiNdebele 🇿🇼</option>
+              <option value="nde">isiNdebele (Zimbabwe) 🇿🇼</option>
             </select>
 
             <button
@@ -104,7 +102,7 @@ export default function TranslatorScreen({
               style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}
             >
               <option value="sn">Shona 🇿🇼</option>
-              <option value="nd">IsiNdebele 🇿🇼</option>
+              <option value="nde">isiNdebele (Zimbabwe) 🇿🇼</option>
               <option value="en">English 🇬🇧</option>
             </select>
           </div>

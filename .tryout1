@@ -1,0 +1,354 @@
+Yes. Given what you have told me about REA, I would **replace MyMemory** rather than try to tune it further.
+
+There is one very important discovery, though: **Google Translate/Google Cloud Translation is not actually the perfect answer for your particular requirement**, because the Ndebele you are referring to is almost certainly **Zimbabwean/Northern Ndebele (isiNdebele, ISO `nde`)**, whereas Google Cloud currently lists **South Ndebele (`nr`)**, not Northern Ndebele, among its supported languages. It does support **Shona (`sn`)**. 
+
+### What I would recommend for REA
+
+| Option | Shona | Zimbabwean/Northern Ndebele | My view |
+|---|---|---|---|
+| **MyMemory** | ⚠️ | ⚠️ | ❌ Replace |
+| **Google Cloud Translation** | ✅ | ❌ | ⭐⭐⭐⭐ for Shona, but incomplete for REA |
+| **Microsoft Translator** | ✅ | ❌ | ⭐⭐⭐⭐, but same Ndebele problem |
+| **Meta NLLB-200** | ✅ | **Potentially much better fit** | ⭐⭐⭐⭐⭐ worth investigating |
+| AI/LLM translation | ✅ | Can handle it | ⭐⭐⭐⭐⭐, but requires careful design |
+
+Microsoft's current language list confirms **chiShona (`sn`)**, but doesn't list Zimbabwean/Northern Ndebele. 
+
+---
+
+# The interesting option: Meta NLLB-200
+
+This is the one I would investigate seriously for REA.
+
+Meta's **No Language Left Behind (NLLB-200)** models were specifically created for multilingual translation and cover **200 languages**. The available models include `nllb-200-1.3B` and `nllb-200-3.3B`. 
+
+Most importantly, **Northern Ndebele has its own language code: `nde`**. That is different from South Ndebele, which is `nbl`. 
+
+That's an important distinction for your REA implementation.
+
+Your language selector should therefore conceptually have:
+
+```text
+English
+Shona
+isiNdebele (Zimbabwe)
+```
+
+and internally:
+
+```text
+English → en
+Shona → sn
+isiNdebele → nde
+```
+
+**Not:**
+
+```text
+Ndebele → nr
+```
+
+because `nr` is South Ndebele.
+
+---
+
+# But there's a catch with NLLB
+
+NLLB isn't simply:
+
+```text
+fetch("translation-api.com")
+```
+
+like MyMemory.
+
+You are dealing with an actual machine-learning translation model.
+
+For example, Meta's model can be loaded through Transformers and run locally/server-side. The 1.3B model itself is several GB in size. 
+
+That means we need to think about **where REA is deployed**.
+
+Your current architecture is roughly:
+
+```text
+REA Frontend
+      ↓
+REA Backend
+      ↓
+Translation Service
+      ↓
+Translation Provider
+```
+
+I'd actually preserve that architecture.
+
+---
+
+# My preferred architecture for REA
+
+Don't put Google/MyMemory/NLLB-specific code throughout your frontend.
+
+Create one translation layer:
+
+```text
+Frontend
+   │
+   │ "Translate this"
+   ↓
+REA Backend
+   │
+   ↓
+Translation Service
+   │
+   ├── Google
+   ├── NLLB
+   └── Future provider
+```
+
+Then your frontend doesn't care **which translation engine** is being used.
+
+It simply says:
+
+> Translate English → isiNdebele.
+
+---
+
+# And this gives REA a huge advantage later
+
+You could eventually have:
+
+### Translation Provider
+
+```text
+[ NLLB ▼ ]
+```
+
+or even, internally:
+
+```text
+if target == "nde":
+    use NLLB
+
+elif target == "sn":
+    use Google
+
+else:
+    use Google
+```
+
+That's called a **provider/fallback strategy**.
+
+And for REA, I actually like that much more than putting all your faith into one API.
+
+---
+
+# For your specific problem, I'd test these three things
+
+Before changing the production system, we should create a small translation benchmark.
+
+For example, take **20–30 real customer-service sentences** that you know are commonly used in REA.
+
+Something like:
+
+> Your transaction was successful.
+
+> Please provide your transaction number.
+
+> We are currently experiencing a delay with the payment system.
+
+> Please wait while I check your account.
+
+> Your account has been temporarily locked.
+
+Then translate each sentence:
+
+```text
+English
+   ↓
+MyMemory
+   ↓
+Google
+   ↓
+NLLB
+   ↓
+Human/native review
+```
+
+Do the same for:
+
+```text
+English → Shona
+English → isiNdebele
+Shona → English
+isiNdebele → English
+```
+
+Then **you judge the results**.
+
+That is much more meaningful than choosing an API because somebody says it's "more accurate."
+
+---
+
+# There's another thing I'd strongly recommend for REA
+
+Because this is a **customer-service system**, generic translation quality isn't enough.
+
+You have terminology that is specific to the business.
+
+For example:
+
+> transaction  
+> account  
+> withdrawal  
+> deposit  
+> balance  
+> PIN  
+> reference number  
+> payment  
+> reversal  
+> failed transaction  
+> pending transaction
+
+A general translation engine may translate these differently depending on context.
+
+So eventually I'd like REA to have something like:
+
+### Organization Translation Glossary
+
+```text
+English                Preferred isiNdebele
+------------------------------------------------
+Transaction            [................]
+Reference number       [................]
+Withdrawal             [................]
+Deposit                [................]
+Pending                [................]
+Reversed               [................]
+```
+
+Then the translation system can respect the organization's preferred terminology.
+
+Google Cloud Translation actually has glossary/customization functionality for supported translation workflows, which is one of the reasons it's a strong option where its language coverage fits. 
+
+---
+
+# One more important point: don't translate templates blindly
+
+This connects directly with the template feature we discussed earlier.
+
+Suppose your approved REA template is:
+
+> Hello and welcome to WinBucks. My name is {agent_name}. How may I help you today?
+
+You **do not** want the translation engine to accidentally translate or alter:
+
+```text
+{agent_name}
+```
+
+The translation pipeline should understand that this is a **variable**.
+
+Conceptually:
+
+```text
+Hello and welcome to WinBucks.
+My name is {agent_name}.
+```
+
+becomes:
+
+```text
+[translated text]
+My name is {agent_name}.
+```
+
+while preserving:
+
+```text
+{agent_name}
+```
+
+exactly.
+
+This becomes particularly important when we eventually combine:
+
+**Templates + snippets + translator + Smart Extractor.**
+
+---
+
+# What I'd do with your REA right now
+
+### Phase 1 — Remove MyMemory dependency
+
+Don't let the frontend call MyMemory directly.
+
+Move translation behind your backend.
+
+### Phase 2 — Establish the three primary languages
+
+```text
+English       en
+Shona         sn
+isiNdebele    nde
+```
+
+### Phase 3 — Benchmark
+
+Test:
+
+**MyMemory vs Google vs NLLB**
+
+using real REA customer-service phrases.
+
+### Phase 4 — Choose the primary engine
+
+My current **technical recommendation to investigate first is NLLB for the Zimbabwean isiNdebele requirement**, because Google Cloud's current language catalogue does not give us Northern Ndebele, while NLLB was designed for broad multilingual coverage. 
+
+### Phase 5 — Add a fallback
+
+For example:
+
+```text
+             REA TRANSLATION
+                    │
+           ┌────────┴────────┐
+           │                 │
+      Primary Engine     Fallback
+           │                 │
+         NLLB              Google
+           │                 │
+           └────────┬────────┘
+                    ↓
+              Agent receives
+              translation
+```
+
+But **don't implement that exact fallback blindly yet**. We should first test actual translation quality and deployment constraints.
+
+---
+
+## One correction that is especially important for your project
+
+When you say **"isiNdebele" in the context of Zimbabwe**, I would label it in REA as:
+
+> **isiNdebele (Zimbabwe)**
+
+rather than simply:
+
+> **Ndebele**
+
+because there are multiple languages called Ndebele. Zimbabwean/Northern Ndebele is `nde`, while South Ndebele is `nbl`. 
+
+That little distinction could save you from a **very frustrating translation bug** later.
+
+### Bottom line
+
+**I would retire MyMemory.**
+
+For **Shona**, Google Cloud Translation is a very credible upgrade.
+
+For **Zimbabwean isiNdebele**, however, **I would not switch to Google blindly**, because Google's current official language list does not support the language you're actually after. 
+
+**NLLB-200 is the first alternative I'd investigate seriously for REA**, followed by a controlled comparison against an LLM-based approach. The goal shouldn't simply be *"find an API that translates"*; it should be *"find the engine that produces the most natural, useful Zimbabwean customer-service language."*
+
+If you want, the next step can be **:chatgpt-content-reference{index="10"}**: we can :chatgpt-content-reference{index="11"}, then :chatgpt-content-reference{index="12"}.

@@ -286,19 +286,25 @@ def test_multilingual_translate_endpoint():
     assert data_sn["translatedText"].lower() == "mhoroi"
     assert data_sn["provider"] == "dictionary"
 
-    # 2. IsiNdebele dictionary translation
-    res_nd = client.post("/translate", json={"text": "Thank you", "source_lang": "en", "target_lang": "nd"})
+    # 2. IsiNdebele (Zimbabwe) dictionary translation with 'nde' ISO code
+    res_nd = client.post("/translate", json={"text": "Thank you", "source_lang": "en", "target_lang": "nde"})
     assert res_nd.status_code == 200
     data_nd = res_nd.json()
     assert data_nd["translatedText"].lower() == "siyabonga"
     assert data_nd["provider"] == "dictionary"
 
-    # 3. Dynamic sentence translation for IsiNdebele
-    res_dynamic = client.post("/translate", json={"text": "Your request is being processed.", "source_lang": "en", "target_lang": "nd"})
+    # 3. Dynamic sentence translation for IsiNdebele (Zimbabwe) with NLLB-200 engine
+    res_dynamic = client.post("/translate", json={"text": "Your query is being investigated.", "source_lang": "en", "target_lang": "nde"})
     assert res_dynamic.status_code == 200
     data_dyn = res_dynamic.json()
     assert len(data_dyn["translatedText"]) > 0
-    assert data_dyn["translatedText"] != "Your request is being processed."
+    assert data_dyn["provider"] == "nllb_200"
+
+    # 4. Template variable protection ({agent_name} preservation)
+    res_var = client.post("/translate", json={"text": "Hello {agent_name}, thank you for contacting us.", "source_lang": "en", "target_lang": "sn"})
+    assert res_var.status_code == 200
+    data_var = res_var.json()
+    assert "{agent_name}" in data_var["translatedText"]
 
 
 def test_support_request_flow():

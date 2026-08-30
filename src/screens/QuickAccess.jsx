@@ -880,7 +880,7 @@ export default function QuickAccess({
                 style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)" }}
               >
                 <option value="sn">Shona 🇿🇼</option>
-                <option value="nd">IsiNdebele 🇿🇼</option>
+                <option value="nde">isiNdebele (Zimbabwe) 🇿🇼</option>
                 <option value="en">English 🇬🇧</option>
               </select>
             </div>

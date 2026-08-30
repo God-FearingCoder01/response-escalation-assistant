@@ -133,9 +133,12 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
     return { translatedText: "", provider: "empty" };
   }
 
-  const cleanText = text.trim();
-  const src = sourceLang.toLowerCase();
-  const tgt = targetLang.toLowerCase();
+  let src = sourceLang.toLowerCase();
+  let tgt = targetLang.toLowerCase();
+
+  // Standardize Ndebele code: 'nd' or 'nde' -> 'nde' (isiNdebele Zimbabwe)
+  if (src === "nd") src = "nde";
+  if (tgt === "nd") tgt = "nde";
 
   // 1. Direct & normalized dictionary match check
   const lowerText = cleanText.toLowerCase();
@@ -147,14 +150,14 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
   if (src === "sn" && tgt === "en" && (REVERSE_DICTIONARY[lowerText] || REVERSE_DICTIONARY[normText])) {
     return { translatedText: matchCase(cleanText, REVERSE_DICTIONARY[lowerText] || REVERSE_DICTIONARY[normText]), provider: "dictionary" };
   }
-  if (src === "en" && tgt === "nd" && (SUPPORT_NDEBELE_DICTIONARY[lowerText] || SUPPORT_NDEBELE_DICTIONARY[normText])) {
+  if (src === "en" && (tgt === "nde" || tgt === "nd") && (SUPPORT_NDEBELE_DICTIONARY[lowerText] || SUPPORT_NDEBELE_DICTIONARY[normText])) {
     return { translatedText: matchCase(cleanText, SUPPORT_NDEBELE_DICTIONARY[lowerText] || SUPPORT_NDEBELE_DICTIONARY[normText]), provider: "dictionary" };
   }
-  if (src === "nd" && tgt === "en" && (REVERSE_NDEBELE_DICTIONARY[lowerText] || REVERSE_NDEBELE_DICTIONARY[normText])) {
+  if ((src === "nde" || src === "nd") && tgt === "en" && (REVERSE_NDEBELE_DICTIONARY[lowerText] || REVERSE_NDEBELE_DICTIONARY[normText])) {
     return { translatedText: matchCase(cleanText, REVERSE_NDEBELE_DICTIONARY[lowerText] || REVERSE_NDEBELE_DICTIONARY[normText]), provider: "dictionary" };
   }
 
-  // 2. Call backend `/translate` endpoint if available
+  // 2. Call backend `/translate` endpoint (NLLB-200 for nde, Google Translate for sn)
   try {
     const res = await fetch(`${API_BASE}/translate`, {
       method: "POST",
@@ -167,9 +170,7 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
       if (
         data.translatedText &&
         data.translatedText.trim() &&
-        data.provider !== "fallback" &&
-        !data.translatedText.toLowerCase().includes("mymemory warning") &&
-        !data.translatedText.toLowerCase().includes("is not available")
+        data.provider !== "fallback"
       ) {
         return {
           translatedText: data.translatedText,
@@ -178,55 +179,16 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
       }
     }
   } catch (err) {
-    console.warn("Backend translation API unavailable, trying client fallback:", err);
+    console.warn("Backend translation API unavailable, using dictionary fallback:", err);
   }
 
-  // 3. Fallback: Call MyMemory API directly from client (with Zulu fallback for IsiNdebele)
-  const langPairsToTry = [
-    `${src}|${tgt}`,
-    ...(tgt === "nd" ? [`${src}|zu`, `${src}|nr`] : []),
-    ...(src === "nd" ? [`zu|${tgt}`, `nr|${tgt}`] : []),
-  ];
-
-  const queryText = truncateToMaxBytes(cleanText, 500);
-
-  for (const langpair of langPairsToTry) {
-    try {
-      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(queryText)}&langpair=${langpair}`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.responseData?.translatedText) {
-          const trans = data.responseData.translatedText;
-          if (
-            trans &&
-            trans.toUpperCase() !== cleanText.toUpperCase() &&
-            !trans.toLowerCase().includes("mymemory warning") &&
-            !trans.toLowerCase().includes("is not available")
-          ) {
-            let cleanTrans = trans;
-            if (langpair.endsWith("|zu") && tgt === "nd") {
-              cleanTrans = cleanTrans
-                .replace(/Sawubona/g, "Salibonani")
-                .replace(/sawubona/g, "salibonani")
-                .replace(/kanjani/g, "njani");
-            }
-            return { translatedText: cleanTrans, provider: "mymemory_client" };
-          }
-        }
-      }
-    } catch (err) {
-      console.warn(`Client MyMemory translation failed for ${langpair}:`, err);
-    }
-  }
-
-  // 4. Word-by-word & phrase dictionary substitution fallback
+  // 3. Word-by-word & phrase dictionary substitution fallback
   const dict =
     src === "en"
-      ? tgt === "nd"
+      ? (tgt === "nde" || tgt === "nd")
         ? SUPPORT_NDEBELE_DICTIONARY
         : SUPPORT_DICTIONARY
-      : src === "nd"
+      : (src === "nde" || src === "nd")
         ? REVERSE_NDEBELE_DICTIONARY
         : REVERSE_DICTIONARY;
 
@@ -248,7 +210,7 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
     return { translatedText: phraseReplaced, provider: "dictionary_partial" };
   }
 
-  // 5. Ultimate fallback: Return original text with notice if unresolvable
+  // 4. Fallback: Return clean original text
   return { translatedText: cleanText, provider: "original" };
 }
 

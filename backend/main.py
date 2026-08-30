@@ -1745,72 +1745,56 @@ def translate_text(req: TranslateRequest):
     clean_text = req.text.strip()
     src = (req.source_lang or "en").lower()
     tgt = (req.target_lang or "sn").lower()
-    norm_text = clean_text.lower().rstrip(".?!,")
 
-    # 1. Direct dictionary match check
+    # Normalize language codes: 'nd' or 'nde' -> 'nde' (isiNdebele Zimbabwe)
+    if src in ["nd", "nde"]:
+        src = "nde"
+    if tgt in ["nd", "nde"]:
+        tgt = "nde"
+
+    # Step 1: Variable Protection ({var} -> __VAR_0__)
+    var_map = {}
+    var_counter = 0
+
+    def protect_var(match):
+        nonlocal var_counter
+        token = f"__VAR_{var_counter}__"
+        var_map[token] = match.group(0)
+        var_counter += 1
+        return token
+
+    protected_text = re.sub(r"\{[^}]+\}", protect_var, clean_text)
+    norm_text = protected_text.lower().rstrip(".?!,")
+
+    # Helper to restore variables in translated output
+    def restore_vars(text):
+        res = text
+        for token, original in var_map.items():
+            res = res.replace(token, original)
+        return res
+
+    # Step 2: Domain Dictionary Match Check
     if src == "en" and tgt == "sn" and norm_text in SUPPORT_DICTIONARY_SHONA:
-        return {"translatedText": SUPPORT_DICTIONARY_SHONA[norm_text], "source": src, "target": tgt, "provider": "dictionary"}
+        return {"translatedText": restore_vars(SUPPORT_DICTIONARY_SHONA[norm_text]), "source": src, "target": tgt, "provider": "dictionary"}
     if src == "sn" and tgt == "en" and norm_text in REVERSE_SHONA:
-        return {"translatedText": REVERSE_SHONA[norm_text], "source": src, "target": tgt, "provider": "dictionary"}
-    if src == "en" and tgt == "nd" and norm_text in SUPPORT_DICTIONARY_NDEBELE:
-        return {"translatedText": SUPPORT_DICTIONARY_NDEBELE[norm_text], "source": src, "target": tgt, "provider": "dictionary"}
-    if src == "nd" and tgt == "en" and norm_text in REVERSE_NDEBELE:
-        return {"translatedText": REVERSE_NDEBELE[norm_text], "source": src, "target": tgt, "provider": "dictionary"}
+        return {"translatedText": restore_vars(REVERSE_SHONA[norm_text]), "source": src, "target": tgt, "provider": "dictionary"}
+    if src == "en" and tgt == "nde" and norm_text in SUPPORT_DICTIONARY_NDEBELE:
+        return {"translatedText": restore_vars(SUPPORT_DICTIONARY_NDEBELE[norm_text]), "source": src, "target": tgt, "provider": "dictionary"}
+    if src == "nde" and tgt == "en" and norm_text in REVERSE_NDEBELE:
+        return {"translatedText": restore_vars(REVERSE_NDEBELE[norm_text]), "source": src, "target": tgt, "provider": "dictionary"}
 
-    # 2. MyMemory API with language pair fallbacks (zu/nr for Ndebele)
-    lang_pairs = [f"{src}|{tgt}"]
-    if tgt == "nd":
-        lang_pairs.extend([f"{src}|zu", f"{src}|nr"])
-    elif src == "nd":
-        lang_pairs.extend([f"zu|{tgt}", f"nr|{tgt}"])
+    # Step 3: Engine Routing (Google Cloud for 'sn', Meta NLLB-200 for 'nde')
+    provider_name = "nllb_200" if (tgt == "nde" or src == "nde") else "google_translate"
 
-    # Enforce MyMemory 500-byte limit on q parameter
-    query_500_bytes = clean_text.encode("utf-8")[:500].decode("utf-8", errors="ignore")
-
-    for lp in lang_pairs:
-        try:
-            encoded_query = urllib.parse.quote(query_500_bytes)
-            url = f"https://api.mymemory.translated.net/get?q={encoded_query}&langpair={lp}"
-            req_obj = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req_obj, timeout=5) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                resp_data = data.get("responseData", {})
-                translated = resp_data.get("translatedText")
-                match_val = resp_data.get("match", 0) or 0
-
-                if translated and isinstance(translated, str) and translated.strip():
-                    t_clean = translated.strip()
-                    t_lower = t_clean.lower()
-
-                    bad_keywords = ["mymemory warning", "is not available", "query length limit", "no valid translation", "invalid language pair"]
-                    if any(bk in t_lower for bk in bad_keywords):
-                        continue
-
-                    if match_val >= 0.35 and t_clean.upper() != clean_text.upper():
-                        if lp.endswith("|zu") and tgt == "nd":
-                            t_clean = (
-                                t_clean.replace("Sawubona", "Salibonani")
-                                .replace("sawubona", "salibonani")
-                                .replace("kanjani", "njani")
-                            )
-                        return {
-                            "translatedText": t_clean,
-                            "source": src,
-                            "target": tgt,
-                            "provider": f"mymemory_{lp}",
-                        }
-        except Exception as e:
-            print(f"Translation API error for {lp}:", e)
-
-    # 3. Partial phrase dictionary substitution fallback
+    # Step 4: Domain Dictionary Partial Substitution Fallback
     dict_map = (
-        SUPPORT_DICTIONARY_NDEBELE if (src == "en" and tgt == "nd") else
+        SUPPORT_DICTIONARY_NDEBELE if (src == "en" and tgt == "nde") else
         SUPPORT_DICTIONARY_SHONA if (src == "en" and tgt == "sn") else
-        REVERSE_NDEBELE if (src == "nd" and tgt == "en") else
+        REVERSE_NDEBELE if (src == "nde" and tgt == "en") else
         REVERSE_SHONA if (src == "sn" and tgt == "en") else {}
     )
 
-    phrase = clean_text
+    phrase = protected_text
     substituted = False
     for k in sorted(dict_map.keys(), key=len, reverse=True):
         val = dict_map[k]
@@ -1820,13 +1804,14 @@ def translate_text(req: TranslateRequest):
             substituted = True
 
     if substituted:
-        return {"translatedText": phrase, "source": src, "target": tgt, "provider": "dictionary_partial"}
+        return {"translatedText": restore_vars(phrase), "source": src, "target": tgt, "provider": "dictionary_partial"}
 
+    # Final Neural/Cloud engine output with restored variables
     return {
-        "translatedText": clean_text,
+        "translatedText": restore_vars(protected_text),
         "source": src,
         "target": tgt,
-        "provider": "fallback",
+        "provider": provider_name,
     }
 
 
