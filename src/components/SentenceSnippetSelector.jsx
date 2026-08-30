@@ -131,19 +131,19 @@ export default function SentenceSnippetSelector({
         </div>
       )}
 
-      {/* Live Preview Box with Hover & Click Sentence Selection */}
+      {/* Live Preview Box with Inline Hover & Click Sentence Selection */}
       <div
-        className="rounded-2xl border p-4 min-h-[10rem] max-h-[22rem] overflow-y-auto break-words [overflow-wrap:anywhere] font-mono text-sm leading-relaxed select-none"
+        className="rounded-2xl border p-4 min-h-[10rem] max-h-[22rem] overflow-y-auto break-words [overflow-wrap:anywhere] font-mono text-sm leading-relaxed"
         style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
       >
         {!generatedMsg ? (
           <span style={{ color: "var(--field-placeholder)" }}>Select a template to preview response...</span>
         ) : sentences.length > 1 ? (
-          <div className="flex flex-col gap-2">
+          <p className="font-mono text-sm leading-relaxed whitespace-pre-wrap select-none">
             {sentences.map((sent, idx) => {
               const isSelected = checkedIndexes.includes(idx);
               return (
-                <div
+                <span
                   key={idx}
                   onClick={() => {
                     if (isSelected) {
@@ -153,29 +153,26 @@ export default function SentenceSnippetSelector({
                     }
                   }}
                   title={`Click to ${isSelected ? "exclude" : "include"} this sentence`}
-                  className={`p-2.5 rounded-xl border transition-all duration-200 cursor-pointer flex items-start gap-2.5 ${
+                  className={`transition-all duration-150 cursor-pointer inline rounded px-1 py-0.5 mr-1 ${
                     isSelected
-                      ? "border-[#4cd34c]/50 bg-[#4cd34c]/10 text-[var(--app-text)] font-medium shadow-sm hover:bg-[#4cd34c]/20 hover:border-[#4cd34c]"
-                      : "border-dashed border-gray-600/40 opacity-40 grayscale line-through hover:opacity-75 hover:border-gray-400"
+                      ? "hover:bg-[#4cd34c]/25 hover:text-[#4cd34c] hover:underline"
+                      : "opacity-40 grayscale line-through bg-gray-500/10 hover:opacity-75 hover:bg-gray-500/20"
                   }`}
                 >
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${isSelected ? "bg-[#4cd34c] text-black" : "bg-gray-700 text-gray-300"}`}>
-                    {isSelected ? "✓" : "✕"}
-                  </span>
-                  <span className="break-words [overflow-wrap:anywhere] text-xs leading-relaxed font-sans">{sent}</span>
-                </div>
+                  {sent}
+                </span>
               );
             })}
-          </div>
+          </p>
         ) : (
-          <span className="font-mono text-sm leading-relaxed">{effectiveCopyMsg}</span>
+          <span className="font-mono text-sm leading-relaxed whitespace-pre-wrap">{effectiveCopyMsg}</span>
         )}
       </div>
 
       {generatedMsg && sentences.length > 1 && (
         <p className="text-[11px] italic opacity-70 flex items-center gap-1" style={{ color: "var(--text-muted)" }}>
           <span>💡</span>
-          <span>Hover over any sentence block above & click to include or exclude it from copy text.</span>
+          <span>Hover over any sentence in the message preview above & click to toggle inclusion.</span>
         </p>
       )}
 
