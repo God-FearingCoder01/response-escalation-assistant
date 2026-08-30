@@ -14,7 +14,7 @@ export default function SentenceSnippetSelector({
   setReplyChannel,
   currentAgent,
 }) {
-  const [mode, setMode] = useState("full"); // "full" | "sentences"
+  const [isFullMessage, setIsFullMessage] = useState(true);
   const [checkedIndexes, setCheckedIndexes] = useState([]);
   const [savingSnippet, setSavingSnippet] = useState(false);
   const [snippetTitle, setSnippetTitle] = useState("");
@@ -37,28 +37,36 @@ export default function SentenceSnippetSelector({
     return splitIntoSentences(generatedMsg);
   }, [generatedMsg]);
 
-  // By default, check all sentences when template/msg changes
+  // Only reset checked indexes when the template itself changes, NOT when replyChannel switches
+  const prevTemplateIdRef = useRef(activeTemplate?.id);
   useEffect(() => {
-    if (sentences.length > 0) {
+    if (activeTemplate?.id !== prevTemplateIdRef.current) {
+      prevTemplateIdRef.current = activeTemplate?.id;
+      if (sentences.length > 0) {
+        setCheckedIndexes(sentences.map((_, idx) => idx));
+      } else {
+        setCheckedIndexes([]);
+      }
+    } else if (sentences.length > 0 && checkedIndexes.length === 0 && !isFullMessage) {
+      // Keep valid bounds
       setCheckedIndexes(sentences.map((_, idx) => idx));
-    } else {
-      setCheckedIndexes([]);
     }
-  }, [sentences]);
+  }, [activeTemplate?.id, sentences]);
 
-  // Calculate effective text based on checked indexes
+  // Calculate effective text based on isFullMessage mode and checked indexes
   const effectiveCopyMsg = useMemo(() => {
     if (!generatedMsg) return "";
+    if (isFullMessage) return generatedMsg;
     if (sentences.length > 0) {
       const selected = sentences.filter((_, idx) => checkedIndexes.includes(idx));
       return selected.join(" ");
     }
     return generatedMsg;
-  }, [generatedMsg, sentences, checkedIndexes]);
+  }, [generatedMsg, isFullMessage, sentences, checkedIndexes]);
 
   const handleCopy = () => {
     if (!effectiveCopyMsg) return;
-    const msgType = checkedIndexes.length < sentences.length ? "Selected sentences copied! 📋" : "Quick message copied to clipboard! 📋";
+    const msgType = !isFullMessage && checkedIndexes.length < sentences.length ? "Selected sentences copied! 📋" : "Quick message copied to clipboard! 📋";
     copyText(effectiveCopyMsg, msgType, activeTemplate?.id);
 
     if (activeTemplate && (activeTemplate.is_private_note || activeTemplate.agent_initials || quickTab === "private_notes" || privList.some((n) => n.id === activeTemplate.id))) {
@@ -99,46 +107,71 @@ export default function SentenceSnippetSelector({
 
   return (
     <div className="space-y-3">
-      {/* Interactive Sentence Header Bar */}
-      {generatedMsg && sentences.length > 1 && (
+      {/* Header Bar with Full Message Radio Toggle & Sentence Controls */}
+      {generatedMsg && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2" style={{ borderColor: "var(--field-border)" }}>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Interactive Sentence Picker:
+          {/* Full Message Radio Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setIsFullMessage((prev) => !prev)}
+            className="flex items-center gap-2 cursor-pointer group py-0.5 select-none"
+            title={isFullMessage ? "Click to enable interactive sentence picker" : "Click to select Full Message"}
+          >
+            <div
+              className={`h-4 w-4 rounded-full border-2 flex items-center justify-center transition-all ${
+                isFullMessage
+                  ? "border-[#4cd34c] bg-[#4cd34c]/20"
+                  : "border-gray-500 bg-transparent group-hover:border-gray-400"
+              }`}
+            >
+              <div
+                className={`h-2 w-2 rounded-full transition-all ${
+                  isFullMessage ? "bg-[#4cd34c] scale-100" : "bg-gray-500 scale-75 opacity-60"
+                }`}
+              />
+            </div>
+            <span className={`text-xs font-bold transition-colors ${isFullMessage ? "text-[#4cd34c]" : "text-[var(--text-muted)] group-hover:text-[var(--app-text)]"}`}>
+              Full Message
             </span>
-            <span className="text-[10px] font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2 py-0.5 rounded-full">
-              {checkedIndexes.length} of {sentences.length} selected
-            </span>
-          </div>
+          </button>
 
-          <div className="flex items-center gap-2 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setCheckedIndexes(sentences.map((_, i) => i))}
-              className="text-[11px] text-[#4cd34c] hover:underline font-bold cursor-pointer"
-            >
-              Select All
-            </button>
-            <span className="text-[var(--text-muted)]">•</span>
-            <button
-              type="button"
-              onClick={() => setCheckedIndexes([])}
-              className="text-[11px] text-[var(--text-muted)] hover:text-red-400 hover:underline cursor-pointer"
-            >
-              Clear All
-            </button>
-          </div>
+          {/* Interactive Sentence Controls (Visible when Full Message is OFF) */}
+          {!isFullMessage && sentences.length > 1 && (
+            <div className="flex items-center gap-3 text-xs font-semibold animate-fade-in">
+              <span className="text-[10px] font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2 py-0.5 rounded-full">
+                {checkedIndexes.length} of {sentences.length} selected
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCheckedIndexes(sentences.map((_, i) => i))}
+                  className="text-[11px] text-[#4cd34c] hover:underline font-bold cursor-pointer"
+                >
+                  Select All
+                </button>
+                <span className="text-[var(--text-muted)]">•</span>
+                <button
+                  type="button"
+                  onClick={() => setCheckedIndexes([])}
+                  className="text-[11px] text-[var(--text-muted)] hover:text-red-400 hover:underline cursor-pointer"
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Live Preview Box with Inline Hover & Click Sentence Selection */}
+      {/* Live Preview Box */}
       <div
         className="rounded-2xl border p-4 min-h-[10rem] max-h-[22rem] overflow-y-auto break-words [overflow-wrap:anywhere] font-mono text-sm leading-relaxed"
         style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
       >
         {!generatedMsg ? (
           <span style={{ color: "var(--field-placeholder)" }}>Select a template to preview response...</span>
-        ) : sentences.length > 1 ? (
+        ) : !isFullMessage && sentences.length > 1 ? (
           <p className="font-mono text-sm leading-relaxed whitespace-pre-wrap select-none">
             {sentences.map((sent, idx) => {
               const isSelected = checkedIndexes.includes(idx);
@@ -165,11 +198,11 @@ export default function SentenceSnippetSelector({
             })}
           </p>
         ) : (
-          <span className="font-mono text-sm leading-relaxed whitespace-pre-wrap">{effectiveCopyMsg}</span>
+          <span className="font-mono text-sm leading-relaxed whitespace-pre-wrap">{generatedMsg}</span>
         )}
       </div>
 
-      {generatedMsg && sentences.length > 1 && (
+      {generatedMsg && !isFullMessage && sentences.length > 1 && (
         <p className="text-[11px] italic opacity-70 flex items-center gap-1" style={{ color: "var(--text-muted)" }}>
           <span>💡</span>
           <span>Hover over any sentence in the message preview above & click to toggle inclusion.</span>
@@ -201,7 +234,7 @@ export default function SentenceSnippetSelector({
                 <span>Copy Message Text 📋</span>
               )}
 
-              {sentences.length > 1 && checkedIndexes.length < sentences.length && (
+              {!isFullMessage && sentences.length > 1 && checkedIndexes.length < sentences.length && (
                 <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full font-bold">
                   ({checkedIndexes.length} of {sentences.length} sentences)
                 </span>
