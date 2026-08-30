@@ -133,6 +133,7 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
     return { translatedText: "", provider: "empty" };
   }
 
+  const cleanText = text.trim();
   let src = sourceLang.toLowerCase();
   let tgt = targetLang.toLowerCase();
 
