@@ -46,19 +46,19 @@ export default function SentenceSnippetSelector({
     }
   }, [sentences]);
 
-  // Calculate effective text based on mode and checked indexes
+  // Calculate effective text based on checked indexes
   const effectiveCopyMsg = useMemo(() => {
     if (!generatedMsg) return "";
-    if (mode === "sentences" && sentences.length > 0) {
+    if (sentences.length > 0) {
       const selected = sentences.filter((_, idx) => checkedIndexes.includes(idx));
       return selected.join(" ");
     }
     return generatedMsg;
-  }, [generatedMsg, mode, sentences, checkedIndexes]);
+  }, [generatedMsg, sentences, checkedIndexes]);
 
   const handleCopy = () => {
     if (!effectiveCopyMsg) return;
-    const msgType = mode === "sentences" && checkedIndexes.length < sentences.length ? "Selected sentences copied! 📋" : "Quick message copied to clipboard! 📋";
+    const msgType = checkedIndexes.length < sentences.length ? "Selected sentences copied! 📋" : "Quick message copied to clipboard! 📋";
     copyText(effectiveCopyMsg, msgType, activeTemplate?.id);
 
     if (activeTemplate && (activeTemplate.is_private_note || activeTemplate.agent_initials || quickTab === "private_notes" || privList.some((n) => n.id === activeTemplate.id))) {
@@ -99,92 +99,85 @@ export default function SentenceSnippetSelector({
 
   return (
     <div className="space-y-3">
-      {/* Mode Selector Tabs */}
+      {/* Interactive Sentence Header Bar */}
       {generatedMsg && sentences.length > 1 && (
-        <div className="flex items-center justify-between border-b pb-2" style={{ borderColor: "var(--field-border)" }}>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-            Response Output Mode:
-          </span>
-          <div className="flex items-center rounded-xl border p-1 text-xs" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2" style={{ borderColor: "var(--field-border)" }}>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+              Interactive Sentence Picker:
+            </span>
+            <span className="text-[10px] font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2 py-0.5 rounded-full">
+              {checkedIndexes.length} of {sentences.length} selected
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs font-semibold">
             <button
               type="button"
-              onClick={() => setMode("full")}
-              className={`px-2.5 py-1 rounded-lg font-bold transition ${mode === "full" ? "bg-[#4cd34c] text-[#071007]" : "text-[var(--text-muted)] hover:opacity-100"}`}
+              onClick={() => setCheckedIndexes(sentences.map((_, i) => i))}
+              className="text-[11px] text-[#4cd34c] hover:underline font-bold cursor-pointer"
             >
-              Full Message
+              Select All
             </button>
+            <span className="text-[var(--text-muted)]">•</span>
             <button
               type="button"
-              onClick={() => setMode("sentences")}
-              className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 ${mode === "sentences" ? "bg-[#4cd34c] text-[#071007]" : "text-[var(--text-muted)] hover:opacity-100"}`}
+              onClick={() => setCheckedIndexes([])}
+              className="text-[11px] text-[var(--text-muted)] hover:text-red-400 hover:underline cursor-pointer"
             >
-              <span>Sentence Checkboxes</span>
-              <span className="text-[10px] bg-black/20 px-1.5 py-0.2 rounded-full font-mono">{sentences.length}</span>
+              Clear All
             </button>
           </div>
         </div>
       )}
 
-      {/* Sentence Checkbox Selection List */}
-      {mode === "sentences" && sentences.length > 0 && (
-        <div className="space-y-2 p-3 rounded-2xl border bg-[var(--field-bg)] shadow-inner max-h-48 overflow-y-auto pr-1" style={{ borderColor: "#4cd34c" }}>
-          <div className="flex items-center justify-between text-[11px] font-bold text-[#4cd34c] border-b pb-1.5" style={{ borderColor: "var(--field-border)" }}>
-            <span>☑ Select Sentences to Include:</span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setCheckedIndexes(sentences.map((_, i) => i))}
-                className="hover:underline font-semibold text-[10px]"
-              >
-                Select All
-              </button>
-              <span>•</span>
-              <button
-                type="button"
-                onClick={() => setCheckedIndexes([])}
-                className="hover:underline font-semibold text-[10px]"
-              >
-                Clear All
-              </button>
-            </div>
-          </div>
-          {sentences.map((sent, idx) => {
-            const isChecked = checkedIndexes.includes(idx);
-            return (
-              <label
-                key={idx}
-                className={`flex items-start gap-2.5 p-2 rounded-xl border text-xs font-mono transition cursor-pointer ${
-                  isChecked
-                    ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[var(--app-text)] font-semibold"
-                    : "opacity-60 border-[var(--field-border)] hover:opacity-100"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={() => {
-                    if (isChecked) {
+      {/* Live Preview Box with Hover & Click Sentence Selection */}
+      <div
+        className="rounded-2xl border p-4 min-h-[10rem] max-h-[22rem] overflow-y-auto break-words [overflow-wrap:anywhere] font-mono text-sm leading-relaxed select-none"
+        style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+      >
+        {!generatedMsg ? (
+          <span style={{ color: "var(--field-placeholder)" }}>Select a template to preview response...</span>
+        ) : sentences.length > 1 ? (
+          <div className="flex flex-col gap-2">
+            {sentences.map((sent, idx) => {
+              const isSelected = checkedIndexes.includes(idx);
+              return (
+                <div
+                  key={idx}
+                  onClick={() => {
+                    if (isSelected) {
                       setCheckedIndexes(checkedIndexes.filter((i) => i !== idx));
                     } else {
                       setCheckedIndexes([...checkedIndexes, idx]);
                     }
                   }}
-                  className="mt-0.5 accent-[#4cd34c] shrink-0"
-                />
-                <span className="break-words [overflow-wrap:anywhere]">{sent}</span>
-              </label>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Live Preview Box */}
-      <div
-        className="rounded-2xl border p-4 min-h-[10rem] max-h-[22rem] overflow-y-auto break-words [overflow-wrap:anywhere] font-mono text-sm leading-relaxed"
-        style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-      >
-        {effectiveCopyMsg || <span style={{ color: "var(--field-placeholder)" }}>Select a template or check sentences...</span>}
+                  title={`Click to ${isSelected ? "exclude" : "include"} this sentence`}
+                  className={`p-2.5 rounded-xl border transition-all duration-200 cursor-pointer flex items-start gap-2.5 ${
+                    isSelected
+                      ? "border-[#4cd34c]/50 bg-[#4cd34c]/10 text-[var(--app-text)] font-medium shadow-sm hover:bg-[#4cd34c]/20 hover:border-[#4cd34c]"
+                      : "border-dashed border-gray-600/40 opacity-40 grayscale line-through hover:opacity-75 hover:border-gray-400"
+                  }`}
+                >
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${isSelected ? "bg-[#4cd34c] text-black" : "bg-gray-700 text-gray-300"}`}>
+                    {isSelected ? "✓" : "✕"}
+                  </span>
+                  <span className="break-words [overflow-wrap:anywhere] text-xs leading-relaxed font-sans">{sent}</span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <span className="font-mono text-sm leading-relaxed">{effectiveCopyMsg}</span>
+        )}
       </div>
+
+      {generatedMsg && sentences.length > 1 && (
+        <p className="text-[11px] italic opacity-70 flex items-center gap-1" style={{ color: "var(--text-muted)" }}>
+          <span>💡</span>
+          <span>Hover over any sentence block above & click to include or exclude it from copy text.</span>
+        </p>
+      )}
 
       {/* Primary Copy & Save Snippet Actions */}
       <div className="space-y-2 pt-2">
@@ -211,7 +204,7 @@ export default function SentenceSnippetSelector({
                 <span>Copy Message Text 📋</span>
               )}
 
-              {mode === "sentences" && checkedIndexes.length < sentences.length && (
+              {sentences.length > 1 && checkedIndexes.length < sentences.length && (
                 <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full font-bold">
                   ({checkedIndexes.length} of {sentences.length} sentences)
                 </span>
