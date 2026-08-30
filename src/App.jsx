@@ -43,6 +43,7 @@ export default function App() {
   const [saving] = useState(false);
   const [error, setError] = useState("");
   const [apiStatus, setApiStatus] = useState("checking");
+  const [statusMessage, setStatusMessage] = useState("");
   const [values, setValues] = useState({});
   const [showSmartExtractor, setShowSmartExtractor] = useState(false);
 
