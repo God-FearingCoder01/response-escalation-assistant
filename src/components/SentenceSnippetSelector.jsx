@@ -32,41 +32,82 @@ export default function SentenceSnippetSelector({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Split generatedMsg into individual sentences whenever it changes
-  const sentences = useMemo(() => {
-    return splitIntoSentences(generatedMsg);
+  // Parse generatedMsg into sentence objects while preserving trailing newlines/whitespace
+  const parsedSentences = useMemo(() => {
+    if (!generatedMsg || typeof generatedMsg !== "string") return [];
+    const regex = /([^.!?\n]+[.!?\n]*)([\s\n]*)/g;
+    const result = [];
+    let match;
+    let lastIndex = 0;
+
+    while ((match = regex.exec(generatedMsg)) !== null) {
+      if (match.index === regex.lastIndex) {
+        regex.lastIndex++;
+      }
+      const sentenceText = match[1];
+      const trailingSpace = match[2];
+
+      if (sentenceText.trim()) {
+        result.push({
+          text: sentenceText.trim(),
+          raw: sentenceText,
+          spacing: trailingSpace,
+        });
+      } else if (trailingSpace && result.length > 0) {
+        result[result.length - 1].spacing += trailingSpace;
+      }
+      lastIndex = regex.lastIndex;
+    }
+
+    if (lastIndex < generatedMsg.length) {
+      const remainder = generatedMsg.slice(lastIndex);
+      if (remainder.trim()) {
+        result.push({
+          text: remainder.trim(),
+          raw: remainder,
+          spacing: "",
+        });
+      } else if (remainder && result.length > 0) {
+        result[result.length - 1].spacing += remainder;
+      }
+    }
+
+    return result.length > 0 ? result : [{ text: generatedMsg, raw: generatedMsg, spacing: "" }];
   }, [generatedMsg]);
+
+  // Backward compatibility alias
+  const sentences = parsedSentences;
 
   // Only reset checked indexes when the template itself changes, NOT when replyChannel switches
   const prevTemplateIdRef = useRef(activeTemplate?.id);
   useEffect(() => {
     if (activeTemplate?.id !== prevTemplateIdRef.current) {
       prevTemplateIdRef.current = activeTemplate?.id;
-      if (sentences.length > 0) {
-        setCheckedIndexes(sentences.map((_, idx) => idx));
+      if (parsedSentences.length > 0) {
+        setCheckedIndexes(parsedSentences.map((_, idx) => idx));
       } else {
         setCheckedIndexes([]);
       }
-    } else if (sentences.length > 0 && checkedIndexes.length === 0 && !isFullMessage) {
+    } else if (parsedSentences.length > 0 && checkedIndexes.length === 0 && !isFullMessage) {
       // Keep valid bounds
-      setCheckedIndexes(sentences.map((_, idx) => idx));
+      setCheckedIndexes(parsedSentences.map((_, idx) => idx));
     }
-  }, [activeTemplate?.id, sentences]);
+  }, [activeTemplate?.id, parsedSentences]);
 
-  // Calculate effective text based on isFullMessage mode and checked indexes
+  // Calculate effective text preserving original line breaks and spacing
   const effectiveCopyMsg = useMemo(() => {
     if (!generatedMsg) return "";
     if (isFullMessage) return generatedMsg;
-    if (sentences.length > 0) {
-      const selected = sentences.filter((_, idx) => checkedIndexes.includes(idx));
-      return selected.join(" ");
+    if (parsedSentences.length > 0) {
+      const selected = parsedSentences.filter((_, idx) => checkedIndexes.includes(idx));
+      return selected.map((item) => item.raw + item.spacing).join("").trim();
     }
     return generatedMsg;
-  }, [generatedMsg, isFullMessage, sentences, checkedIndexes]);
+  }, [generatedMsg, isFullMessage, parsedSentences, checkedIndexes]);
 
   const handleCopy = () => {
     if (!effectiveCopyMsg) return;
-    const msgType = !isFullMessage && checkedIndexes.length < sentences.length ? "Selected sentences copied! 📋" : "Quick message copied to clipboard! 📋";
+    const msgType = !isFullMessage && checkedIndexes.length < parsedSentences.length ? "Selected sentences copied! 📋" : "Quick message copied to clipboard! 📋";
     copyText(effectiveCopyMsg, msgType, activeTemplate?.id);
 
     if (activeTemplate && (activeTemplate.is_private_note || activeTemplate.agent_initials || quickTab === "private_notes" || privList.some((n) => n.id === activeTemplate.id))) {
@@ -136,16 +177,16 @@ export default function SentenceSnippetSelector({
           </button>
 
           {/* Interactive Sentence Controls (Visible when Full Message is OFF) */}
-          {!isFullMessage && sentences.length > 1 && (
+          {!isFullMessage && parsedSentences.length > 1 && (
             <div className="flex items-center gap-3 text-xs font-semibold animate-fade-in">
               <span className="text-[10px] font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2 py-0.5 rounded-full">
-                {checkedIndexes.length} of {sentences.length} selected
+                {checkedIndexes.length} of {parsedSentences.length} selected
               </span>
 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setCheckedIndexes(sentences.map((_, i) => i))}
+                  onClick={() => setCheckedIndexes(parsedSentences.map((_, i) => i))}
                   className="text-[11px] text-[#4cd34c] hover:underline font-bold cursor-pointer"
                 >
                   Select All
@@ -171,32 +212,34 @@ export default function SentenceSnippetSelector({
       >
         {!generatedMsg ? (
           <span style={{ color: "var(--field-placeholder)" }}>Select a template to preview response...</span>
-        ) : !isFullMessage && sentences.length > 1 ? (
-          <p className="font-mono text-sm leading-relaxed whitespace-pre-wrap select-none">
-            {sentences.map((sent, idx) => {
+        ) : !isFullMessage && parsedSentences.length > 1 ? (
+          <div className="font-mono text-sm leading-relaxed whitespace-pre-wrap select-none">
+            {parsedSentences.map((item, idx) => {
               const isSelected = checkedIndexes.includes(idx);
               return (
-                <span
-                  key={idx}
-                  onClick={() => {
-                    if (isSelected) {
-                      setCheckedIndexes(checkedIndexes.filter((i) => i !== idx));
-                    } else {
-                      setCheckedIndexes([...checkedIndexes, idx]);
-                    }
-                  }}
-                  title={`Click to ${isSelected ? "exclude" : "include"} this sentence`}
-                  className={`transition-all duration-150 cursor-pointer inline rounded px-1 py-0.5 mr-1 ${
-                    isSelected
-                      ? "hover:bg-[#4cd34c]/25 hover:text-[#4cd34c] hover:underline"
-                      : "opacity-40 grayscale line-through bg-gray-500/10 hover:opacity-75 hover:bg-gray-500/20"
-                  }`}
-                >
-                  {sent}
+                <span key={idx}>
+                  <span
+                    onClick={() => {
+                      if (isSelected) {
+                        setCheckedIndexes(checkedIndexes.filter((i) => i !== idx));
+                      } else {
+                        setCheckedIndexes([...checkedIndexes, idx]);
+                      }
+                    }}
+                    title={`Click to ${isSelected ? "exclude" : "include"} this sentence`}
+                    className={`transition-all duration-150 cursor-pointer inline rounded px-1 py-0.5 ${
+                      isSelected
+                        ? "hover:bg-[#4cd34c]/25 hover:text-[#4cd34c] hover:underline"
+                        : "opacity-40 grayscale line-through bg-gray-500/10 hover:opacity-75 hover:bg-gray-500/20"
+                    }`}
+                  >
+                    {item.raw}
+                  </span>
+                  {item.spacing}
                 </span>
               );
             })}
-          </p>
+          </div>
         ) : (
           <span className="font-mono text-sm leading-relaxed whitespace-pre-wrap">{generatedMsg}</span>
         )}
