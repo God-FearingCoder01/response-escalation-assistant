@@ -123,23 +123,25 @@ export function extractStructuredData(rawText = "", rules = []) {
 
   activeRules.forEach((rule) => {
     try {
-      if (rule.method === "keyword" && rule.keyword) {
+      if (rule.method === "keyword" && rule.keyword && typeof rule.keyword === "string") {
         const kw = rule.keyword.trim().toLowerCase();
-        const lowerText = rawText.toLowerCase();
-        const kwIdx = lowerText.indexOf(kw);
-        if (kwIdx !== -1) {
-          const afterKw = rawText.slice(kwIdx + kw.length).trim();
-          const match = afterKw.match(/^[:\s-]*([A-Za-z0-9$.-]+)/);
-          if (match && match[1]) {
-            results.push({
-              id: rule.id,
-              label: rule.result_label || rule.name,
-              value: match[1],
-              confidence: "high",
-              ruleName: rule.name,
-              targetPlaceholder: rule.target_placeholder,
-            });
-            return;
+        const lowerText = (rawText || "").toLowerCase();
+        if (kw && lowerText) {
+          const kwIdx = lowerText.indexOf(kw);
+          if (kwIdx !== -1) {
+            const afterKw = rawText.slice(kwIdx + kw.length).trim();
+            const match = afterKw.match(/^[:\s-]*([A-Za-z0-9$.-]+)/);
+            if (match && match[1]) {
+              results.push({
+                id: rule.id,
+                label: rule.result_label || rule.name,
+                value: match[1],
+                confidence: "high",
+                ruleName: rule.name,
+                targetPlaceholder: rule.target_placeholder,
+              });
+              return;
+            }
           }
         }
       }

@@ -344,7 +344,7 @@ export function resolveConditionalMappings(placeholders = [], parsedConfig = {},
         if (cfg?.mapping && typeof cfg.mapping === "object" && triggerVal) {
           mappedVal = cfg.mapping[triggerVal] || "";
         } else if (Array.isArray(cfg?.options) && Array.isArray(cfg?.mapped_options) && triggerVal) {
-          const idx = cfg.options.indexOf(triggerVal);
+          const idx = cfg.options?.indexOf ? cfg.options.indexOf(triggerVal) : -1;
           if (idx !== -1 && cfg.mapped_options[idx]) {
             mappedVal = cfg.mapped_options[idx];
           }
