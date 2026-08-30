@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from "react";
 import { getPresetPhrases, savePresetPhrases, DEFAULT_PRESET_PHRASES } from "../services/translationService";
+import { fetchExtractionRules, saveExtractionRulesLocally, buildPatternString } from "../services/smartExtractorService";
 
 export default function AdminDashboard({
   activeScreen,
@@ -236,6 +237,110 @@ export default function AdminDashboard({
         [phKey]: { ...current, ...updates },
       };
     });
+  };
+
+  const [extractionRules, setExtractionRules] = useState([]);
+  const [editRuleId, setEditRuleId] = useState(null);
+  const [ruleName, setRuleName] = useState("");
+  const [ruleDescription, setRuleDescription] = useState("");
+  const [ruleMethod, setRuleMethod] = useState("pattern");
+  const [rulePrefix, setRulePrefix] = useState("");
+  const [ruleValueType, setRuleValueType] = useState("numbers");
+  const [ruleMinLength, setRuleMinLength] = useState("8");
+  const [ruleMaxLength, setRuleMaxLength] = useState("12");
+  const [ruleKeyword, setRuleKeyword] = useState("");
+  const [ruleResultLabel, setRuleResultLabel] = useState("");
+  const [ruleTargetPlaceholder, setRuleTargetPlaceholder] = useState("transaction_number");
+  const [ruleCustomRegex, setRuleCustomRegex] = useState("");
+  const [ruleIsActive, setRuleIsActive] = useState(true);
+
+  useEffect(() => {
+    fetchExtractionRules().then(setExtractionRules);
+  }, []);
+
+  const handleSaveExtractionRule = (e) => {
+    e.preventDefault();
+    if (!ruleName.trim() || !ruleResultLabel.trim()) return;
+
+    const pattern = buildPatternString({
+      prefix: rulePrefix,
+      valueType: ruleValueType,
+      minLength: ruleMinLength,
+      maxLength: ruleMaxLength,
+      customRegex: ruleCustomRegex,
+    });
+
+    const newRule = {
+      id: editRuleId || `rule_${Date.now()}`,
+      name: ruleName.trim(),
+      description: ruleDescription.trim(),
+      method: ruleMethod,
+      pattern: pattern,
+      prefix: rulePrefix.trim(),
+      valueType: ruleValueType,
+      minLength: parseInt(ruleMinLength, 10) || 1,
+      maxLength: parseInt(ruleMaxLength, 10) || 12,
+      keyword: ruleKeyword.trim(),
+      result_label: ruleResultLabel.trim(),
+      target_placeholder: ruleTargetPlaceholder.trim(),
+      is_active: ruleIsActive,
+    };
+
+    let updated;
+    if (editRuleId) {
+      updated = extractionRules.map((r) => (r.id === editRuleId ? newRule : r));
+    } else {
+      updated = [...extractionRules, newRule];
+    }
+
+    setExtractionRules(updated);
+    saveExtractionRulesLocally(updated);
+    handleResetRuleForm();
+  };
+
+  const handleResetRuleForm = () => {
+    setEditRuleId(null);
+    setRuleName("");
+    setRuleDescription("");
+    setRuleMethod("pattern");
+    setRulePrefix("");
+    setRuleValueType("numbers");
+    setRuleMinLength("8");
+    setRuleMaxLength("12");
+    setRuleKeyword("");
+    setRuleResultLabel("");
+    setRuleTargetPlaceholder("transaction_number");
+    setRuleCustomRegex("");
+    setRuleIsActive(true);
+  };
+
+  const handleEditRuleClick = (r) => {
+    setEditRuleId(r.id);
+    setRuleName(r.name || "");
+    setRuleDescription(r.description || "");
+    setRuleMethod(r.method || "pattern");
+    setRulePrefix(r.prefix || "");
+    setRuleValueType(r.valueType || "numbers");
+    setRuleMinLength(String(r.minLength || 8));
+    setRuleMaxLength(String(r.maxLength || 12));
+    setRuleKeyword(r.keyword || "");
+    setRuleResultLabel(r.result_label || "");
+    setRuleTargetPlaceholder(r.target_placeholder || "transaction_number");
+    setRuleCustomRegex(r.pattern || "");
+    setRuleIsActive(r.is_active !== false);
+  };
+
+  const handleToggleRuleActive = (id) => {
+    const updated = extractionRules.map((r) => (r.id === id ? { ...r, is_active: !r.is_active } : r));
+    setExtractionRules(updated);
+    saveExtractionRulesLocally(updated);
+  };
+
+  const handleDeleteRule = (id) => {
+    const updated = extractionRules.filter((r) => r.id !== id);
+    setExtractionRules(updated);
+    saveExtractionRulesLocally(updated);
+    if (editRuleId === id) handleResetRuleForm();
   };
 
   useEffect(() => {
@@ -1527,6 +1632,266 @@ export default function AdminDashboard({
               </button>
             </div>
           </form>
+        </div>
+      </div>
+
+      {/* SECTION 6: SMART EXTRACTOR EXTRACTION RULES CONTROL */}
+      <div className="rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-6" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+        <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
+          <div>
+            <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: "var(--app-text)" }}>
+              <span>📷</span>
+              6. Smart Extractor Image Extraction Rules Control
+            </h3>
+            <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+              Configure automated OCR extraction rules for screenshots, receipts, transaction numbers, and customer account details.
+            </p>
+          </div>
+          <span className="text-xs uppercase font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-3 py-1 rounded-full">
+            {extractionRules.filter(r => r.is_active !== false).length} Active Rules
+          </span>
+        </div>
+
+        {/* Rule Form */}
+        <form onSubmit={handleSaveExtractionRule} className="rounded-2xl border p-4 space-y-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
+          <h4 className="text-xs uppercase font-semibold text-[#4cd34c]">
+            {editRuleId ? `Edit Extraction Rule` : "Create Image Extraction Rule"}
+          </h4>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Rule Name *:</label>
+              <input
+                type="text"
+                required
+                value={ruleName}
+                onChange={(e) => setRuleName(e.target.value)}
+                placeholder="e.g. Mobile Money Transaction Number"
+                className="w-full rounded-xl border p-2.5 text-xs font-semibold"
+                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+              />
+            </div>
+            <div>
+              <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Result / Output Label *:</label>
+              <input
+                type="text"
+                required
+                value={ruleResultLabel}
+                onChange={(e) => setRuleResultLabel(e.target.value)}
+                placeholder="e.g. Transaction Number"
+                className="w-full rounded-xl border p-2.5 text-xs font-semibold"
+                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+              />
+            </div>
+            <div>
+              <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Extraction Method:</label>
+              <select
+                value={ruleMethod}
+                onChange={(e) => setRuleMethod(e.target.value)}
+                className="w-full rounded-xl border p-2.5 text-xs font-semibold"
+                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+              >
+                <option value="pattern">Pattern / Regex Builder</option>
+                <option value="keyword">Keyword Proximity</option>
+              </select>
+            </div>
+          </div>
+
+          {ruleMethod === "pattern" ? (
+            <div className="p-3 rounded-xl border space-y-3 bg-[var(--app-bg)]" style={{ borderColor: "var(--field-border)" }}>
+              <div className="text-[11px] font-bold text-[#4cd34c] uppercase tracking-wider">
+                Pattern Builder Options
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="text-[10px] block mb-1" style={{ color: "var(--text-muted)" }}>Starts With / Prefix:</label>
+                  <input
+                    type="text"
+                    value={rulePrefix}
+                    onChange={(e) => setRulePrefix(e.target.value)}
+                    placeholder="e.g. MP or ACC-"
+                    className="w-full rounded-lg border p-2 text-xs font-mono"
+                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] block mb-1" style={{ color: "var(--text-muted)" }}>Value Type:</label>
+                  <select
+                    value={ruleValueType}
+                    onChange={(e) => setRuleValueType(e.target.value)}
+                    className="w-full rounded-lg border p-2 text-xs font-semibold"
+                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                  >
+                    <option value="numbers">Numbers Only (\d)</option>
+                    <option value="letters">Letters Only ([A-Za-z])</option>
+                    <option value="alphanumeric">Letters & Numbers</option>
+                    <option value="amount">Monetary Amount ($)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] block mb-1" style={{ color: "var(--text-muted)" }}>Min Length:</label>
+                  <input
+                    type="number"
+                    value={ruleMinLength}
+                    onChange={(e) => setRuleMinLength(e.target.value)}
+                    className="w-full rounded-lg border p-2 text-xs font-mono"
+                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] block mb-1" style={{ color: "var(--text-muted)" }}>Max Length:</label>
+                  <input
+                    type="number"
+                    value={ruleMaxLength}
+                    onChange={(e) => setRuleMaxLength(e.target.value)}
+                    className="w-full rounded-lg border p-2 text-xs font-mono"
+                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] block mb-1" style={{ color: "var(--text-muted)" }}>Advanced Custom Regex Override (Optional):</label>
+                <input
+                  type="text"
+                  value={ruleCustomRegex}
+                  onChange={(e) => setRuleCustomRegex(e.target.value)}
+                  placeholder="e.g. MP\d{8,12}"
+                  className="w-full rounded-lg border p-2 text-xs font-mono"
+                  style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                />
+              </div>
+
+              <div className="text-[11px] font-mono text-[var(--text-muted)] flex items-center gap-2">
+                <span>Compiled Pattern Preview:</span>
+                <code className="text-[#4cd34c] bg-black/20 px-2 py-0.5 rounded font-bold">
+                  {buildPatternString({
+                    prefix: rulePrefix,
+                    valueType: ruleValueType,
+                    minLength: ruleMinLength,
+                    maxLength: ruleMaxLength,
+                    customRegex: ruleCustomRegex,
+                  })}
+                </code>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 rounded-xl border space-y-2 bg-[var(--app-bg)]" style={{ borderColor: "var(--field-border)" }}>
+              <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Target Keyword / Label in Image *:</label>
+              <input
+                type="text"
+                value={ruleKeyword}
+                onChange={(e) => setRuleKeyword(e.target.value)}
+                placeholder="e.g. Transaction ID or Reference No"
+                className="w-full rounded-lg border p-2 text-xs font-semibold"
+                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+              />
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
+            <div>
+              <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Target Template Parameter Key:</label>
+              <input
+                type="text"
+                value={ruleTargetPlaceholder}
+                onChange={(e) => setRuleTargetPlaceholder(e.target.value)}
+                placeholder="e.g. transaction_number or amount"
+                className="w-full rounded-xl border p-2 text-xs font-mono"
+                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+              />
+            </div>
+
+            <div className="flex items-center gap-3 pt-4">
+              <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={ruleIsActive}
+                  onChange={(e) => setRuleIsActive(e.target.checked)}
+                  className="accent-[#4cd34c]"
+                />
+                <span>Active Rule</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            {editRuleId && (
+              <button
+                type="button"
+                onClick={handleResetRuleForm}
+                className="px-4 py-2 rounded-xl border text-xs font-semibold hover:bg-[var(--neutral-bg)]"
+                style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}
+              >
+                Cancel Edit
+              </button>
+            )}
+            <button
+              type="submit"
+              className="px-5 py-2 rounded-xl bg-[#4cd34c] text-black font-extrabold text-xs shadow-md hover:opacity-90 transition cursor-pointer"
+            >
+              {editRuleId ? "Save Rule Changes" : "Save Extraction Rule"}
+            </button>
+          </div>
+        </form>
+
+        {/* Active Rules List */}
+        <div className="space-y-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+            Configured Image Extraction Rules ({extractionRules.length})
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {extractionRules.map((rule) => (
+              <div key={rule.id} className="p-3.5 rounded-2xl border bg-[var(--field-bg)] space-y-2 shadow-sm" style={{ borderColor: "var(--field-border)" }}>
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sm text-[var(--app-text)]">{rule.name}</span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${rule.is_active !== false ? "bg-[#4cd34c]/20 text-[#4cd34c] border-[#4cd34c]/30" : "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}>
+                    {rule.is_active !== false ? "🟢 Active" : "⚪ Disabled"}
+                  </span>
+                </div>
+
+                <div className="text-xs font-mono text-[var(--text-muted)]">
+                  Output Label: <span className="font-bold text-[var(--app-text)]">{rule.result_label}</span>
+                </div>
+
+                <div className="text-xs font-mono text-[var(--text-muted)]">
+                  Pattern: <code className="text-[#4cd34c] bg-black/20 px-1.5 py-0.5 rounded">{rule.pattern || rule.keyword}</code>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t text-xs" style={{ borderColor: "var(--field-border)" }}>
+                  <span className="text-[10px] font-mono text-[#4cd34c]">
+                    Mapped: {rule.target_placeholder || "none"}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleRuleActive(rule.id)}
+                      className="px-2 py-1 rounded-lg border text-[11px] font-bold hover:bg-[#4cd34c]/10"
+                      style={{ borderColor: "var(--field-border)" }}
+                    >
+                      {rule.is_active !== false ? "Disable" : "Enable"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleEditRuleClick(rule)}
+                      className="px-2 py-1 rounded-lg border text-[11px] font-bold hover:bg-[var(--neutral-bg)]"
+                      style={{ borderColor: "var(--field-border)" }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteRule(rule.id)}
+                      className="px-2 py-1 rounded-lg border text-[11px] font-bold text-red-400 hover:bg-red-500/10"
+                      style={{ borderColor: "var(--field-border)" }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
