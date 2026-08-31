@@ -1728,13 +1728,13 @@ export default function AdminDashboard({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] uppercase font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
-                    Starts With / Prefix:
+                    Starts With / Prefix (Optional - leave blank if none):
                   </label>
                   <input
                     type="text"
                     value={rulePrefix}
                     onChange={(e) => setRulePrefix(e.target.value)}
-                    placeholder="e.g. MP or INN- or ACC-"
+                    placeholder="e.g. MP or INN- or leave blank"
                     className="w-full rounded-lg border p-2 text-xs font-mono"
                     style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                   />

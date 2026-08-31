@@ -7,16 +7,16 @@ export const DEFAULT_EXTRACTION_RULES = [
   {
     id: "rule_1",
     name: "Deposit Confirmation Message",
-    description: "Mobile money deposit receipt / merchant payment reference (e.g. MP483920175)",
+    description: "Mobile money deposit receipt / merchant payment reference (e.g. MP260831.1341.T9283748)",
     method: "pattern",
-    pattern: "MP\\d{8,12}",
+    pattern: "MP[A-Za-z0-9.\\-_$%@#&=]{15,25}",
     prefix: "MP",
-    valueType: "numbers",
-    valueTypes: ["numbers"],
+    valueType: "alphanumeric",
+    valueTypes: ["numbers", "letters", "symbols"],
     lengthMode: "variable",
-    minLength: 8,
-    maxLength: 12,
-    constantLength: 10,
+    minLength: 15,
+    maxLength: 25,
+    constantLength: 20,
     result_label: "Ecocash Merchant Payment",
     target_placeholder: "transaction_number",
     is_active: true,
@@ -140,7 +140,7 @@ export function buildPatternString({
   customRegex = "",
 }) {
   if (customRegex && customRegex.trim()) return customRegex.trim();
-  const escapedPrefix = prefix.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+  const escapedPrefix = prefix && prefix.trim() ? prefix.trim().replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&") : "";
 
   const types = Array.isArray(valueTypes) && valueTypes.length > 0
     ? valueTypes
