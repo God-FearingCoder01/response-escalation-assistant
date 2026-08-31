@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString } from "../services/api";
 import { translateText } from "../services/translationService";
 import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
@@ -32,6 +32,17 @@ export default function CustomerReply({
   const [translatedLangLabel, setTranslatedLangLabel] = useState("Shona");
   const [isTranslating, setIsTranslating] = useState(false);
   const [viewMode, setViewMode] = useState("english"); // 'english' | 'translated'
+
+  const prevTemplateIdRef = useRef(activeTemplate?.id);
+
+  // Automatically reset view mode to English preview whenever a new template is selected
+  useEffect(() => {
+    if (activeTemplate?.id !== prevTemplateIdRef.current) {
+      prevTemplateIdRef.current = activeTemplate?.id;
+      setViewMode("english");
+      setTranslatedText("");
+    }
+  }, [activeTemplate?.id]);
 
   const handleInlineTranslate = async (targetLang = "sn") => {
     if (!generatedMsg) return;
@@ -172,6 +183,8 @@ export default function CustomerReply({
                     onClick={() => {
                       setSelectedCustId(t.id);
                       setValues({});
+                      setViewMode("english");
+                      setTranslatedText("");
                     }}
                     className={`p-3 rounded-2xl border cursor-pointer transition flex items-center justify-between ${
                       String(t.id) === String(activeTemplate?.id)
