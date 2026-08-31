@@ -1773,7 +1773,7 @@ def translate_text(req: TranslateRequest):
             res = res.replace(token, original)
         return res
 
-    # Step 2: Domain Dictionary Match Check
+    # Step 2: Domain Dictionary Match Check (exact single entry)
     if src == "en" and tgt == "sn" and norm_text in SUPPORT_DICTIONARY_SHONA:
         return {"translatedText": restore_vars(SUPPORT_DICTIONARY_SHONA[norm_text]), "source": src, "target": tgt, "provider": "dictionary"}
     if src == "sn" and tgt == "en" and norm_text in REVERSE_SHONA:
@@ -1786,7 +1786,7 @@ def translate_text(req: TranslateRequest):
     # Step 3: Engine Routing (Google Cloud for 'sn', Meta NLLB-200 for 'nde')
     provider_name = "nllb_200" if (tgt == "nde" or src == "nde") else "google_translate"
 
-    # Step 4: Domain Dictionary Partial Substitution Fallback
+    # Step 4: Multi-Word Phrase & Domain Substitution across full message
     dict_map = (
         SUPPORT_DICTIONARY_NDEBELE if (src == "en" and tgt == "nde") else
         SUPPORT_DICTIONARY_SHONA if (src == "en" and tgt == "sn") else
@@ -1800,18 +1800,21 @@ def translate_text(req: TranslateRequest):
         val = dict_map[k]
         pattern = re.compile(r"\b" + re.escape(k) + r"\b", re.IGNORECASE)
         if pattern.search(phrase):
-            phrase = pattern.sub(val, phrase)
+            def replace_match(m):
+                matched_str = m.group(0)
+                if matched_str and matched_str[0].isupper():
+                    return val.capitalize()
+                return val
+            phrase = pattern.sub(replace_match, phrase)
             substituted = True
 
-    if substituted:
-        return {"translatedText": restore_vars(phrase), "source": src, "target": tgt, "provider": "dictionary_partial"}
+    final_translated = restore_vars(phrase)
 
-    # Final Neural/Cloud engine output with restored variables
     return {
-        "translatedText": restore_vars(protected_text),
+        "translatedText": final_translated,
         "source": src,
         "target": tgt,
-        "provider": provider_name,
+        "provider": "dictionary_partial" if substituted else provider_name,
     }
 
 

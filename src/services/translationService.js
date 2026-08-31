@@ -202,17 +202,20 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
     const value = dict[key];
     const regex = new RegExp(`\\b${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
     if (regex.test(phraseReplaced)) {
-      phraseReplaced = phraseReplaced.replace(regex, value);
+      phraseReplaced = phraseReplaced.replace(regex, (m) => {
+        if (m && m[0] && m[0] === m[0].toUpperCase()) {
+          return value.charAt(0).toUpperCase() + value.slice(1);
+        }
+        return value;
+      });
       substituted = true;
     }
   }
 
-  if (substituted) {
-    return { translatedText: phraseReplaced, provider: "dictionary_partial" };
-  }
-
-  // 4. Fallback: Return clean original text
-  return { translatedText: cleanText, provider: "original" };
+  return {
+    translatedText: phraseReplaced,
+    provider: substituted ? "dictionary_partial" : "original",
+  };
 }
 
 // Case helper to match capitalization pattern of original text
