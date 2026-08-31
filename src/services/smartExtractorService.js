@@ -6,56 +6,85 @@ export const EXTRACTION_RULES_KEY = "rea_extraction_rules_v1";
 export const DEFAULT_EXTRACTION_RULES = [
   {
     id: "rule_1",
-    name: "Mobile Money Transaction Number",
-    description: "Transaction/reference number shown on receipts (e.g. MP483920175)",
+    name: "Deposit Confirmation Message",
+    description: "Mobile money deposit receipt / merchant payment reference (e.g. MP483920175)",
     method: "pattern",
     pattern: "MP\\d{8,12}",
     prefix: "MP",
     valueType: "numbers",
+    valueTypes: ["numbers"],
+    lengthMode: "variable",
     minLength: 8,
     maxLength: 12,
-    result_label: "Transaction Number",
+    constantLength: 10,
+    result_label: "Ecocash Merchant Payment",
     target_placeholder: "transaction_number",
     is_active: true,
   },
   {
     id: "rule_2",
+    name: "Innbucks Transaction",
+    description: "Innbucks wallet transaction code / receipt id (e.g. INN-48291039)",
+    method: "pattern",
+    pattern: "INN-\\d{8,10}",
+    prefix: "INN-",
+    valueType: "numbers",
+    valueTypes: ["numbers"],
+    lengthMode: "variable",
+    minLength: 8,
+    maxLength: 10,
+    constantLength: 8,
+    result_label: "Innbucks trans id",
+    target_placeholder: "transaction_number",
+    is_active: true,
+  },
+  {
+    id: "rule_3",
     name: "Customer Account Number",
     description: "Customer account identifier (e.g. ACC-482913)",
     method: "pattern",
     pattern: "ACC-\\d{6}",
     prefix: "ACC-",
     valueType: "numbers",
+    valueTypes: ["numbers"],
+    lengthMode: "constant",
     minLength: 6,
     maxLength: 6,
+    constantLength: 6,
     result_label: "Account Number",
     target_placeholder: "account_number",
     is_active: true,
   },
   {
-    id: "rule_3",
+    id: "rule_4",
     name: "Phone Number",
     description: "Mobile phone number (e.g. 0771234567)",
     method: "pattern",
     pattern: "07\\d{8}",
     prefix: "07",
     valueType: "numbers",
+    valueTypes: ["numbers"],
+    lengthMode: "constant",
     minLength: 8,
     maxLength: 8,
+    constantLength: 8,
     result_label: "Phone Number",
     target_placeholder: "phone_number",
     is_active: true,
   },
   {
-    id: "rule_4",
+    id: "rule_5",
     name: "Amount",
     description: "Monetary amount shown on confirmation (e.g. $25.00)",
     method: "pattern",
     pattern: "\\$[0-9,]+(\\.[0-9]{2})?",
     prefix: "$",
     valueType: "amount",
+    valueTypes: ["amount"],
+    lengthMode: "variable",
     minLength: 1,
     maxLength: 10,
+    constantLength: 5,
     result_label: "Amount",
     target_placeholder: "amount",
     is_active: true,
@@ -99,18 +128,46 @@ export function saveExtractionRulesLocally(rules) {
   }
 }
 
-// Build regex string from friendly Pattern Builder fields
-export function buildPatternString({ prefix = "", valueType = "numbers", minLength = 4, maxLength = 12, customRegex = "" }) {
+// Build regex string from Pattern Builder fields
+export function buildPatternString({
+  prefix = "",
+  valueType = "numbers",
+  valueTypes = null,
+  lengthMode = "variable",
+  constantLength = 8,
+  minLength = 4,
+  maxLength = 12,
+  customRegex = "",
+}) {
   if (customRegex && customRegex.trim()) return customRegex.trim();
   const escapedPrefix = prefix.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
-  let typePattern = "\\d";
-  if (valueType === "letters") typePattern = "[A-Za-z]";
-  if (valueType === "alphanumeric") typePattern = "[A-Za-z0-9]";
-  if (valueType === "amount") return "\\$[0-9,]+(\\.[0-9]{2})?";
 
-  const min = parseInt(minLength, 10) || 1;
-  const max = parseInt(maxLength, 10) || min;
-  const range = min === max ? `{${min}}` : `{${min},${max}}`;
+  const types = Array.isArray(valueTypes) && valueTypes.length > 0
+    ? valueTypes
+    : [valueType];
+
+  if (types.includes("amount")) {
+    return `${escapedPrefix}\\$[0-9,]+(\\.[0-9]{2})?`;
+  }
+
+  let charSet = "";
+  if (types.includes("numbers")) charSet += "0-9";
+  if (types.includes("letters")) charSet += "A-Za-z";
+  if (types.includes("symbols")) charSet += ".\\-_$%@#&*="; // Includes dot (.)
+
+  if (!charSet) charSet = "0-9";
+
+  const typePattern = `[${charSet}]`;
+
+  let range = "";
+  if (lengthMode === "constant") {
+    const len = parseInt(constantLength, 10) || parseInt(minLength, 10) || 8;
+    range = `{${len}}`;
+  } else {
+    const min = parseInt(minLength, 10) || 1;
+    const max = parseInt(maxLength, 10) || min;
+    range = min === max ? `{${min}}` : `{${min},${max}}`;
+  }
 
   return `${escapedPrefix}${typePattern}${range}`;
 }

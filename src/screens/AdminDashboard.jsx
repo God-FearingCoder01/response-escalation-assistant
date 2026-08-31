@@ -245,7 +245,9 @@ export default function AdminDashboard({
   const [ruleDescription, setRuleDescription] = useState("");
   const [ruleMethod, setRuleMethod] = useState("pattern");
   const [rulePrefix, setRulePrefix] = useState("");
-  const [ruleValueType, setRuleValueType] = useState("numbers");
+  const [ruleValueTypes, setRuleValueTypes] = useState(["numbers"]);
+  const [ruleLengthMode, setRuleLengthMode] = useState("variable"); // 'constant' | 'variable'
+  const [ruleConstantLength, setRuleConstantLength] = useState("10");
   const [ruleMinLength, setRuleMinLength] = useState("8");
   const [ruleMaxLength, setRuleMaxLength] = useState("12");
   const [ruleKeyword, setRuleKeyword] = useState("");
@@ -258,13 +260,26 @@ export default function AdminDashboard({
     fetchExtractionRules().then(setExtractionRules);
   }, []);
 
+  const toggleValueType = (type) => {
+    setRuleValueTypes((prev) => {
+      if (prev.includes(type)) {
+        const next = prev.filter((t) => t !== type);
+        return next.length > 0 ? next : ["numbers"];
+      } else {
+        return [...prev, type];
+      }
+    });
+  };
+
   const handleSaveExtractionRule = (e) => {
     e.preventDefault();
     if (!ruleName.trim() || !ruleResultLabel.trim()) return;
 
     const pattern = buildPatternString({
       prefix: rulePrefix,
-      valueType: ruleValueType,
+      valueTypes: ruleValueTypes,
+      lengthMode: ruleLengthMode,
+      constantLength: ruleConstantLength,
       minLength: ruleMinLength,
       maxLength: ruleMaxLength,
       customRegex: ruleCustomRegex,
@@ -277,7 +292,10 @@ export default function AdminDashboard({
       method: ruleMethod,
       pattern: pattern,
       prefix: rulePrefix.trim(),
-      valueType: ruleValueType,
+      valueType: ruleValueTypes[0] || "numbers",
+      valueTypes: ruleValueTypes,
+      lengthMode: ruleLengthMode,
+      constantLength: parseInt(ruleConstantLength, 10) || 8,
       minLength: parseInt(ruleMinLength, 10) || 1,
       maxLength: parseInt(ruleMaxLength, 10) || 12,
       keyword: ruleKeyword.trim(),
@@ -304,7 +322,9 @@ export default function AdminDashboard({
     setRuleDescription("");
     setRuleMethod("pattern");
     setRulePrefix("");
-    setRuleValueType("numbers");
+    setRuleValueTypes(["numbers"]);
+    setRuleLengthMode("variable");
+    setRuleConstantLength("10");
     setRuleMinLength("8");
     setRuleMaxLength("12");
     setRuleKeyword("");
@@ -320,7 +340,9 @@ export default function AdminDashboard({
     setRuleDescription(r.description || "");
     setRuleMethod(r.method || "pattern");
     setRulePrefix(r.prefix || "");
-    setRuleValueType(r.valueType || "numbers");
+    setRuleValueTypes(Array.isArray(r.valueTypes) && r.valueTypes.length > 0 ? r.valueTypes : [r.valueType || "numbers"]);
+    setRuleLengthMode(r.lengthMode || (r.minLength === r.maxLength ? "constant" : "variable"));
+    setRuleConstantLength(String(r.constantLength || r.minLength || 8));
     setRuleMinLength(String(r.minLength || 8));
     setRuleMaxLength(String(r.maxLength || 12));
     setRuleKeyword(r.keyword || "");
@@ -1698,76 +1720,159 @@ export default function AdminDashboard({
           </div>
 
           {ruleMethod === "pattern" ? (
-            <div className="p-3 rounded-xl border space-y-3 bg-[var(--app-bg)]" style={{ borderColor: "var(--field-border)" }}>
+            <div className="p-3 rounded-xl border space-y-4 bg-[var(--app-bg)]" style={{ borderColor: "var(--field-border)" }}>
               <div className="text-[11px] font-bold text-[#4cd34c] uppercase tracking-wider">
-                Pattern Builder Options
+                Pattern / Regex Builder Options
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] block mb-1" style={{ color: "var(--text-muted)" }}>Starts With / Prefix:</label>
+                  <label className="text-[10px] uppercase font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
+                    Starts With / Prefix:
+                  </label>
                   <input
                     type="text"
                     value={rulePrefix}
                     onChange={(e) => setRulePrefix(e.target.value)}
-                    placeholder="e.g. MP or ACC-"
+                    placeholder="e.g. MP or INN- or ACC-"
                     className="w-full rounded-lg border p-2 text-xs font-mono"
                     style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                   />
                 </div>
+
                 <div>
-                  <label className="text-[10px] block mb-1" style={{ color: "var(--text-muted)" }}>Value Type:</label>
-                  <select
-                    value={ruleValueType}
-                    onChange={(e) => setRuleValueType(e.target.value)}
-                    className="w-full rounded-lg border p-2 text-xs font-semibold"
-                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                  >
-                    <option value="numbers">Numbers Only (\d)</option>
-                    <option value="letters">Letters Only ([A-Za-z])</option>
-                    <option value="alphanumeric">Letters & Numbers</option>
-                    <option value="amount">Monetary Amount ($)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[10px] block mb-1" style={{ color: "var(--text-muted)" }}>Min Length:</label>
-                  <input
-                    type="number"
-                    value={ruleMinLength}
-                    onChange={(e) => setRuleMinLength(e.target.value)}
-                    className="w-full rounded-lg border p-2 text-xs font-mono"
-                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] block mb-1" style={{ color: "var(--text-muted)" }}>Max Length:</label>
-                  <input
-                    type="number"
-                    value={ruleMaxLength}
-                    onChange={(e) => setRuleMaxLength(e.target.value)}
-                    className="w-full rounded-lg border p-2 text-xs font-mono"
-                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                  />
+                  <label className="text-[10px] uppercase font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
+                    Character Value Types (Select one or combine multiple):
+                  </label>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {[
+                      { id: "numbers", label: "Numbers (0-9)" },
+                      { id: "letters", label: "Letters (A-Z)" },
+                      { id: "symbols", label: "Symbols (. - _ $ % @ # & * =)" },
+                      { id: "amount", label: "Monetary Amount ($)" },
+                    ].map((t) => {
+                      const isChecked = ruleValueTypes.includes(t.id);
+                      return (
+                        <label
+                          key={t.id}
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold cursor-pointer transition ${
+                            isChecked
+                              ? "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c]"
+                              : "border-[var(--field-border)] bg-[var(--field-bg)] opacity-70 hover:opacity-100"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleValueType(t.id)}
+                            className="accent-[#4cd34c] h-3.5 w-3.5"
+                          />
+                          <span>{t.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
+              {/* Length Mode Control (Constant Length vs Variable Length) */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t" style={{ borderColor: "var(--panel-border)" }}>
+                <div>
+                  <label className="text-[10px] uppercase font-bold block mb-1.5" style={{ color: "var(--text-muted)" }}>
+                    Length Specification Mode:
+                  </label>
+                  <div className="flex items-center gap-2 p-1 rounded-xl border" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
+                    <button
+                      type="button"
+                      onClick={() => setRuleLengthMode("constant")}
+                      className={`flex-1 py-1 px-2 rounded-lg text-xs font-bold transition ${
+                        ruleLengthMode === "constant"
+                          ? "bg-[#4cd34c] text-black shadow-sm"
+                          : "text-[var(--text-muted)] hover:text-[var(--app-text)]"
+                      }`}
+                    >
+                      Constant Length
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRuleLengthMode("variable")}
+                      className={`flex-1 py-1 px-2 rounded-lg text-xs font-bold transition ${
+                        ruleLengthMode === "variable"
+                          ? "bg-[#4cd34c] text-black shadow-sm"
+                          : "text-[var(--text-muted)] hover:text-[var(--app-text)]"
+                      }`}
+                    >
+                      Variable Length
+                    </button>
+                  </div>
+                </div>
+
+                {ruleLengthMode === "constant" ? (
+                  <div className="animate-fadeIn">
+                    <label className="text-[10px] uppercase font-bold block mb-1 text-[#4cd34c]">
+                      Constant Character Length *:
+                    </label>
+                    <input
+                      type="number"
+                      value={ruleConstantLength}
+                      onChange={(e) => setRuleConstantLength(e.target.value)}
+                      placeholder="e.g. 6 or 8 or 10"
+                      className="w-full rounded-lg border p-2 text-xs font-mono font-bold"
+                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                    />
+                  </div>
+                ) : (
+                  <div className="md:col-span-2 grid grid-cols-2 gap-3 animate-fadeIn">
+                    <div>
+                      <label className="text-[10px] uppercase font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
+                        Min Length *:
+                      </label>
+                      <input
+                        type="number"
+                        value={ruleMinLength}
+                        onChange={(e) => setRuleMinLength(e.target.value)}
+                        className="w-full rounded-lg border p-2 text-xs font-mono font-bold"
+                        style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
+                        Max Length *:
+                      </label>
+                      <input
+                        type="number"
+                        value={ruleMaxLength}
+                        onChange={(e) => setRuleMaxLength(e.target.value)}
+                        className="w-full rounded-lg border p-2 text-xs font-mono font-bold"
+                        style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div>
-                <label className="text-[10px] block mb-1" style={{ color: "var(--text-muted)" }}>Advanced Custom Regex Override (Optional):</label>
+                <label className="text-[10px] uppercase font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
+                  Advanced Custom Regex Override (Optional):
+                </label>
                 <input
                   type="text"
                   value={ruleCustomRegex}
                   onChange={(e) => setRuleCustomRegex(e.target.value)}
-                  placeholder="e.g. MP\d{8,12}"
+                  placeholder="e.g. INN-\d{8,10} or MP\d{8,12}"
                   className="w-full rounded-lg border p-2 text-xs font-mono"
                   style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                 />
               </div>
 
-              <div className="text-[11px] font-mono text-[var(--text-muted)] flex items-center gap-2">
-                <span>Compiled Pattern Preview:</span>
-                <code className="text-[#4cd34c] bg-black/20 px-2 py-0.5 rounded font-bold">
+              <div className="text-[11px] font-mono text-[var(--text-muted)] flex items-center gap-2 pt-1 border-t" style={{ borderColor: "var(--field-border)" }}>
+                <span className="font-bold">Compiled Regex Pattern Preview:</span>
+                <code className="text-[#4cd34c] bg-black/30 px-2.5 py-1 rounded-lg font-bold border border-[#4cd34c]/30">
                   {buildPatternString({
                     prefix: rulePrefix,
-                    valueType: ruleValueType,
+                    valueTypes: ruleValueTypes,
+                    lengthMode: ruleLengthMode,
+                    constantLength: ruleConstantLength,
                     minLength: ruleMinLength,
                     maxLength: ruleMaxLength,
                     customRegex: ruleCustomRegex,
