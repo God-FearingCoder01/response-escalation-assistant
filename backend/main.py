@@ -1693,32 +1693,32 @@ SUPPORT_DICTIONARY_SHONA = {
 SUPPORT_DICTIONARY_NDEBELE = {
     "hello": "salibonani",
     "hi": "salibonani",
-    "good morning": "sabona",
+    "good morning": "livukile",
     "good afternoon": "litshonile",
     "good evening": "litshonile",
     "thank you": "siyabonga",
     "thank you very much": "siyabonga kakhulu",
     "you are welcome": "wamukelekile",
     "please": "cela",
-    "sorry for the inconvenience": "siyaxolisa ngokuhlupheka",
-    "how can i help you today?": "ngingakusiza njani lamuhla?",
-    "how can i help you": "ngingakusiza njani",
+    "sorry for the inconvenience": "siyaxolisa ngokuhluphiseka",
+    "how can i help you today?": "ngingalithusa njani lamuhla?",
+    "how can i help you": "ngingalithusa njani",
     "account number": "inombolo ye-akhawunti",
     "phone number": "inombolo yocingo",
-    "email address": "ikheli le-eyili",
+    "email address": "ikheli le-imeyili",
     "ticket number": "inombolo yetikiti",
     "reference number": "inombolo yokukhomba",
     "technical support": "usizo lwethekhinikhali",
     "technical team": "iqembu lethekhinikhali",
     "support team": "iqembu losizo",
     "customer care": "usizo lwabathengi",
-    "escalated": "itshiyiwe kubasizi abaphezulu",
-    "your ticket has been escalated": "itikiti lakho lisiwe eqenjini lethu eliphezulu lethekhinikhali",
+    "escalated": "udluliselwe kubasizi abaphezulu",
+    "your ticket has been escalated": "itikiti lakho lidluliselwe eqenjini lethu eliphezulu lethekhinikhali",
     "your query has been escalated to technical support": "umbuzo wakho udluliselwe eqenjini lethekhinikhali",
-    "we are currently investigating the issue": "kusakhangelwa inkinga le okwakhathesi",
+    "we are currently investigating the issue": "kusasebenzwa njalo kuhlolisiswa inkinga le okwakhathesi",
     "connection issue": "inkinga yokuxhumana kwewebhu",
-    "internet down": "iyinthanethi kayisebenzi",
-    "slow connection": "iyinthanethi inyenyezela",
+    "internet down": "inthanethi kayisebenzi",
+    "slow connection": "inthanethi inyenyezela",
     "no signal": "kakulamaza",
     "router": "i-router",
     "please restart your router": "cela ucime i-router yakho okwemizuzwana engamashumi amathathu uyivuse njalo",
@@ -1746,7 +1746,7 @@ def translate_text(req: TranslateRequest):
     src = (req.source_lang or "en").lower()
     tgt = (req.target_lang or "sn").lower()
 
-    # Normalize language codes: 'nd' or 'nde' -> 'nde' (isiNdebele Zimbabwe)
+    # Normalize language codes: 'nd' or 'nde' -> 'nde' (isiNdebele Zimbabwe / Northern Ndebele)
     if src in ["nd", "nde"]:
         src = "nde"
     if tgt in ["nd", "nde"]:
@@ -1801,10 +1801,16 @@ def translate_text(req: TranslateRequest):
                 if sentences:
                     engine_translated = "".join(sentences).strip()
                     if tgt == "nde":
+                        # Strict Northern Ndebele (Zimbabwe nde) post-processing transformations
                         engine_translated = (
-                            engine_translated.replace("Sawubona", "Salibonani")
+                            engine_translated
+                            .replace("Sawubona", "Salibonani")
                             .replace("sawubona", "salibonani")
+                            .replace("Lotjha", "Salibonani")
+                            .replace("lotjha", "salibonani")
+                            .replace("ngokuhlupheka", "ngokuhluphiseka")
                             .replace("kanjani", "njani")
+                            .replace("eyili", "imeyili")
                         )
     except Exception as e:
         print(f"Engine translation error for {engine_provider}:", e)
