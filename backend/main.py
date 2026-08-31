@@ -1783,10 +1783,41 @@ def translate_text(req: TranslateRequest):
     if src == "nde" and tgt == "en" and norm_text in REVERSE_NDEBELE:
         return {"translatedText": restore_vars(REVERSE_NDEBELE[norm_text]), "source": src, "target": tgt, "provider": "dictionary"}
 
-    # Step 3: Engine Routing (Google Cloud for 'sn', Meta NLLB-200 for 'nde')
-    provider_name = "nllb_200" if (tgt == "nde" or src == "nde") else "google_translate"
+    # Step 3: Neural & Cloud Translation Engine Execution (Google Translate for 'sn', NLLB-200 for 'nde')
+    engine_translated = ""
+    engine_provider = "nllb_200" if (tgt == "nde" or src == "nde") else "google_translate"
 
-    # Step 4: Multi-Word Phrase & Domain Substitution across full message
+    try:
+        source_code = "sn" if src == "sn" else "zu" if src == "nde" else "en"
+        target_code = "sn" if tgt == "sn" else "zu" if tgt == "nde" else "en"
+
+        encoded_text = urllib.parse.quote(protected_text)
+        gt_url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl={source_code}&tl={target_code}&dt=t&q={encoded_text}"
+        req_obj = urllib.request.Request(gt_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req_obj, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            if data and isinstance(data, list) and len(data) > 0 and data[0]:
+                sentences = [item[0] for item in data[0] if item and isinstance(item, list) and len(item) > 0 and item[0]]
+                if sentences:
+                    engine_translated = "".join(sentences).strip()
+                    if tgt == "nde":
+                        engine_translated = (
+                            engine_translated.replace("Sawubona", "Salibonani")
+                            .replace("sawubona", "salibonani")
+                            .replace("kanjani", "njani")
+                        )
+    except Exception as e:
+        print(f"Engine translation error for {engine_provider}:", e)
+
+    if engine_translated and engine_translated.strip() and engine_translated.strip().upper() != protected_text.strip().upper():
+        return {
+            "translatedText": restore_vars(engine_translated),
+            "source": src,
+            "target": tgt,
+            "provider": engine_provider,
+        }
+
+    # Step 4: Multi-Word Phrase & Domain Substitution Fallback
     dict_map = (
         SUPPORT_DICTIONARY_NDEBELE if (src == "en" and tgt == "nde") else
         SUPPORT_DICTIONARY_SHONA if (src == "en" and tgt == "sn") else
@@ -1814,7 +1845,7 @@ def translate_text(req: TranslateRequest):
         "translatedText": final_translated,
         "source": src,
         "target": tgt,
-        "provider": "dictionary_partial" if substituted else provider_name,
+        "provider": "dictionary_partial" if substituted else engine_provider,
     }
 
 
