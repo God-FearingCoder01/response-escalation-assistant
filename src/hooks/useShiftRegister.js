@@ -20,7 +20,7 @@ const DEFAULT_SHIFTS = [
 ];
 
 const DEFAULT_TARGETS = [
-  { id: 1, name: "Technical Support / NOC" },
+  { id: 1, name: "Technical Support Team" },
   { id: 2, name: "Billing & Accounts Team" },
   { id: 3, name: "Network Engineering" },
   { id: 4, name: "Level 2 Support Manager" },

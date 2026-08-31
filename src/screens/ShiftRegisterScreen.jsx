@@ -1593,7 +1593,7 @@ export default function ShiftRegisterScreen({
                       rows={3}
                       value={nextShiftInstructions}
                       onChange={(e) => setNextShiftInstructions(e.target.value)}
-                      placeholder="e.g. Check NOC update at 08:30 AM. Follow up with vendor if link stays down..."
+                      placeholder="e.g. Check technical team update at 08:30 AM. Follow up with vendor if link stays down..."
                       className="w-full rounded-xl border p-2.5 text-xs font-medium focus:outline-none focus:border-[#f1c84b]"
                       style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                     />

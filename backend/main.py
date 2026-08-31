@@ -526,7 +526,7 @@ def sync_default_data_if_needed(session: Session) -> None:
     local_targets = session.exec(select(EscalationTarget).where(EscalationTarget.company_id == default_company.id)).all()
     if not local_targets:
         default_targets = [
-            "Technical Support / NOC",
+            "Technical Support Team",
             "Billing & Accounts Team",
             "Network Engineering",
             "Level 2 Support Manager",
