@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Any
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlmodel import Session, select
@@ -14,8 +14,8 @@ router = APIRouter(tags=["Agent User Data"])
 
 class SaveAgentDataPayload(BaseModel):
     agent_initials: str
-    favorites: Optional[List[str]] = None
-    recently_used: Optional[List[str]] = None
+    favorites: Optional[List[Any]] = None
+    recently_used: Optional[List[Any]] = None
     usage_counts: Optional[dict] = None
     private_notes: Optional[List[dict]] = None
     translation_history: Optional[List[dict]] = None

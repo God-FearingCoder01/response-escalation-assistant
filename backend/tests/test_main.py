@@ -313,7 +313,7 @@ def test_agent_user_data_sync_and_daily_reset():
     res_save = client.post("/api/agent-data", json={
         "agent_initials": "AK",
         "favorites": ["1", "3", "priv_101"],
-        "recently_used": ["5", "2"],
+        "recently_used": [{"templateId": 5, "timestamp": 12345}, "2"],
         "usage_counts": {"1": 12, "3": 5},
         "translation_history": [{"id": 1, "sourceText": "Hello", "translatedText": "Mhoro"}]
     })
@@ -324,6 +324,6 @@ def test_agent_user_data_sync_and_daily_reset():
     assert res_verify.status_code == 200
     synced = res_verify.json()
     assert synced["favorites"] == ["1", "3", "priv_101"]
-    assert synced["recently_used"] == ["5", "2"]
+    assert synced["recently_used"] == [{"templateId": 5, "timestamp": 12345}, "2"]
     assert synced["usage_counts"] == {"1": 12, "3": 5}
     assert len(synced["translation_history"]) == 1
