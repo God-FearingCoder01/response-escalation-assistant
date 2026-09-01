@@ -22,6 +22,7 @@ class SaveAgentDataPayload(BaseModel):
 
 
 @router.get("/api/agent-data")
+@router.get("/agent-data")
 def get_agent_user_data(agent_initials: str, company: Company = Depends(get_current_company)):
     cid = company.id if company and company.id else 1
     init = agent_initials.strip().upper()
@@ -97,6 +98,7 @@ def get_agent_user_data(agent_initials: str, company: Company = Depends(get_curr
 
 
 @router.post("/api/agent-data")
+@router.post("/agent-data")
 def save_agent_user_data(payload: SaveAgentDataPayload, company: Company = Depends(get_current_company)):
     cid = company.id if company and company.id else 1
     init = payload.agent_initials.strip().upper()
