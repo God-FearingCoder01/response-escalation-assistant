@@ -231,8 +231,15 @@ export default function CustomerReply({
                   : activeTemplate.placeholder_config;
               } catch (e) {}
             }
-            const { resolvedValues, mappedTargetKeys } = resolveConditionalMappings(placeholderList, parsedCfgMap, values);
-            const visiblePlaceholders = (placeholderList || []).filter((ph) => !ph.startsWith(":") && !mappedTargetKeys.has(ph));
+            const isAgentPh = (ph) => {
+              if (!ph) return false;
+              const clean = ph.trim().toLowerCase().replace(/\?$/, "");
+              if (["agent_name", "agent_initials", "agent", "agent_fullname", "agent_name_or_initials"].includes(clean)) return true;
+              const cfg = parsedCfgMap[ph] || parsedCfgMap[clean];
+              if (cfg?.auto_fill_type && ["agent_name", "agent_initials", "agent_fullname", "agent"].includes(cfg.auto_fill_type)) return true;
+              return false;
+            };
+            const visiblePlaceholders = (placeholderList || []).filter((ph) => !ph.startsWith(":") && !mappedTargetKeys.has(ph) && !isAgentPh(ph));
 
             return visiblePlaceholders.length > 0 ? (
               <div className="pt-3 border-t space-y-3" style={{ borderColor: "var(--field-border)" }}>

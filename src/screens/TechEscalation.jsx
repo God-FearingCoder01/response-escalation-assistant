@@ -88,8 +88,15 @@ export default function TechEscalation({
                   : activeTemplate.placeholder_config;
               } catch (e) {}
             }
-            const { resolvedValues, mappedTargetKeys } = resolveConditionalMappings(placeholders, parsedCfgMap, values);
-            const visiblePlaceholders = (placeholders || []).filter((ph) => !ph.startsWith(":") && !mappedTargetKeys.has(ph));
+            const isAgentPh = (ph) => {
+              if (!ph) return false;
+              const clean = ph.trim().toLowerCase().replace(/\?$/, "");
+              if (["agent_name", "agent_initials", "agent", "agent_fullname", "agent_name_or_initials"].includes(clean)) return true;
+              const cfg = parsedCfgMap[ph] || parsedCfgMap[clean];
+              if (cfg?.auto_fill_type && ["agent_name", "agent_initials", "agent_fullname", "agent"].includes(cfg.auto_fill_type)) return true;
+              return false;
+            };
+            const visiblePlaceholders = (placeholders || []).filter((ph) => !ph.startsWith(":") && !mappedTargetKeys.has(ph) && !isAgentPh(ph));
 
             return visiblePlaceholders.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

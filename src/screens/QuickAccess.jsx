@@ -567,8 +567,15 @@ export default function QuickAccess({
                   : activeTemplate.placeholder_config;
               } catch (e) {}
             }
-            const { resolvedValues, mappedTargetKeys } = resolveConditionalMappings(phList, parsedCfgMap, values);
-            const visiblePlaceholders = (phList || []).filter((ph) => !ph.startsWith(":") && !mappedTargetKeys.has(ph));
+            const isAgentPh = (ph) => {
+              if (!ph) return false;
+              const clean = ph.trim().toLowerCase().replace(/\?$/, "");
+              if (["agent_name", "agent_initials", "agent", "agent_fullname", "agent_name_or_initials"].includes(clean)) return true;
+              const cfg = parsedCfgMap[ph] || parsedCfgMap[clean];
+              if (cfg?.auto_fill_type && ["agent_name", "agent_initials", "agent_fullname", "agent"].includes(cfg.auto_fill_type)) return true;
+              return false;
+            };
+            const visiblePlaceholders = (phList || []).filter((ph) => !ph.startsWith(":") && !mappedTargetKeys.has(ph) && !isAgentPh(ph));
 
             return visiblePlaceholders.length > 0 ? (
               <div className="space-y-2 max-h-48 overflow-y-auto pr-1 border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
