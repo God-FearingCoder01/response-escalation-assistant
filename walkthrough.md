@@ -1,38 +1,47 @@
-# Walkthrough - Backend Health Check, Sidebar Collapse Fix, & Agent Cards Clean-up
+# Walkthrough - PostgreSQL Production Persistence & SQLite Local Development
 
-All requested modifications and fixes have been successfully implemented and verified.
+Production database persistence has been transitioned to **PostgreSQL** while retaining **SQLite** for local development and unit testing.
 
 ## Changes Made
 
-### Backend
+### Backend Database Architecture
 
-#### [main.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/main.py)
-- Removed `sync_default_data_if_needed(session)` from inside `@app.get("/health")`.
-- The `/health` endpoint now returns `{"status": "ok", "message": "Backend is ready"}` directly without running database operations, preventing DB locking errors and latency that caused the app to enter Offline Mode.
+#### [database.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/database.py)
+- **Environment Database Resolution**:
+  - Implemented `get_database_url()` to check `DATABASE_URL`, `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`, and `POSTGRESQL_URL`.
+  - Automatically converts `postgres://` dialect URLs to standard SQLAlchemy `postgresql://`.
+- **Dialect Engine Configuration**:
+  - **PostgreSQL**: Configured engine connection pooling (`pool_size=10`, `max_overflow=20`, `pool_recycle=300`, `pool_pre_ping=True`).
+  - **SQLite**: Maintained thread safety settings (`connect_args={"check_same_thread": False}`).
+- **Schema Migration Utility**:
+  - Refactored `create_db_and_tables()` to use `SQLModel.metadata.create_all(engine)`.
+  - Implemented dialect-agnostic column inspection via SQLAlchemy `inspect(engine)` so column additions (`ALTER TABLE ... ADD COLUMN ...`) run cleanly without raw syntax errors on both SQLite and PostgreSQL.
 
-#### [package.json](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/package.json)
-- Updated `"backend"` npm script to `.venv\Scripts\python -m uvicorn backend.main:app --reload --port 8000` to ensure `npm run backend` runs using the workspace Python virtual environment.
+#### [requirements.txt](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/requirements.txt) & [backend/requirements.txt](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/requirements.txt)
+- Added `psycopg2-binary` alongside `psycopg[binary]` for PostgreSQL driver support across environment configurations.
+
+#### [test_database.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/test_database.py)
+- Added unit tests covering PostgreSQL URL conversion (`postgres://` -> `postgresql://`), `POSTGRES_URL` environment variables, local SQLite fallback resolution, and database connectivity.
 
 ---
 
-### Frontend
+### Environment & Documentation Setup
 
-#### [App.jsx](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/src/App.jsx)
-- **Sidebar Hover Collapse Fix**:
-  - Added a `useEffect` hook to reset `isSidebarHovered` to `false` whenever `activeScreen` or `currentAgent` changes.
-  - Added `onPointerLeave` event listener to `<aside>` alongside `onMouseLeave` to ensure the sidebar collapses reliably when the mouse/pointer leaves or when switching between screens.
-- **Home Page Agent Cards Clean-up**:
-  - Ensured home page agent cards display preferred agent names (`agent.agent_name`, e.g. "Vuyo", "Kilian", "Thembi", "Kudzi", "System Admin") and do not show full names.
-  - Replaced the duplicate initials code line/badge (`{agent.agent_initials}`) on each home page agent card with a clean profile avatar icon (`👤`).
+#### [.env.example](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/.env.example) & [backend/.env.example](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/.env.example)
+- Created environment configuration template files detailing PostgreSQL production setup (`DATABASE_URL` / `POSTGRES_URL`) and local SQLite defaults.
+
+#### [README.md](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/README.md), [backend/README.md](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/README.md)
+- Updated tech stack badges, features, and database configuration documentation for PostgreSQL production persistence.
 
 ---
 
 ## Verification Results
 
-### Automated Verification
-1. **Frontend Production Build**:
-   - Command: `npm run build`
-   - Output: Built successfully in 2.74 seconds with 0 errors.
-2. **Backend Health Check Execution**:
-   - Command: `.venv\Scripts\python -c "from backend.main import health_check; print(health_check())"`
-   - Output: `{'status': 'ok', 'message': 'Backend is ready'}` executed instantly without database side-effects.
+### Automated Backend Tests
+- Command: `python -m pytest`
+- Results: **22 passed** in 28.51 seconds.
+  - `backend/test_database.py`: 4 passed (PostgreSQL URL conversion, POSTGRES_URL environment variables, SQLite fallback, DB ping).
+  - `backend/test_main.py`: 13 passed.
+  - `backend/test_multitenancy.py`: 3 passed.
+  - `backend/test_private_notes.py`: 1 passed.
+  - `backend/test_superadmin.py`: 1 passed.

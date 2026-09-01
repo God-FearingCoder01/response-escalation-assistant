@@ -1,6 +1,6 @@
 # Backend
 
-This FastAPI service stores response templates in SQLite using SQLModel.
+This FastAPI service uses SQLModel for ORM persistence, running on **PostgreSQL** in production environments and **SQLite** for local development.
 
 Run locally
 -----------
@@ -14,6 +14,12 @@ pip install -r backend/requirements.txt
 uvicorn backend.main:app --reload --port 8000
 ```
 
+Database Configuration
+----------------------
+
+- **Local Development**: By default, local dev uses `backend/backend_data.db` (SQLite).
+- **Production Persistence**: Set the `DATABASE_URL` or `POSTGRES_URL` environment variable to point to a managed PostgreSQL database (Neon, Supabase, Vercel Postgres, AWS RDS, etc.).
+
 API
 ---
 
@@ -26,8 +32,3 @@ API
 - GET `/export` - export templates as JSON
 - POST `/import` - import templates from JSON
 
-Notes
------
-
-The database file is `backend_data.db` in the project root.
-For production, switch to a managed database and run the app behind a process manager or container.

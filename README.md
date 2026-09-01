@@ -3,7 +3,7 @@
 [![Vite](https://img.shields.io/badge/Vite-8.2-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![SQLite](https://img.shields.io/badge/SQLite-SQLModel-003B57?logo=sqlite&logoColor=white)](https://sqlmodel.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-SQLModel-4169E1?logo=postgresql&logoColor=white)](https://sqlmodel.tiangolo.com/)
 
 **Response & Escalation Assistant (REA)** is a modern, high-performance, multi-tenant web application crafted for customer support agents and technical escalation managers. REA streamlines customer communications, standardizes technical escalation templates, enforces operational quality, and supports multiple isolated organization spaces concurrently.
 
@@ -74,9 +74,10 @@
 ## 🏗️ Tech Stack
 
 - **Frontend**: React 18, Vite, Tailwind CSS, Vanilla CSS tokens system, Lucide glassmorphic UI principles.
-- **Backend**: FastAPI, SQLModel, SQLite database (`backend/rea.db`), Pydantic.
-- **Testing**: Pytest automated backend test suite (`backend/test_multitenancy.py`, `backend/test_superadmin.py`).
-- **Deployment**: Vercel Serverless ready (`vercel.json`).
+- **Backend**: FastAPI, SQLModel, PostgreSQL (Production) / SQLite (Local Dev), Pydantic.
+- **Testing**: Pytest automated backend test suite (`backend/test_multitenancy.py`, `backend/test_superadmin.py`, `backend/test_database.py`).
+- **Deployment**: Vercel Serverless ready (`vercel.json`) with PostgreSQL persistence (`DATABASE_URL` / `POSTGRES_URL`).
+
 
 ---
 
