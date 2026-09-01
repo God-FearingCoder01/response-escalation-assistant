@@ -1,57 +1,86 @@
-# Handover: Response & Escalation Assistant
+# Handover Document: Response & Escalation Assistant (REA) 🚀
 
-Date: 2026-08-05
-Branch: main
+Date: 2026-09-01  
+Branch: main  
 
-Summary
--------
-This file documents recent project updates, including backend setup, database persistence configuration, and previous feature removals.
+---
 
-Changes made (2026-08-05)
---------------------------
-- **Backend & Database Configuration**:
-  - Configured FastAPI backend service and SQLite database storage (`backend/backend_data.db`).
-  - Updated `backend/database.py` with deterministic `Path` resolution for SQLite database location.
-  - Modernized `backend/main.py` using FastAPI `lifespan` context manager and explicit UTC timestamps (`datetime.now(timezone.utc)`).
-  - Updated `backend/models.py` default factories for timezone awareness.
-  - Created Python virtual environment (`.venv`) and installed dependencies (`fastapi`, `uvicorn`, `sqlmodel`, `pydantic`).
-  - Updated `package.json` with npm `backend` script to launch the API server.
-  - Added `.gitignore` patterns for `.venv`, `__pycache__`, and `*.db`.
+## 🌟 Architecture Summary
 
-Previous changes (2026-08-04)
-------------------------------
-- Removed the World/Digital Clock feature from `src/App.jsx`.
+The Response & Escalation Assistant backend has been refactored into a high-performance, modular Python FastAPI architecture supporting PostgreSQL production persistence (`DATABASE_URL` / `POSTGRES_URL`) and SQLite local development.
 
-Files edited
-----------
-- `backend/database.py` — deterministic SQLite database file path.
-- `backend/models.py` — timezone-aware UTC datetime defaults.
-- `backend/main.py` — lifespan application context manager & timezone-aware timestamps.
-- `package.json` — added `"backend"` npm script.
-- `.gitignore` — added python cache, venv, and database file exclusions.
-- `HANDOVER.md` — updated handover records.
+```
+backend/
+├── main.py                     # Light FastAPI app entrypoint, CORS & router inclusion
+├── database.py                 # Engine configuration, connection pooling, dialect migrations & session factory
+├── models.py                   # SQLModel table definitions & Pydantic request/response schemas
+├── security.py                 # PIN hashing, rate-limiting, token auth & get_current_company dependency
+├── services/                   # Business domain services
+│   ├── seed_service.py         # Default organization, starter templates & agent profile seeding
+│   ├── translator_service.py   # Shona & Ndebele dictionaries & sentence translation engine
+│   └── extraction_service.py   # Smart parameter extraction rules & state management
+├── routers/                    # 12 Modular FastAPI APIRouters
+│   ├── health.py               # GET /health
+│   ├── superadmin.py           # Super Admin authentication, PIN reset & company provisioning
+│   ├── templates.py            # Organization template CRUD, import/export & deduplication
+│   ├── agents.py               # Agent roster management & 4-digit PIN verification
+│   ├── private_notes.py        # Agent-private notes & usage counters
+│   ├── suggestions.py          # Template suggestions & admin approval lifecycle
+│   ├── support_requests.py     # Public workspace requests & admin resolution workflow
+│   ├── favorites_history.py    # Agent template favorites & copy usage history
+│   ├── translator.py           # Multilingual Shona/Ndebele response translator
+│   ├── extraction.py           # Smart parameter extraction rule management
+│   ├── sir.py                  # Shift Issue Register (Shifts, Escalation Targets, Shift Issues)
+│   └── agent_data.py           # Cross-device agent user data synchronization
+└── tests/                      # Pytest automated test package (30 tests)
+    ├── test_database.py        # Database URL parsing & ping tests
+    ├── test_main.py            # Core app health, auth & CRUD lifecycle tests
+    ├── test_multitenancy.py    # Multi-tenant data isolation tests
+    ├── test_private_notes.py   # Private notes lifecycle & agent privacy tests
+    ├── test_superadmin.py      # Super Admin PIN reset & company management tests
+    └── test_tenant_isolation_aggressive.py # Aggressive multi-tenant isolation tests
+```
 
-Verification performed
-----------------------
-- Tested `GET /health`: returned HTTP 200 `{"status": "ok", "message": "Backend is ready"}`.
-- Tested `GET /templates`: returned HTTP 200 with 3 seeded template records from SQLite.
-- Verified database persistence file `backend/backend_data.db` is created and populated.
-- Ran production build `cmd /c npm run build` successfully with zero errors.
+---
 
-Commands to run
----------------
-Start backend server:
+## 🛠️ Key Recent Architectural Upgrades
+
+### 1. Modular APIRouters & Services Architecture
+- **Router Modularization**: Decomposed monolithic 2,300+ line `backend/main.py` into 12 dedicated `APIRouter` modules under `backend/routers/`.
+- **Domain Services**: Business domain logic extracted into `backend/services/` (`seed_service.py`, `translator_service.py`, `extraction_service.py`).
+- **Security Module**: Authentication, token generation, rate limiting, and tenant resolution consolidated in `backend/security.py`.
+
+### 2. Dedicated Tests Directory Structure
+- Reorganized loose test files into a clean `backend/tests/` Python test package.
+- All **30 automated Pytest tests** pass cleanly.
+
+### 3. Production PostgreSQL & Local SQLite Engine
+- Environment-driven database resolution (`DATABASE_URL`, `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`, `POSTGRESQL_URL`).
+- PostgreSQL connection pooling (`pool_size=10`, `max_overflow=20`, `pool_recycle=300`, `pool_pre_ping=True`).
+- Dialect-agnostic column migrations using SQLAlchemy `inspect(engine)`.
+
+### 4. Hardened Multi-Tenant Isolation
+- `get_current_company` dependency enforces tenant scoping across all organization resources (`X-Company-ID` / `X-Company-Slug`).
+- Accessing deactivated organizations explicitly returns `403 Forbidden`.
+- Aggressive cross-tenant test coverage in `backend/tests/test_tenant_isolation_aggressive.py`.
+
+### 5. Sensitive PIN Credential Sanitization
+- API responses for PIN resets confirm action success without exposing raw PIN credentials in response messages.
+
+---
+
+## 🧪 Verification & Development Commands
+
 ```bash
+# Run full backend test suite (30 tests)
+python -m pytest
+
+# Run frontend check
+npm run check
+
+# Start frontend dev server
+npm run dev
+
+# Start backend FastAPI server
 npm run backend
 ```
-
-Start frontend server:
-```bash
-npm run dev
-```
-
-Build production bundle:
-```bash
-npm run build
-```
-

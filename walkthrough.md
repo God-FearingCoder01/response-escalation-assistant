@@ -1,37 +1,49 @@
-# Walkthrough - PostgreSQL Production Persistence & SQLite Local Development
+# Walkthrough - Modular Backend Architecture & Organized Test Suite
 
-Production database persistence has been transitioned to **PostgreSQL** while retaining **SQLite** for local development and unit testing.
+The backend has been refactored from a single monolithic `backend/main.py` file into modular FastAPI APIRouters, domain services, and security modules. All automated tests have been organized into a dedicated `backend/tests/` directory.
 
 ## Changes Made
 
-### Backend Database Architecture
+### 1. Modular Backend Architecture
 
-#### [database.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/database.py)
-- **Environment Database Resolution**:
-  - Implemented `get_database_url()` to check `DATABASE_URL`, `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`, and `POSTGRESQL_URL`.
-  - Automatically converts `postgres://` dialect URLs to standard SQLAlchemy `postgresql://`.
-- **Dialect Engine Configuration**:
-  - **PostgreSQL**: Configured engine connection pooling (`pool_size=10`, `max_overflow=20`, `pool_recycle=300`, `pool_pre_ping=True`).
-  - **SQLite**: Maintained thread safety settings (`connect_args={"check_same_thread": False}`).
-- **Schema Migration Utility**:
-  - Refactored `create_db_and_tables()` to use `SQLModel.metadata.create_all(engine)`.
-  - Implemented dialect-agnostic column inspection via SQLAlchemy `inspect(engine)` so column additions (`ALTER TABLE ... ADD COLUMN ...`) run cleanly without raw syntax errors on both SQLite and PostgreSQL.
+#### Security & Auth Module
+- **[backend/security.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/security.py)**: Extracted rate-limiting, PIN hashing (`hash_pin`, `verify_pin_hash`), admin token handling (`generate_admin_token`, `verify_admin_token`, `require_admin`), and tenant dependency (`get_current_company`).
 
-#### [requirements.txt](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/requirements.txt) & [backend/requirements.txt](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/requirements.txt)
-- Added `psycopg2-binary` alongside `psycopg[binary]` for PostgreSQL driver support across environment configurations.
+#### Domain Services (`backend/services/`)
+- **[seed_service.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/services/seed_service.py)**: Starter templates, default agents, shift configs, escalation targets, and seeding logic (`sync_default_data_if_needed`).
+- **[translator_service.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/services/translator_service.py)**: Shona & Ndebele dictionaries and dictionary/regex translation logic.
+- **[extraction_service.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/services/extraction_service.py)**: Smart extraction rules data and management functions.
 
-#### [test_database.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/test_database.py)
-- Added unit tests covering PostgreSQL URL conversion (`postgres://` -> `postgresql://`), `POSTGRES_URL` environment variables, local SQLite fallback resolution, and database connectivity.
+#### Domain Routers (`backend/routers/`)
+- **[health.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/routers/health.py)**: GET `/health`
+- **[superadmin.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/routers/superadmin.py)**: Super Admin endpoints (`/superadmin/*`) & Company management (`/companies/*`).
+- **[templates.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/routers/templates.py)**: Template CRUD (`/templates/*`), batch export (`/export`), import (`/import`), and deduplication (`/templates/deduplicate`).
+- **[agents.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/routers/agents.py)**: Agent roster management (`/agents/*`) and PIN verification (`/agents/verify-pin`).
+- **[private_notes.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/routers/private_notes.py)**: Agent private notes (`/private-notes/*`).
+- **[suggestions.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/routers/suggestions.py)**: Template suggestions & approvals (`/suggestions/*`).
+- **[support_requests.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/routers/support_requests.py)**: Public support request submissions & admin status workflow (`/support-requests/*`).
+- **[favorites_history.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/routers/favorites_history.py)**: Favorite templates and copy usage history (`/favorites/*`, `/history/*`).
+- **[translator.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/routers/translator.py)**: Multilingual translation endpoint (`POST /translate`).
+- **[extraction.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/routers/extraction.py)**: Smart extraction rule management (`/api/extraction-rules`).
+- **[sir.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/routers/sir.py)**: Shift Issue Register shift configs, targets, and issues (`/sir/*`).
+- **[agent_data.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/routers/agent_data.py)**: Cross-device agent user data synchronization (`/api/agent-data`).
+
+#### Application Entrypoint
+- **[backend/main.py](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/main.py)**: Cleaned entrypoint that instantiates FastAPI, configures CORS middleware, registers `lifespan`, mounts all 12 domain APIRouters, and re-exports core symbols for backwards compatibility.
 
 ---
 
-### Environment & Documentation Setup
+### 2. Dedicated Test Directory Structure
 
-#### [.env.example](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/.env.example) & [backend/.env.example](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/.env.example)
-- Created environment configuration template files detailing PostgreSQL production setup (`DATABASE_URL` / `POSTGRES_URL`) and local SQLite defaults.
+Moved all test modules into `backend/tests/`:
+- `backend/tests/test_database.py`
+- `backend/tests/test_main.py`
+- `backend/tests/test_multitenancy.py`
+- `backend/tests/test_private_notes.py`
+- `backend/tests/test_superadmin.py`
+- `backend/tests/test_tenant_isolation_aggressive.py`
 
-#### [README.md](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/README.md), [backend/README.md](file:///c:/Users/GFC01/Desktop/the_dev/response-escalation-assistant/backend/README.md)
-- Updated tech stack badges, features, and database configuration documentation for PostgreSQL production persistence.
+Removed old loose test files from `backend/` root directory.
 
 ---
 
@@ -39,9 +51,10 @@ Production database persistence has been transitioned to **PostgreSQL** while re
 
 ### Automated Backend Tests
 - Command: `python -m pytest`
-- Results: **22 passed** in 28.51 seconds.
-  - `backend/test_database.py`: 4 passed (PostgreSQL URL conversion, POSTGRES_URL environment variables, SQLite fallback, DB ping).
-  - `backend/test_main.py`: 13 passed.
-  - `backend/test_multitenancy.py`: 3 passed.
-  - `backend/test_private_notes.py`: 1 passed.
-  - `backend/test_superadmin.py`: 1 passed.
+- Results: **30 passed** in 32.76 seconds.
+  - `backend/tests/test_database.py`: 4 passed
+  - `backend/tests/test_main.py`: 13 passed
+  - `backend/tests/test_multitenancy.py`: 3 passed
+  - `backend/tests/test_private_notes.py`: 1 passed
+  - `backend/tests/test_superadmin.py`: 1 passed
+  - `backend/tests/test_tenant_isolation_aggressive.py`: 8 passed

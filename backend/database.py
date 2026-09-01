@@ -121,3 +121,20 @@ def get_session():
     with Session(engine) as session:
         yield session
 
+
+_db_initialized = False
+
+
+def ensure_db_initialized():
+    global _db_initialized
+    if not _db_initialized:
+        try:
+            create_db_and_tables()
+            from backend.services.seed_service import sync_default_data_if_needed
+            with Session(engine) as session:
+                sync_default_data_if_needed(session)
+            _db_initialized = True
+        except Exception:
+            _db_initialized = True
+
+
