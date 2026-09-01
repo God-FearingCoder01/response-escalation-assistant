@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from backend.services.translator_service import translate_text
+from backend.services.translator_service import translate_text_with_engine
 
 router = APIRouter(tags=["Translator"])
 
@@ -14,8 +14,7 @@ class TranslateRequest(BaseModel):
 
 @router.post("/translate")
 def handle_translation(req: TranslateRequest):
-    translated = translate_text(req.text, req.target_lang)
-    provider = "dictionary" if translated != req.text else "backend"
+    translated, provider = translate_text_with_engine(req.text, req.target_lang)
     return {
         "status": "ok",
         "original_text": req.text,
@@ -24,4 +23,3 @@ def handle_translation(req: TranslateRequest):
         "target_lang": req.target_lang,
         "provider": provider,
     }
-

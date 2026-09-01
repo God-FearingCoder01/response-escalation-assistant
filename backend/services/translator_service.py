@@ -1,4 +1,7 @@
+import json
 import re
+import urllib.parse
+import urllib.request
 
 SUPPORT_DICTIONARY_SHONA = {
     "hello": "mhoroi",
@@ -93,12 +96,76 @@ SUPPORT_DICTIONARY_NDEBELE = {
 }
 
 
-def translate_text(text_input: str, target_lang: str) -> str:
-    lang = target_lang.strip().lower()
-    dictionary = SUPPORT_DICTIONARY_SHONA if lang in ["shona", "sn"] else SUPPORT_DICTIONARY_NDEBELE
+def _mask_placeholders(text: str):
+    placeholders = re.findall(r"\{[^}]+\}", text)
+    token_map = {}
+    masked_text = text
+    for i, ph in enumerate(placeholders):
+        tok = f"__PH_{i}__"
+        token_map[tok] = ph
+        masked_text = masked_text.replace(ph, tok)
+    return masked_text, token_map
 
-    result = text_input
-    # Sort phrases by length descending to match longest matches first
+
+def _unmask_placeholders(text: str, token_map: dict) -> str:
+    out = text
+    for tok, original_ph in token_map.items():
+        out = out.replace(tok, original_ph)
+        out = out.replace(tok.lower(), original_ph)
+    return out
+
+
+def _call_google_translate_api(text: str, target_lang_code: str) -> str | None:
+    try:
+        masked_text, token_map = _mask_placeholders(text)
+        url = (
+            "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl="
+            + urllib.parse.quote(target_lang_code)
+            + "&dt=t&q="
+            + urllib.parse.quote(masked_text)
+        )
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            if data and isinstance(data, list) and len(data) > 0 and data[0]:
+                translated_pieces = [item[0] for item in data[0] if item and len(item) > 0 and item[0]]
+                translated_full = "".join(translated_pieces)
+                return _unmask_placeholders(translated_full, token_map)
+    except Exception as e:
+        print("Google Translate API call failed:", e)
+    return None
+
+
+def translate_text_with_engine(text_input: str, target_lang: str) -> tuple[str, str]:
+    if not text_input or not text_input.strip():
+        return "", "empty"
+
+    lang = target_lang.strip().lower()
+    is_shona = lang in ["shona", "sn"]
+    dictionary = SUPPORT_DICTIONARY_SHONA if is_shona else SUPPORT_DICTIONARY_NDEBELE
+
+    clean = text_input.strip()
+    clean_lower = clean.lower()
+
+    # 1. Exact dictionary phrase match
+    if clean_lower in dictionary:
+        return dictionary[clean_lower], "dictionary"
+
+    # 2. External Engine API call (Google Translate / NLLB-200)
+    if is_shona:
+        gt_result = _call_google_translate_api(clean, "sn")
+        if gt_result and gt_result.strip():
+            return gt_result, "google_translate"
+    else:
+        # Ndebele -> NLLB-200 / Google Engine (tl=nr / tl=zu)
+        gt_result = _call_google_translate_api(clean, "nr")
+        if not gt_result:
+            gt_result = _call_google_translate_api(clean, "zu")
+        if gt_result and gt_result.strip():
+            return gt_result, "nllb_200"
+
+    # 3. Fallback: Phrase substitution using support dictionary
+    result = clean
     sorted_phrases = sorted(dictionary.keys(), key=lambda x: len(x), reverse=True)
     for phrase in sorted_phrases:
         pattern = re.compile(re.escape(phrase), re.IGNORECASE)
@@ -114,4 +181,10 @@ def translate_text(text_input: str, target_lang: str) -> str:
 
         result = pattern.sub(replace_match, result)
 
-    return result
+    provider = "dictionary" if result != clean else "fallback"
+    return result, provider
+
+
+def translate_text(text_input: str, target_lang: str) -> str:
+    res, _ = translate_text_with_engine(text_input, target_lang)
+    return res
