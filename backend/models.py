@@ -356,6 +356,30 @@ class ShiftIssueRead(ShiftIssueBase):
     updated_at: datetime
 
 
+class AgentUserDataBase(SQLModel):
+    agent_initials: str = Field(index=True)
+    company_id: int = Field(default=1, foreign_key="company.id", index=True)
+    favorites_json: str = Field(default="[]")
+    recently_used_json: str = Field(default="[]")
+    usage_counts_json: str = Field(default="{}")
+    usage_date: str = Field(default="")
+    private_notes_json: str = Field(default="[]")
+    translation_history_json: str = Field(default="[]")
+
+
+class AgentUserData(AgentUserDataBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+
+
+class AgentUserDataRead(AgentUserDataBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+
 
 
 

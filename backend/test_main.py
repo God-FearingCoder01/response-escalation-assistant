@@ -335,4 +335,35 @@ def test_support_request_flow():
     assert patch_res.json()["status"] == "resolved"
 
 
+def test_agent_user_data_sync_and_daily_reset():
+    # 1. Fetch initial user data for agent "AK"
+    res_get = client.get("/api/agent-data?agent_initials=AK")
+    assert res_get.status_code == 200
+    data = res_get.json()
+    assert data["agent_initials"] == "AK"
+    assert data["favorites"] == []
+    assert data["recently_used"] == []
+
+    # 2. Save favorites, recents, and usage counts
+    res_save = client.post("/api/agent-data", json={
+        "agent_initials": "AK",
+        "favorites": ["1", "3", "priv_101"],
+        "recently_used": ["5", "2"],
+        "usage_counts": {"1": 12, "3": 5},
+        "translation_history": [{"id": 1, "sourceText": "Hello", "translatedText": "Mhoro"}]
+    })
+    assert res_save.status_code == 200
+    assert res_save.json()["status"] == "ok"
+
+    # 3. Verify cross-computer persistence (Get user data)
+    res_verify = client.get("/api/agent-data?agent_initials=AK")
+    assert res_verify.status_code == 200
+    synced = res_verify.json()
+    assert synced["favorites"] == ["1", "3", "priv_101"]
+    assert synced["recently_used"] == ["5", "2"]
+    assert synced["usage_counts"] == {"1": 12, "3": 5}
+    assert len(synced["translation_history"]) == 1
+
+
+
 

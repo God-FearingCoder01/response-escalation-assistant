@@ -872,3 +872,38 @@ export async function trackPrivateNoteUsageApi(id) {
   }
   return await res.json();
 }
+
+export async function fetchAgentUserDataApi(agentInitials) {
+  if (!agentInitials) return null;
+  try {
+    const res = await fetch(`${API_BASE}/api/agent-data?agent_initials=${encodeURIComponent(agentInitials)}`, {
+      headers: getCompanyHeaders(),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (e) {
+    console.error("Error fetching agent user data:", e);
+  }
+  return null;
+}
+
+export async function saveAgentUserDataApi(payload) {
+  if (!payload || !payload.agent_initials) return null;
+  try {
+    const res = await fetch(`${API_BASE}/api/agent-data`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getCompanyHeaders(),
+      },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (e) {
+    console.error("Error saving agent user data:", e);
+  }
+  return null;
+}

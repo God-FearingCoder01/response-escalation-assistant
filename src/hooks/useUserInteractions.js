@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import {
   API_BASE,
-  fetchFavoritesApi,
-  toggleFavoriteApi,
-  fetchHistoryApi,
-  recordHistoryApi,
+  fetchAgentUserDataApi,
+  saveAgentUserDataApi,
 } from "../services/api";
 
 function getTodayDateStr() {
@@ -34,53 +32,50 @@ export function useUserInteractions({ currentAgent, apiStatus }) {
     const initials = currentAgent.agent_initials;
     const today = getTodayDateStr();
 
-    // Load local agent-scoped storage immediately & enforce daily stats reset
+    // 1. Instant local storage load
     try {
       const favStored = localStorage.getItem(`REA_FAVORITES_${initials}`);
-      setFavoriteIds(favStored ? JSON.parse(favStored) : []);
+      if (favStored) setFavoriteIds(JSON.parse(favStored));
 
       const storedDate = localStorage.getItem(`REA_USAGE_DATE_${initials}`);
-      let countsToUse = {};
       if (storedDate === today) {
         const countsStored = localStorage.getItem(`REA_USAGE_COUNTS_${initials}`);
-        countsToUse = countsStored ? JSON.parse(countsStored) : {};
+        if (countsStored) setUsageCounts(JSON.parse(countsStored));
       } else {
         localStorage.setItem(`REA_USAGE_DATE_${initials}`, today);
         localStorage.setItem(`REA_USAGE_COUNTS_${initials}`, JSON.stringify({}));
+        setUsageCounts({});
       }
-      setUsageCounts(countsToUse);
 
       const recentsStored = localStorage.getItem(`REA_RECENTLY_USED_${initials}`);
-      setRecentlyUsed(recentsStored ? JSON.parse(recentsStored) : []);
+      if (recentsStored) setRecentlyUsed(JSON.parse(recentsStored));
     } catch (e) {}
 
-    if (apiStatus === "offline") return;
     let mounted = true;
 
+    // 2. Cross-computer backend server database sync
     async function syncAgentUserData() {
       try {
-        const [favData, histData] = await Promise.all([
-          fetchFavoritesApi(initials),
-          fetchHistoryApi(initials),
-        ]);
-
-        if (Array.isArray(favData) && mounted) {
-          setFavoriteIds(favData);
-          try { localStorage.setItem(`REA_FAVORITES_${initials}`, JSON.stringify(favData)); } catch (e) {}
-        }
-
-        if (histData && mounted) {
-          if (histData.counts) {
-            setUsageCounts(histData.counts);
-            try { localStorage.setItem(`REA_USAGE_COUNTS_${initials}`, JSON.stringify(histData.counts)); } catch (e) {}
+        const serverData = await fetchAgentUserDataApi(initials);
+        if (serverData && mounted) {
+          if (Array.isArray(serverData.favorites)) {
+            setFavoriteIds(serverData.favorites);
+            try { localStorage.setItem(`REA_FAVORITES_${initials}`, JSON.stringify(serverData.favorites)); } catch (e) {}
           }
-          if (Array.isArray(histData.recents)) {
-            setRecentlyUsed(histData.recents);
-            try { localStorage.setItem(`REA_RECENTLY_USED_${initials}`, JSON.stringify(histData.recents)); } catch (e) {}
+          if (serverData.usage_counts) {
+            setUsageCounts(serverData.usage_counts);
+            try {
+              localStorage.setItem(`REA_USAGE_COUNTS_${initials}`, JSON.stringify(serverData.usage_counts));
+              localStorage.setItem(`REA_USAGE_DATE_${initials}`, serverData.usage_date || today);
+            } catch (e) {}
+          }
+          if (Array.isArray(serverData.recently_used)) {
+            setRecentlyUsed(serverData.recently_used);
+            try { localStorage.setItem(`REA_RECENTLY_USED_${initials}`, JSON.stringify(serverData.recently_used)); } catch (e) {}
           }
         }
       } catch (err) {
-        // Keeps loaded localStorage intact
+        console.error("Error syncing agent user data from backend:", err);
       }
     }
 
@@ -88,7 +83,7 @@ export function useUserInteractions({ currentAgent, apiStatus }) {
     return () => {
       mounted = false;
     };
-  }, [currentAgent, apiStatus]);
+  }, [currentAgent]);
 
   async function toggleFavorite(id) {
     if (!id) return;
@@ -100,15 +95,11 @@ export function useUserInteractions({ currentAgent, apiStatus }) {
       localStorage.setItem(`REA_FAVORITES_${initials}`, JSON.stringify(next));
     } catch (e) {}
 
-    if (currentAgent?.agent_initials && apiStatus !== "offline") {
-      try {
-        const updatedFavs = await toggleFavoriteApi(initials, id);
-        if (Array.isArray(updatedFavs)) {
-          setFavoriteIds(updatedFavs);
-          try { localStorage.setItem(`REA_FAVORITES_${initials}`, JSON.stringify(updatedFavs)); } catch (e) {}
-        }
-      } catch (err) {}
-    }
+    saveAgentUserDataApi({
+      agent_initials: initials,
+      favorites: next,
+    });
+
     showToast(isFav ? "Removed from Favorites ⭐" : "Added to Favorites ⭐");
   }
 
@@ -117,11 +108,9 @@ export function useUserInteractions({ currentAgent, apiStatus }) {
     const initials = currentAgent?.agent_initials || "DEFAULT";
     const today = getTodayDateStr();
 
-    // Check if stored date is current day
     const storedDate = localStorage.getItem(`REA_USAGE_DATE_${initials}`);
     const baseCounts = storedDate === today ? usageCounts : {};
 
-    // Update daily usage counts
     const nextCounts = { ...baseCounts, [templateId]: (baseCounts[templateId] || 0) + 1 };
     setUsageCounts(nextCounts);
     try {
@@ -129,17 +118,16 @@ export function useUserInteractions({ currentAgent, apiStatus }) {
       localStorage.setItem(`REA_USAGE_DATE_${initials}`, today);
     } catch (e) {}
 
-    // Update recently used
     const filteredRecents = recentlyUsed.filter((item) => item.templateId !== templateId);
     const nextRecents = [{ templateId, timestamp: Date.now() }, ...filteredRecents].slice(0, 30);
     setRecentlyUsed(nextRecents);
     try { localStorage.setItem(`REA_RECENTLY_USED_${initials}`, JSON.stringify(nextRecents)); } catch (e) {}
 
-    if (currentAgent?.agent_initials && apiStatus !== "offline") {
-      try {
-        await recordHistoryApi(initials, templateId);
-      } catch (err) {}
-    }
+    saveAgentUserDataApi({
+      agent_initials: initials,
+      usage_counts: nextCounts,
+      recently_used: nextRecents,
+    });
   }
 
   async function copyText(text, customMessage = "Message copied to clipboard! 📋", templateId = null) {

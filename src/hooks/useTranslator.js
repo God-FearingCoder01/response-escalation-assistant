@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { translateText, getPresetPhrases } from "../services/translationService";
+import { fetchAgentUserDataApi, saveAgentUserDataApi } from "../services/api";
 
 const HISTORY_KEY = "rea_translator_history_v1";
 
@@ -18,7 +19,7 @@ export function useTranslator({ currentAgent = null, showToast = () => {} } = {}
   // Persistent user-scoped translation history
   const [history, setHistory] = useState([]);
 
-  // Load history whenever active agent changes
+  // Load history whenever active agent changes (localStorage + backend server sync)
   useEffect(() => {
     if (!agentInitials) return;
     try {
@@ -27,22 +28,39 @@ export function useTranslator({ currentAgent = null, showToast = () => {} } = {}
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
           setHistory(parsed);
-          return;
         }
       }
-    } catch (e) {
-      console.error("Error reading translation history:", e);
+    } catch (e) {}
+
+    let mounted = true;
+    async function syncHistory() {
+      try {
+        const serverData = await fetchAgentUserDataApi(agentInitials);
+        if (serverData && Array.isArray(serverData.translation_history) && mounted) {
+          setHistory(serverData.translation_history);
+          try { localStorage.setItem(historyKey, JSON.stringify(serverData.translation_history)); } catch (e) {}
+        }
+      } catch (err) {}
     }
-    setHistory([]);
+
+    syncHistory();
+    return () => {
+      mounted = false;
+    };
   }, [historyKey, agentInitials]);
 
-  // Save history updates per agent to localStorage
+  // Save history updates per agent to localStorage & backend DB
   useEffect(() => {
     if (!agentInitials) return;
     try {
       localStorage.setItem(historyKey, JSON.stringify(history));
-    } catch (e) {
-      console.error("Error saving translation history:", e);
+    } catch (e) {}
+
+    if (history.length > 0) {
+      saveAgentUserDataApi({
+        agent_initials: agentInitials,
+        translation_history: history,
+      });
     }
   }, [history, historyKey, agentInitials]);
 
