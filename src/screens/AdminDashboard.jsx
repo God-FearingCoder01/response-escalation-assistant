@@ -261,6 +261,7 @@ export default function AdminDashboard({
   }, []);
 
   const toggleValueType = (type) => {
+    setRuleCustomRegex("");
     setRuleValueTypes((prev) => {
       if (prev.includes(type)) {
         const next = prev.filter((t) => t !== type);
@@ -301,6 +302,7 @@ export default function AdminDashboard({
       keyword: ruleKeyword.trim(),
       result_label: ruleResultLabel.trim(),
       target_placeholder: ruleTargetPlaceholder.trim(),
+      customRegex: ruleCustomRegex.trim(),
       is_active: ruleIsActive,
     };
 
@@ -348,7 +350,7 @@ export default function AdminDashboard({
     setRuleKeyword(r.keyword || "");
     setRuleResultLabel(r.result_label || "");
     setRuleTargetPlaceholder(r.target_placeholder || "transaction_number");
-    setRuleCustomRegex(r.pattern || "");
+    setRuleCustomRegex(r.customRegex || "");
     setRuleIsActive(r.is_active !== false);
   };
 
@@ -1733,7 +1735,10 @@ export default function AdminDashboard({
                   <input
                     type="text"
                     value={rulePrefix}
-                    onChange={(e) => setRulePrefix(e.target.value)}
+                    onChange={(e) => {
+                      setRulePrefix(e.target.value);
+                      setRuleCustomRegex("");
+                    }}
                     placeholder="e.g. MP or INN- or leave blank"
                     className="w-full rounded-lg border p-2 text-xs font-mono"
                     style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
@@ -1784,7 +1789,10 @@ export default function AdminDashboard({
                   <div className="flex items-center gap-2 p-1 rounded-xl border" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}>
                     <button
                       type="button"
-                      onClick={() => setRuleLengthMode("constant")}
+                      onClick={() => {
+                        setRuleLengthMode("constant");
+                        setRuleCustomRegex("");
+                      }}
                       className={`flex-1 py-1 px-2 rounded-lg text-xs font-bold transition ${
                         ruleLengthMode === "constant"
                           ? "bg-[#4cd34c] text-black shadow-sm"
@@ -1795,7 +1803,10 @@ export default function AdminDashboard({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setRuleLengthMode("variable")}
+                      onClick={() => {
+                        setRuleLengthMode("variable");
+                        setRuleCustomRegex("");
+                      }}
                       className={`flex-1 py-1 px-2 rounded-lg text-xs font-bold transition ${
                         ruleLengthMode === "variable"
                           ? "bg-[#4cd34c] text-black shadow-sm"

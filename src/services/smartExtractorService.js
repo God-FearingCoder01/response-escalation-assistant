@@ -204,7 +204,7 @@ export function extractStructuredData(rawText = "", rules = []) {
       }
 
       // Pattern / Regex matching
-      const patternStr = rule.pattern || buildPatternString(rule);
+      const patternStr = buildPatternString(rule);
       const regex = new RegExp(patternStr, "gi");
       const matches = rawText.match(regex);
 
