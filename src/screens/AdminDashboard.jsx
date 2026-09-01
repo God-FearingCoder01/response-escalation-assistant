@@ -1262,33 +1262,36 @@ export default function AdminDashboard({
             </div>
             <div>
               <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>English Phrase *:</label>
-              <input
+              <textarea
                 value={presetEn}
                 onChange={(e) => setPresetEn(e.target.value)}
                 placeholder="e.g. Please provide your registered account number."
-                className="w-full rounded-xl border p-2.5 text-sm font-medium"
+                rows={3}
+                className="w-full resize-y rounded-xl border p-2.5 text-sm font-medium outline-none transition focus:ring-2 focus:ring-[#4cd34c]"
                 style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                 required
               />
             </div>
             <div>
               <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>Shona Translation *:</label>
-              <input
+              <textarea
                 value={presetSn}
                 onChange={(e) => setPresetSn(e.target.value)}
                 placeholder="e.g. Ndapota ipai nhamba yenhoroondo yemubhadharo."
-                className="w-full rounded-xl border p-2.5 text-sm font-medium"
+                rows={3}
+                className="w-full resize-y rounded-xl border p-2.5 text-sm font-medium outline-none transition focus:ring-2 focus:ring-[#4cd34c]"
                 style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                 required
               />
             </div>
             <div>
               <label className="text-[11px] block mb-1" style={{ color: "var(--text-muted)" }}>IsiNdebele Translation:</label>
-              <input
+              <textarea
                 value={presetNd}
                 onChange={(e) => setPresetNd(e.target.value)}
                 placeholder="e.g. Cela unikeze inombolo yakho..."
-                className="w-full rounded-xl border p-2.5 text-sm font-medium"
+                rows={3}
+                className="w-full resize-y rounded-xl border p-2.5 text-sm font-medium outline-none transition focus:ring-2 focus:ring-[#4cd34c]"
                 style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
               />
             </div>
