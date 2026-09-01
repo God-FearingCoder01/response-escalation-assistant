@@ -88,6 +88,7 @@ export default function TechEscalation({
                   : activeTemplate.placeholder_config;
               } catch (e) {}
             }
+            const { resolvedValues, mappedTargetKeys } = resolveConditionalMappings(placeholders, parsedCfgMap, values);
             const isAgentPh = (ph) => {
               if (!ph) return false;
               const clean = ph.trim().toLowerCase().replace(/\?$/, "");

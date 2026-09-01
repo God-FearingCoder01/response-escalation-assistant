@@ -567,6 +567,7 @@ export default function QuickAccess({
                   : activeTemplate.placeholder_config;
               } catch (e) {}
             }
+            const { resolvedValues, mappedTargetKeys } = resolveConditionalMappings(phList, parsedCfgMap, values);
             const isAgentPh = (ph) => {
               if (!ph) return false;
               const clean = ph.trim().toLowerCase().replace(/\?$/, "");

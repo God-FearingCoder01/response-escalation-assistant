@@ -231,6 +231,7 @@ export default function CustomerReply({
                   : activeTemplate.placeholder_config;
               } catch (e) {}
             }
+            const { resolvedValues, mappedTargetKeys } = resolveConditionalMappings(placeholderList, parsedCfgMap, values);
             const isAgentPh = (ph) => {
               if (!ph) return false;
               const clean = ph.trim().toLowerCase().replace(/\?$/, "");
