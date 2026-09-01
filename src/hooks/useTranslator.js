@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { translateText, getPresetPhrases } from "../services/translationService";
 import { fetchAgentUserDataApi, saveAgentUserDataApi } from "../services/api";
 
@@ -19,24 +19,33 @@ export function useTranslator({ currentAgent = null, showToast = () => {} } = {}
   // Persistent user-scoped translation history
   const [history, setHistory] = useState([]);
 
+  const loadedAgentRef = useRef(agentInitials);
+
   // Load history whenever active agent changes (localStorage + backend server sync)
   useEffect(() => {
     if (!agentInitials) return;
+    loadedAgentRef.current = agentInitials;
+
+    let localHistory = [];
     try {
       const stored = localStorage.getItem(historyKey);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
-          setHistory(parsed);
+          localHistory = parsed;
         }
       }
     } catch (e) {}
+
+    setHistory(localHistory);
+    setSourceText("");
+    setTranslatedText("");
 
     let mounted = true;
     async function syncHistory() {
       try {
         const serverData = await fetchAgentUserDataApi(agentInitials);
-        if (serverData && Array.isArray(serverData.translation_history) && mounted) {
+        if (serverData && Array.isArray(serverData.translation_history) && mounted && loadedAgentRef.current === agentInitials) {
           setHistory(serverData.translation_history);
           try { localStorage.setItem(historyKey, JSON.stringify(serverData.translation_history)); } catch (e) {}
         }
@@ -51,7 +60,12 @@ export function useTranslator({ currentAgent = null, showToast = () => {} } = {}
 
   // Save history updates per agent to localStorage & backend DB
   useEffect(() => {
-    if (!agentInitials) return;
+    if (!agentInitials || agentInitials === "GUEST") return;
+    // Guard against saving stale history from a previous agent to a newly selected agent
+    if (loadedAgentRef.current !== agentInitials) {
+      return;
+    }
+
     try {
       localStorage.setItem(historyKey, JSON.stringify(history));
     } catch (e) {}

@@ -171,13 +171,14 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
 
     if (res.ok) {
       const data = await res.json();
+      const textResult = data.translatedText || data.translated_text;
       if (
-        data.translatedText &&
-        data.translatedText.trim() &&
+        textResult &&
+        textResult.trim() &&
         data.provider !== "fallback"
       ) {
         return {
-          translatedText: data.translatedText,
+          translatedText: textResult,
           provider: data.provider || "backend",
         };
       }

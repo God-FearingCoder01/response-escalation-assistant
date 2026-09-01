@@ -61,6 +61,16 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
     refreshTemplates();
   }, [apiStatus]);
 
+  // Reset template selections and search filters when active agent changes
+  useEffect(() => {
+    setSelectedTechId(null);
+    setSelectedCustId(null);
+    setSelectedQuickId(null);
+    setSearchQuery("");
+    setSelectedCategory("All");
+    setSelectedSubcategory("All");
+  }, [currentAgent?.agent_initials]);
+
   // Categorized template lists
   const techTemplates = useMemo(
     () =>

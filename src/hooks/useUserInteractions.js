@@ -28,28 +28,40 @@ export function useUserInteractions({ currentAgent, apiStatus }) {
 
   // Sync agent user data when active agent profile changes
   useEffect(() => {
-    if (!currentAgent?.agent_initials) return;
-    const initials = currentAgent.agent_initials;
+    if (!currentAgent?.agent_initials) {
+      setFavoriteIds([]);
+      setUsageCounts({});
+      setRecentlyUsed([]);
+      return;
+    }
+    const initials = currentAgent.agent_initials.toUpperCase();
     const today = getTodayDateStr();
 
-    // 1. Instant local storage load
+    // 1. Instant reset & agent-scoped local storage load
+    let favs = [];
+    let counts = {};
+    let recents = [];
+
     try {
       const favStored = localStorage.getItem(`REA_FAVORITES_${initials}`);
-      if (favStored) setFavoriteIds(JSON.parse(favStored));
+      if (favStored) favs = JSON.parse(favStored);
 
       const storedDate = localStorage.getItem(`REA_USAGE_DATE_${initials}`);
       if (storedDate === today) {
         const countsStored = localStorage.getItem(`REA_USAGE_COUNTS_${initials}`);
-        if (countsStored) setUsageCounts(JSON.parse(countsStored));
+        if (countsStored) counts = JSON.parse(countsStored);
       } else {
         localStorage.setItem(`REA_USAGE_DATE_${initials}`, today);
         localStorage.setItem(`REA_USAGE_COUNTS_${initials}`, JSON.stringify({}));
-        setUsageCounts({});
       }
 
       const recentsStored = localStorage.getItem(`REA_RECENTLY_USED_${initials}`);
-      if (recentsStored) setRecentlyUsed(JSON.parse(recentsStored));
+      if (recentsStored) recents = JSON.parse(recentsStored);
     } catch (e) {}
+
+    setFavoriteIds(favs);
+    setUsageCounts(counts);
+    setRecentlyUsed(recents);
 
     let mounted = true;
 
