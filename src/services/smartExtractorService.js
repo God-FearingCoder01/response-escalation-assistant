@@ -1,5 +1,5 @@
 // Smart Extractor Service: Manages Image Extraction Rules & Rule Matching
-import { API_BASE, getCompanyHeaders } from "./api";
+import { API_BASE, getCompanyHeaders } from "./api.js";
 
 export const EXTRACTION_RULES_KEY = "rea_extraction_rules_v1";
 
@@ -138,8 +138,10 @@ export function buildPatternString({
   minLength = 4,
   maxLength = 12,
   customRegex = "",
+  pattern = "",
 }) {
   if (customRegex && customRegex.trim()) return customRegex.trim();
+  if (pattern && pattern.trim()) return pattern.trim();
   const escapedPrefix = prefix && prefix.trim() ? prefix.trim().replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&") : "";
 
   const types = Array.isArray(valueTypes) && valueTypes.length > 0
@@ -147,7 +149,8 @@ export function buildPatternString({
     : [valueType];
 
   if (types.includes("amount")) {
-    return `${escapedPrefix}\\$[0-9,]+(\\.[0-9]{2})?`;
+    const prefixSymbol = escapedPrefix || "\\$";
+    return `${prefixSymbol}[0-9,]+(\\.[0-9]{2})?`;
   }
 
   let charSet = "";
@@ -187,7 +190,7 @@ export function extractStructuredData(rawText = "", rules = []) {
           const kwIdx = lowerText.indexOf(kw);
           if (kwIdx !== -1) {
             const afterKw = rawText.slice(kwIdx + kw.length).trim();
-            const match = afterKw.match(/^[:\s-]*([A-Za-z0-9$.-]+)/);
+            const match = afterKw.match(/^[:\s-]*([A-Za-z0-9$.#-]+)/);
             if (match && match[1]) {
               results.push({
                 id: rule.id,
@@ -197,10 +200,10 @@ export function extractStructuredData(rawText = "", rules = []) {
                 ruleName: rule.name,
                 targetPlaceholder: rule.target_placeholder,
               });
-              return;
             }
           }
         }
+        return;
       }
 
       // Pattern / Regex matching

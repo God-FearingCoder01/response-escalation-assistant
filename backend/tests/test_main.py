@@ -327,3 +327,29 @@ def test_agent_user_data_sync_and_daily_reset():
     assert synced["recently_used"] == [{"templateId": 5, "timestamp": 12345}, "2"]
     assert synced["usage_counts"] == {"1": 12, "3": 5}
     assert len(synced["translation_history"]) == 1
+
+
+def test_extraction_rules_api():
+    res = client.get("/api/extraction-rules")
+    assert res.status_code == 200
+    rules = res.json()
+    assert isinstance(rules, list)
+    assert len(rules) >= 5
+    rule1 = next((r for r in rules if r["id"] == "rule_1"), None)
+    assert rule1 is not None
+    assert rule1["prefix"] == "MP"
+    assert rule1["target_placeholder"] == "transaction_number"
+
+    # Save updated rules
+    new_rules = rules + [{
+        "id": "rule_test_99",
+        "name": "Custom Test Rule",
+        "method": "pattern",
+        "pattern": "TEST-\\d{5}",
+        "is_active": True
+    }]
+    res_save = client.post("/api/extraction-rules", json=new_rules)
+    assert res_save.status_code == 200
+    updated = res_save.json()
+    assert any(r["id"] == "rule_test_99" for r in updated)
+

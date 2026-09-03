@@ -35,6 +35,24 @@ export default function SmartExtractorWidget({
     if (file) processImageFile(file);
   };
 
+  const loadTesseractEngine = () => {
+    return new Promise((resolve, reject) => {
+      if (window.Tesseract) return resolve(window.Tesseract);
+      const existing = document.getElementById("tesseract-cdn-script");
+      if (existing) {
+        existing.addEventListener("load", () => resolve(window.Tesseract));
+        existing.addEventListener("error", reject);
+        return;
+      }
+      const script = document.createElement("script");
+      script.id = "tesseract-cdn-script";
+      script.src = "https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js";
+      script.onload = () => resolve(window.Tesseract);
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  };
+
   const processImageFile = async (file) => {
     if (!file.type.startsWith("image/")) {
       showToast("Please upload a valid screenshot or image file.", "error");
@@ -48,34 +66,18 @@ export default function SmartExtractorWidget({
       setIsScanning(true);
 
       try {
-        // Load Tesseract.js from CDN or fallback to fast image canvas scanning
+        const tesseract = await loadTesseractEngine();
         let ocrText = "";
-        if (window.Tesseract) {
-          const res = await window.Tesseract.recognize(srcData, "eng");
+        if (tesseract) {
+          const res = await tesseract.recognize(srcData, "eng");
           ocrText = res?.data?.text || "";
-        } else {
-          // Dynamic load Tesseract CDN script if not present
-          const script = document.createElement("script");
-          script.src = "https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js";
-          script.onload = async () => {
-            if (window.Tesseract) {
-              const res = await window.Tesseract.recognize(srcData, "eng");
-              setRawOcrText(res?.data?.text || "");
-              const structured = extractStructuredData(res?.data?.text || "", rules);
-              setExtractedResults(structured);
-            }
-          };
-          document.head.appendChild(script);
-          // Temporary placeholder text while loading OCR engine
-          ocrText = file.name;
         }
-
         setRawOcrText(ocrText);
         const structured = extractStructuredData(ocrText, rules);
         setExtractedResults(structured);
       } catch (err) {
         console.error("OCR extraction error:", err);
-        showToast("Extracted image text scanned.", "info");
+        showToast("Error processing OCR text from screenshot.", "error");
       } finally {
         setIsScanning(false);
       }
