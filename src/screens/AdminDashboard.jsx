@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from "react";
 import { getPresetPhrases, savePresetPhrases, DEFAULT_PRESET_PHRASES } from "../services/translationService";
-import { fetchExtractionRules, saveExtractionRulesLocally, buildPatternString } from "../services/smartExtractorService";
+import { fetchExtractionRules, saveExtractionRulesLocally, buildPatternString, autoExtractFieldsFromText } from "../services/smartExtractorService";
 
 export default function AdminDashboard({
   activeScreen,
@@ -535,7 +535,7 @@ export default function AdminDashboard({
                             </span>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             <div>
                               <label className="text-[10px] block mb-1 font-medium text-[var(--text-muted)]">Control Type:</label>
                               <select
@@ -574,6 +574,20 @@ export default function AdminDashboard({
                                 <option value="date_year">System Year (YYYY)</option>
                                 <option value="date_time">System Time (HH:mm)</option>
                                 <option value="custom">Custom Default Value</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] block mb-1 font-medium text-[var(--text-muted)]">Agent Form Visibility:</label>
+                              <select
+                                value={cfg.visibility_mode || "show"}
+                                onChange={(e) => updatePlaceholderConfig(ph, { visibility_mode: e.target.value })}
+                                className="w-full rounded-lg border p-1.5 text-xs font-semibold focus:outline-none focus:border-[#4cd34c]"
+                                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                              >
+                                <option value="show">👁️ Always Visible (Show input)</option>
+                                <option value="hide_if_autofilled">🙈 Hide if Auto-Filled (Clean UI)</option>
+                                <option value="always_hidden">🚫 Always Hidden (Silent value)</option>
                               </select>
                             </div>
                           </div>
@@ -642,6 +656,271 @@ export default function AdminDashboard({
                               </div>
                             );
                           })()}
+
+                          {/* Extractable Source Field Configuration */}
+                          <div className="pt-2 border-t mt-1" style={{ borderColor: "var(--field-border)" }}>
+                            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-[#4cd34c]">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(cfg.is_extractable_source)}
+                                onChange={(e) => updatePlaceholderConfig(ph, { is_extractable_source: e.target.checked })}
+                                className="rounded text-[#4cd34c] focus:ring-[#4cd34c]"
+                              />
+                              <span>⚡ Mark as Extractable Source Field (Auto-fill other fields)</span>
+                            </label>
+
+                            {cfg.is_extractable_source && (
+                              <div className="mt-2 p-2.5 rounded-lg border bg-[var(--app-bg)] space-y-3 text-xs" style={{ borderColor: "var(--field-border)" }}>
+                                <div className="text-[10px] text-[var(--text-muted)] font-medium">
+                                  When an agent types or pastes text into <strong>{`{${ph}}`}</strong>, extract values to auto-fill these target parameters:
+                                </div>
+
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold block" style={{ color: "var(--app-text)" }}>Target Parameters to Auto-Fill:</label>
+                                  <div className="flex flex-wrap gap-2">
+                                    {extractedPlaceholders.filter((other) => other !== ph).map((targetPh) => {
+                                      const currentTargets = Array.isArray(cfg.extraction_targets) ? cfg.extraction_targets : [];
+                                      const isChecked = currentTargets.length === 0 || currentTargets.includes(targetPh);
+
+                                      return (
+                                        <label key={targetPh} className="flex items-center gap-1 bg-[var(--field-bg)] border px-2 py-1 rounded-md text-[11px] cursor-pointer" style={{ borderColor: "var(--field-border)" }}>
+                                          <input
+                                            type="checkbox"
+                                            checked={isChecked}
+                                            onChange={() => {
+                                              let nextTargets;
+                                              if (currentTargets.length === 0) {
+                                                nextTargets = extractedPlaceholders.filter((o) => o !== ph && o !== targetPh);
+                                              } else if (currentTargets.includes(targetPh)) {
+                                                nextTargets = currentTargets.filter((t) => t !== targetPh);
+                                              } else {
+                                                nextTargets = [...currentTargets, targetPh];
+                                              }
+                                              updatePlaceholderConfig(ph, { extraction_targets: nextTargets });
+                                            }}
+                                            className="rounded text-[#4cd34c]"
+                                          />
+                                          <span className="font-mono text-[#4cd34c]">{`{${targetPh}}`}</span>
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                  {/* Live Extraction Tester & Inline Highlighted Preview */}
+                                  <div className="pt-2 border-t space-y-2" style={{ borderColor: "var(--field-border)" }}>
+                                    <div className="flex items-center justify-between">
+                                      <label className="text-[10px] font-bold text-[#4cd34c] flex items-center gap-1">
+                                        <span>🧪 Example Input for Live Extraction & Mapping Test:</span>
+                                      </label>
+                                      <span className="text-[9px] text-[#4cd34c] font-semibold">
+                                        💡 Tip: Wrap choices/substrings in [square brackets] to isolate & map custom fields!
+                                      </span>
+                                    </div>
+
+                                    {(() => {
+                                      // Dynamic example generator incorporating CA choices in square brackets
+                                      const defaultSampleText = (() => {
+                                        if (cfg.example_input !== undefined && cfg.example_input !== null && cfg.example_input.trim() !== "") {
+                                          return cfg.example_input;
+                                        }
+
+                                        const fragments = [];
+                                        const otherTargets = extractedPlaceholders.filter((o) => o !== ph);
+                                        const activeTargets = Array.isArray(cfg.extraction_targets) && cfg.extraction_targets.length > 0
+                                          ? cfg.extraction_targets
+                                          : otherTargets;
+
+                                        activeTargets.forEach((targetPh) => {
+                                          const targetCfg = placeholderConfigs[targetPh] || {};
+                                          let choiceVal = "";
+
+                                          if (Array.isArray(targetCfg.options) && targetCfg.options.length > 0) {
+                                            choiceVal = targetCfg.options[0];
+                                          } else if (targetCfg.mapping && Object.keys(targetCfg.mapping).length > 0) {
+                                            choiceVal = Object.keys(targetCfg.mapping)[0];
+                                          } else if (targetCfg.custom_default) {
+                                            choiceVal = targetCfg.custom_default;
+                                          }
+
+                                          const lower = targetPh.toLowerCase();
+                                          if (lower.includes("amount") || lower.includes("price") || lower.includes("sum")) {
+                                            fragments.push(`paid [${choiceVal || "$50.00"}]`);
+                                          } else if (lower.includes("transaction") || lower.includes("ref") || lower.includes("tx")) {
+                                            fragments.push(`ref [${choiceVal || "MP260831.1341.T9283748"}]`);
+                                          } else if (lower.includes("account") || lower.includes("acc")) {
+                                            fragments.push(`account [${choiceVal || "ACC-482913"}]`);
+                                          } else if (lower.includes("phone") || lower.includes("mobile") || lower.includes("msisdn")) {
+                                            fragments.push(`phone [${choiceVal || "0771234567"}]`);
+                                          } else if (choiceVal) {
+                                            fragments.push(`${targetPh} [${choiceVal}]`);
+                                          } else {
+                                            fragments.push(`${targetPh} [${targetPh}_val]`);
+                                          }
+                                        });
+
+                                        if (fragments.length === 0) {
+                                          return "Customer paid [$50.00] via Ecocash [MP260831.1341.T9283748] for account [ACC-482913] phone [0771234567]";
+                                        }
+
+                                        return `Customer ${fragments.join(" ")}`;
+                                      })();
+
+                                      const sampleText = cfg.example_input !== undefined ? cfg.example_input : defaultSampleText;
+
+                                      const { updates: testUpdates, extractedList: testMatches } = autoExtractFieldsFromText(
+                                        sampleText,
+                                        extractionRules,
+                                        extractedPlaceholders,
+                                        ph,
+                                        placeholderConfigs
+                                      );
+
+                                      // Build highlighted text fragments
+                                      const renderHighlightedText = () => {
+                                        if (!testMatches || testMatches.length === 0) {
+                                          return <span className="opacity-75">{sampleText}</span>;
+                                        }
+
+                                        const sortedMatches = [...testMatches].sort((a, b) => (a.startIndex || 0) - (b.startIndex || 0));
+                                        const elements = [];
+                                        let lastIndex = 0;
+
+                                        sortedMatches.forEach((m, idx) => {
+                                          const sIdx = m.startIndex !== undefined && m.startIndex !== -1 ? m.startIndex : sampleText.indexOf(m.value, lastIndex);
+                                          const eIdx = m.endIndex !== undefined && m.endIndex !== -1 ? m.endIndex : sIdx + m.value.length;
+
+                                          if (sIdx > lastIndex) {
+                                            elements.push(
+                                              <span key={`text_${lastIndex}`}>
+                                                {sampleText.slice(lastIndex, sIdx)}
+                                              </span>
+                                            );
+                                          }
+
+                                          elements.push(
+                                            <mark
+                                              key={`match_${idx}`}
+                                              className="inline-flex items-center gap-1 mx-1 px-2 py-0.5 rounded-md border bg-[#4cd34c]/20 border-[#4cd34c] text-[#4cd34c] font-mono font-bold text-xs shadow-sm cursor-help"
+                                              title={`Extracted "${m.value}" (${m.label}) ➔ Auto-fills {${m.placeholder}}`}
+                                            >
+                                              <span>"{m.value}"</span>
+                                              <span className="bg-[#4cd34c] text-black font-black px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide">
+                                                ➔ {`{${m.placeholder}}`}
+                                              </span>
+                                            </mark>
+                                          );
+                                          lastIndex = Math.max(lastIndex, eIdx);
+                                        });
+
+                                        if (lastIndex < sampleText.length) {
+                                          elements.push(
+                                            <span key={`text_end`}>
+                                              {sampleText.slice(lastIndex)}
+                                            </span>
+                                          );
+                                        }
+
+                                        return elements;
+                                      };
+
+                                      return (
+                                        <>
+                                          <textarea
+                                            rows={2}
+                                            value={cfg.example_input !== undefined ? cfg.example_input : defaultSampleText}
+                                            onChange={(e) => updatePlaceholderConfig(ph, { example_input: e.target.value })}
+                                            placeholder={`e.g. ${defaultSampleText}`}
+                                            className="w-full rounded-lg border p-2 text-xs font-mono bg-[var(--field-bg)] border-[var(--field-border)] focus:outline-none focus:border-[#4cd34c]"
+                                            style={{ color: "var(--app-text)" }}
+                                          />
+
+                                          <div className="p-3 rounded-lg border bg-[var(--panel-bg)] space-y-3" style={{ borderColor: "var(--field-border)" }}>
+                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#4cd34c] flex items-center justify-between">
+                                              <span>Highlighted Example Extraction Inspector</span>
+                                              <span className="text-[9px] font-mono font-extrabold text-[#4cd34c]">
+                                                {testMatches.length} Substrings Extracted
+                                              </span>
+                                            </div>
+
+                                            {/* Highlighted Inline Text Preview */}
+                                            <div className="p-3 rounded-xl border bg-[var(--app-bg)] border-[var(--field-border)] text-xs font-sans leading-relaxed">
+                                              <div className="text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">
+                                                Interactive Highlighted Input Preview:
+                                              </div>
+                                              <div className="p-2 rounded-lg bg-[var(--field-bg)] border border-[var(--field-border)] font-mono">
+                                                {renderHighlightedText()}
+                                              </div>
+                                            </div>
+
+                                            {/* Target Parameter Mapping Controls per Extracted Match */}
+                                            {testMatches.length > 0 ? (
+                                              <div className="space-y-1.5 pt-1">
+                                                <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                                                  Extracted Substring ➔ Target Parameter Mappings:
+                                                </div>
+                                                {testMatches.map((match, idx) => (
+                                                  <div
+                                                    key={idx}
+                                                    className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-lg border bg-[var(--field-bg)] border-[var(--field-border)]"
+                                                  >
+                                                    <div className="flex items-center gap-2">
+                                                      <span className="px-2 py-0.5 rounded bg-[#4cd34c]/20 text-[#4cd34c] font-mono font-bold text-xs border border-[#4cd34c]/30">
+                                                        "{match.value}"
+                                                      </span>
+                                                      <span className="text-[11px] text-[var(--text-muted)] font-medium">
+                                                        ({match.label})
+                                                      </span>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-1.5 text-xs">
+                                                      <span className="font-bold text-[#4cd34c]">Maps to Field:</span>
+                                                      <select
+                                                        value={
+                                                          cfg.target_mappings?.[match.ruleId] ||
+                                                          cfg.target_mappings?.[match.placeholder] ||
+                                                          cfg.target_mappings?.[match.value] ||
+                                                          cfg.target_mappings?.[`[${match.value}]`] ||
+                                                          match.placeholder
+                                                        }
+                                                        onChange={(e) => {
+                                                          const newTarget = e.target.value;
+                                                          const prevMap = cfg.target_mappings || {};
+                                                          updatePlaceholderConfig(ph, {
+                                                            target_mappings: {
+                                                              ...prevMap,
+                                                              [match.ruleId]: newTarget,
+                                                              [match.placeholder]: newTarget,
+                                                              [match.value]: newTarget,
+                                                              [`[${match.value}]`]: newTarget,
+                                                            },
+                                                          });
+                                                        }}
+                                                        className="rounded-md border px-2 py-1 text-xs font-mono font-bold bg-[var(--app-bg)] border-[#4cd34c]/50 text-[#4cd34c] focus:outline-none focus:ring-1 focus:ring-[#4cd34c]"
+                                                      >
+                                                        {extractedPlaceholders.filter((o) => o !== ph).map((targetPh) => (
+                                                          <option key={targetPh} value={targetPh}>
+                                                            {`{${targetPh}}`}
+                                                          </option>
+                                                        ))}
+                                                      </select>
+                                                    </div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            ) : (
+                                              <div className="text-[11px] italic opacity-75 py-1 text-center" style={{ color: "var(--text-muted)" }}>
+                                                No extractable substrings found in sample input. Wrap choices in [square brackets] (e.g. [$50.00], [EcoCash], [Elephant]) to test highlighting.
+                                              </div>
+                                            )}
+                                          </div>
+                                        </>
+                                      );
+                                    })()}
+                                  </div>
+                              </div>
+                            )}
+                          </div>
 
                           {/* Target token notice if starting with : */}
                           {ph.startsWith(":") && (

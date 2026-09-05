@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString } from "../services/api";
+import { fetchExtractionRules, autoExtractFieldsFromText } from "../services/smartExtractorService";
 import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
 
 export default function QuickAccess({
@@ -33,6 +34,34 @@ export default function QuickAccess({
   const [newNoteBody, setNewNoteBody] = useState("");
   const [newNoteType, setNewNoteType] = useState("customer_reply");
   const [creatingNote, setCreatingNote] = useState(false);
+  const [showHiddenFields, setShowHiddenFields] = useState(false);
+  const [extractionRules, setExtractionRules] = useState([]);
+
+  useEffect(() => {
+    fetchExtractionRules().then(setExtractionRules);
+    const handleRulesUpdated = () => fetchExtractionRules().then(setExtractionRules);
+    window.addEventListener("rea_extraction_rules_updated", handleRulesUpdated);
+    return () => window.removeEventListener("rea_extraction_rules_updated", handleRulesUpdated);
+  }, []);
+
+  const handleFieldChange = (ph, newText, visiblePlaceholders, parsedCfgMap = {}) => {
+    setValues((prev) => {
+      const updated = { ...prev, [ph]: newText };
+      if (newText && newText.trim().length >= 3) {
+        const { updates: autoUpdates } = autoExtractFieldsFromText(
+          newText,
+          extractionRules,
+          visiblePlaceholders,
+          ph,
+          parsedCfgMap
+        );
+        if (Object.keys(autoUpdates).length > 0) {
+          return { ...updated, ...autoUpdates };
+        }
+      }
+      return updated;
+    });
+  };
 
   if (activeScreen !== "quick_access" || !currentAgent) return null;
 
@@ -578,11 +607,33 @@ export default function QuickAccess({
             };
             const visiblePlaceholders = (phList || []).filter((ph) => !ph.startsWith(":") && !mappedTargetKeys.has(ph) && !isAgentPh(ph));
 
+            const hiddenByConfigCount = visiblePlaceholders.filter((ph) => {
+              const cfg = parsedCfgMap[ph] || {};
+              const mode = cfg.visibility_mode || "show";
+              if (mode === "always_hidden") return true;
+              if (mode === "hide_if_autofilled") {
+                const currentVal = values[ph] ?? resolvedValues[ph];
+                return Boolean(currentVal);
+              }
+              return false;
+            }).length;
+
             return visiblePlaceholders.length > 0 ? (
               <div className="space-y-2 max-h-48 overflow-y-auto pr-1 border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
-                <label className="text-[11px] font-semibold uppercase tracking-wider block" style={{ color: "var(--text-muted)" }}>
-                  Fill Template Parameters:
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider block" style={{ color: "var(--text-muted)" }}>
+                    Fill Template Parameters:
+                  </label>
+                  {hiddenByConfigCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowHiddenFields((prev) => !prev)}
+                      className="text-[10px] font-semibold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2 py-0.5 rounded-full hover:bg-[#4cd34c]/20 transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>{showHiddenFields ? "👁️ Hide" : `🙈 ${hiddenByConfigCount} Hidden`}</span>
+                    </button>
+                  )}
+                </div>
                 {visiblePlaceholders.map((ph) => {
                   const dateAuto = getDateAutoValues();
                   const customCfg = parsedCfgMap[ph] || null;
@@ -593,14 +644,6 @@ export default function QuickAccess({
                   const isReasonField = ph.toLowerCase().includes("reason") || ph.toLowerCase().includes("details") || ph.toLowerCase().includes("note") || ph.toLowerCase().includes("description");
                   const isDayField = ph === "day" || ph === "day_number" || ph === "day_num" || ph === "dd";
                   const isMonthNumberField = ph === "month_number" || ph === "month_num" || ph === "month" || ph === "mm";
-
-                  let controlType = customCfg?.control_type || (
-                    ph.endsWith("?") ? "combobox" :
-                    isReasonField ? "textarea" :
-                    isTimeUnitField ? "time_units_select" :
-                    isDayField || isMonthNumberField ? "number" :
-                    "text"
-                  );
 
                   let autoVal = "";
                   if (customCfg?.auto_fill_type === "date_day") autoVal = dateAuto.day;
@@ -618,6 +661,14 @@ export default function QuickAccess({
                   else if (isDateField) autoVal = dateAuto[ph] ?? dateAuto[ph.toLowerCase()];
                   else if (isTimeUnitField) autoVal = "hour(s)";
 
+                  const visMode = customCfg?.visibility_mode || "show";
+                  const hasVal = values[ph] !== undefined ? Boolean(values[ph]) : Boolean(autoVal);
+
+                  if (!showHiddenFields) {
+                    if (visMode === "always_hidden") return null;
+                    if (visMode === "hide_if_autofilled" && hasVal) return null;
+                  }
+
                   let options = Array.isArray(customCfg?.options) ? customCfg.options : [];
                   if (options.length === 0 && ph.endsWith("?")) {
                     options = ["Elephant", "Rhino", "Lion", "Buffalo", "Leopard"];
@@ -630,26 +681,50 @@ export default function QuickAccess({
                   return (
                     <div key={ph}>
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs capitalize font-medium" style={{ color: "var(--text-muted)" }}>
+                        <span className="text-xs capitalize font-medium flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
                           {ph.replace("_", " ")}:
                         </span>
-                        {targetKey && autoMappedVal ? (
-                          <span className="text-[10px] text-[#4cd34c] font-extrabold bg-[#4cd34c]/15 px-2 py-0.5 rounded-full border border-[#4cd34c]/30">
-                            ⚡ Auto-maps {targetKey} ➔ "{autoMappedVal}"
-                          </span>
-                        ) : customCfg ? (
-                          <span className="text-[10px] text-[#4cd34c] font-semibold">Configured: {controlType}</span>
-                        ) : isAgentField ? (
-                          <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from profile</span>
-                        ) : isDayField || isMonthNumberField ? (
-                          <span className="text-[10px] text-[#4cd34c] font-semibold">Numeric up/down (Auto-filled)</span>
-                        ) : isDateField ? (
-                          <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from date</span>
-                        ) : isTimeUnitField ? (
-                          <span className="text-[10px] text-[#4cd34c] font-semibold">Preset dropdown</span>
-                        ) : isReasonField ? (
-                          <span className="text-[10px] text-[#4cd34c] font-semibold">Multi-line resizable text</span>
-                        ) : null}
+                        <div className="flex items-center gap-1.5">
+                          {(isReasonField || controlType === "textarea" || (values[ph] && values[ph].length >= 4)) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const val = values[ph] ?? autoVal;
+                                const { updates: autoUpdates, extractedList } = autoExtractFieldsFromText(val, extractionRules, visiblePlaceholders, ph, parsedCfgMap);
+                                if (Object.keys(autoUpdates).length > 0) {
+                                  setValues((s) => ({ ...s, ...autoUpdates }));
+                                  if (showToast) {
+                                    const names = extractedList.map((e) => `${e.label} ("${e.value}")`).join(", ");
+                                    showToast(`⚡ Auto-extracted fields: ${names}`, "success");
+                                  }
+                                } else if (showToast) {
+                                  showToast("No extractable pattern (e.g. MP..., INN..., ACC..., 07..., $...) found in text.", "info");
+                                }
+                              }}
+                              className="text-[10px] text-[#4cd34c] font-bold bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2 py-0.5 rounded-md hover:bg-[#4cd34c] hover:text-black transition cursor-pointer"
+                              title="Auto-extract values for other placeholders from this field's text"
+                            >
+                              ⚡ Auto-Extract Fields
+                            </button>
+                          )}
+                          {targetKey && autoMappedVal ? (
+                            <span className="text-[10px] text-[#4cd34c] font-extrabold bg-[#4cd34c]/15 px-2 py-0.5 rounded-full border border-[#4cd34c]/30">
+                              ⚡ Auto-maps {targetKey} ➔ "{autoMappedVal}"
+                            </span>
+                          ) : customCfg ? (
+                            <span className="text-[10px] text-[#4cd34c] font-semibold">Configured: {controlType}</span>
+                          ) : isAgentField ? (
+                            <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from profile</span>
+                          ) : isDayField || isMonthNumberField ? (
+                            <span className="text-[10px] text-[#4cd34c] font-semibold">Numeric up/down (Auto-filled)</span>
+                          ) : isDateField ? (
+                            <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from date</span>
+                          ) : isTimeUnitField ? (
+                            <span className="text-[10px] text-[#4cd34c] font-semibold">Preset dropdown</span>
+                          ) : isReasonField ? (
+                            <span className="text-[10px] text-[#4cd34c] font-semibold">Multi-line resizable text</span>
+                          ) : null}
+                        </div>
                       </div>      {controlType === "combobox" ? (
                       <select
                         value={values[ph] ?? (options[0] || autoVal)}
@@ -730,7 +805,7 @@ export default function QuickAccess({
                           min={1}
                           max={999999}
                           value={values[ph] ?? autoVal}
-                          onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                          onChange={(e) => handleFieldChange(ph, e.target.value, visiblePlaceholders, parsedCfgMap)}
                           placeholder={`Enter ${ph.replace("_", " ")}`}
                           className="w-full rounded-xl border p-2 text-xs font-semibold"
                           style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
@@ -744,7 +819,7 @@ export default function QuickAccess({
                             const raw = e.target.value;
                             if (raw) {
                               const [y, m, d] = raw.split("-");
-                              setValues((s) => ({ ...s, [ph]: `${d}/${m}/${y}` }));
+                              handleFieldChange(ph, `${d}/${m}/${y}`, visiblePlaceholders, parsedCfgMap);
                             }
                           }}
                           className="rounded-xl border p-1.5 text-xs font-medium shrink-0 cursor-pointer"
@@ -753,7 +828,7 @@ export default function QuickAccess({
                         <input
                           type="text"
                           value={formatDateTimeString(values[ph] ?? autoVal, "date", customCfg?.date_format)}
-                          onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                          onChange={(e) => handleFieldChange(ph, e.target.value, visiblePlaceholders, parsedCfgMap)}
                           placeholder={customCfg?.date_format || "DD/MM/YYYY"}
                           className="w-full rounded-xl border p-2 text-xs font-semibold font-mono tracking-wider"
                           style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
@@ -765,7 +840,7 @@ export default function QuickAccess({
                           type="time"
                           onChange={(e) => {
                             const clean = (e.target.value || "").replace(/:/g, "");
-                            setValues((s) => ({ ...s, [ph]: clean }));
+                            handleFieldChange(ph, clean, visiblePlaceholders, parsedCfgMap);
                           }}
                           className="rounded-xl border p-1.5 text-xs font-medium shrink-0 cursor-pointer"
                           style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
@@ -776,7 +851,7 @@ export default function QuickAccess({
                           value={(values[ph] ?? autoVal ?? "").toString().replace(/:/g, "")}
                           onChange={(e) => {
                             const clean = e.target.value.replace(/:/g, "").replace(/\D/g, "").slice(0, 4);
-                            setValues((s) => ({ ...s, [ph]: clean }));
+                            handleFieldChange(ph, clean, visiblePlaceholders, parsedCfgMap);
                           }}
                           placeholder="HHMM (e.g. 0945)"
                           className="w-full rounded-xl border p-2 text-xs font-semibold font-mono tracking-wider"
@@ -787,7 +862,7 @@ export default function QuickAccess({
                       <input
                         type="datetime-local"
                         value={values[ph] ?? autoVal}
-                        onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                        onChange={(e) => handleFieldChange(ph, e.target.value, visiblePlaceholders, parsedCfgMap)}
                         className="w-full rounded-xl border p-2 text-xs font-medium"
                         style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                       />
@@ -805,7 +880,7 @@ export default function QuickAccess({
                       <textarea
                         rows={3}
                         value={values[ph] ?? autoVal}
-                        onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                        onChange={(e) => handleFieldChange(ph, e.target.value, visiblePlaceholders, parsedCfgMap)}
                         placeholder={`Enter ${ph.replace("_", " ")}...`}
                         className="w-full rounded-xl border p-2.5 text-sm resize-y font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#4cd34c]"
                         style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
@@ -813,7 +888,7 @@ export default function QuickAccess({
                     ) : (
                       <input
                         value={values[ph] ?? autoVal}
-                        onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
+                        onChange={(e) => handleFieldChange(ph, e.target.value, visiblePlaceholders, parsedCfgMap)}
                         placeholder={`Enter ${ph.replace("_", " ")}`}
                         className="w-full rounded-xl border p-2 text-xs placeholder:text-[var(--field-placeholder)]"
                         style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}

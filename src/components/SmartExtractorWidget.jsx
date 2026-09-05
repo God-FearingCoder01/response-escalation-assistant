@@ -24,6 +24,75 @@ export default function SmartExtractorWidget({
     return () => window.removeEventListener("rea_extraction_rules_updated", handleRulesUpdated);
   }, []);
 
+  // Listen for global Ctrl+V / Cmd+V paste events when the widget modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePaste = (e) => {
+      // Don't intercept paste if user is typing in an input field inside the modal
+      if (
+        e.target &&
+        (e.target.tagName === "INPUT" ||
+          e.target.tagName === "TEXTAREA" ||
+          e.target.isContentEditable)
+      ) {
+        return;
+      }
+
+      const clipboardData = e.clipboardData || window.clipboardData;
+      if (!clipboardData || !clipboardData.items) return;
+
+      const items = clipboardData.items;
+      let foundImage = false;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type && item.type.startsWith("image/")) {
+          const blob = item.getAsFile();
+          if (blob) {
+            foundImage = true;
+            e.preventDefault();
+            processImageFile(blob);
+            showToast("📋 Image pasted from clipboard!", "success");
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [isOpen, rules]);
+
+  const handlePasteButtonClick = async (e) => {
+    e.stopPropagation();
+    try {
+      if (navigator.clipboard && navigator.clipboard.read) {
+        const clipboardItems = await navigator.clipboard.read();
+        let found = false;
+        for (const item of clipboardItems) {
+          const imageType = item.types.find((type) => type.startsWith("image/"));
+          if (imageType) {
+            const blob = await item.getType(imageType);
+            const file = new File([blob], "pasted-screenshot.png", { type: imageType });
+            processImageFile(file);
+            showToast("📋 Image pasted from clipboard!", "success");
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          showToast("No image found in clipboard. Copy an image or screenshot first (Ctrl+V)!", "info");
+        }
+      } else {
+        showToast("Press Ctrl+V (or Cmd+V) to paste your copied screenshot.", "info");
+      }
+    } catch (err) {
+      console.warn("Clipboard read permission or API fallback:", err);
+      showToast("Press Ctrl+V (or Cmd+V) to paste your copied screenshot.", "info");
+    }
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) processImageFile(file);
@@ -159,7 +228,7 @@ export default function SmartExtractorWidget({
           </button>
         </div>
 
-        {/* Dropzone & Upload */}
+        {/* Dropzone, Paste & Upload */}
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
@@ -176,17 +245,31 @@ export default function SmartExtractorWidget({
           />
           <div className="text-3xl">📥</div>
           <div className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--app-text)" }}>
-            Drop Screenshot or Receipt Image Here
+            Drop Screenshot, Paste (Ctrl+V) or Upload Image
           </div>
           <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-            Supports PNG, JPG, WebP screenshots & transaction confirmations
+            Supports PNG, JPG, WebP screenshots, receipts & pasted clipboard images
           </p>
-          <button
-            type="button"
-            className="mt-2 px-4 py-1.5 rounded-xl bg-[#4cd34c]/20 border border-[#4cd34c]/40 text-[#4cd34c] font-bold text-xs hover:bg-[#4cd34c] hover:text-black transition"
-          >
-            Browse Image
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                fileInputRef.current?.click();
+              }}
+              className="px-4 py-1.5 rounded-xl bg-[#4cd34c]/20 border border-[#4cd34c]/40 text-[#4cd34c] font-bold text-xs hover:bg-[#4cd34c] hover:text-black transition"
+            >
+              📁 Browse Image
+            </button>
+            <button
+              type="button"
+              onClick={handlePasteButtonClick}
+              className="px-4 py-1.5 rounded-xl bg-[var(--app-bg)] border text-[var(--app-text)] font-bold text-xs hover:bg-[#4cd34c]/20 hover:text-[#4cd34c] hover:border-[#4cd34c]/50 transition flex items-center gap-1.5"
+              style={{ borderColor: "var(--field-border)" }}
+            >
+              📋 Paste from Clipboard <span className="text-[10px] opacity-75 font-mono">(Ctrl+V)</span>
+            </button>
+          </div>
         </div>
 
         {/* Image Preview & Results Split Grid */}
