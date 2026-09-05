@@ -1,4 +1,7 @@
-from typing import List, Dict
+import json
+from typing import List
+from sqlmodel import Session, select
+from backend.models import ExtractionRule
 
 DEFAULT_EXTRACTION_RULES_DATA: List[dict] = [
     {
@@ -87,6 +90,95 @@ DEFAULT_EXTRACTION_RULES_DATA: List[dict] = [
         "is_active": True,
     },
 ]
+
+
+def get_company_rules(db: Session, company_id: int) -> List[dict]:
+    statement = select(ExtractionRule).where(ExtractionRule.company_id == company_id)
+    rules = db.exec(statement).all()
+
+    if not rules:
+        for d in DEFAULT_EXTRACTION_RULES_DATA:
+            v_types = json.dumps(d.get("valueTypes", [])) if isinstance(d.get("valueTypes"), list) else None
+            db_rule = ExtractionRule(
+                rule_id=str(d.get("id")),
+                name=str(d.get("name")),
+                description=d.get("description"),
+                method=d.get("method", "pattern"),
+                pattern=d.get("pattern"),
+                prefix=d.get("prefix"),
+                valueType=d.get("valueType"),
+                valueTypes=v_types,
+                lengthMode=d.get("lengthMode", "variable"),
+                minLength=d.get("minLength", 1),
+                maxLength=d.get("maxLength", 25),
+                constantLength=d.get("constantLength", 8),
+                keyword=d.get("keyword"),
+                result_label=d.get("result_label"),
+                target_placeholder=d.get("target_placeholder"),
+                is_active=d.get("is_active", True),
+                company_id=company_id,
+            )
+            db.add(db_rule)
+        db.commit()
+        rules = db.exec(statement).all()
+
+    result = []
+    for r in rules:
+        rule_dict = {
+            "id": r.rule_id,
+            "name": r.name,
+            "description": r.description,
+            "method": r.method,
+            "pattern": r.pattern,
+            "prefix": r.prefix,
+            "valueType": r.valueType,
+            "valueTypes": json.loads(r.valueTypes) if r.valueTypes else [r.valueType] if r.valueType else [],
+            "lengthMode": r.lengthMode,
+            "minLength": r.minLength,
+            "maxLength": r.maxLength,
+            "constantLength": r.constantLength,
+            "keyword": r.keyword,
+            "result_label": r.result_label,
+            "target_placeholder": r.target_placeholder,
+            "is_active": r.is_active,
+        }
+        result.append(rule_dict)
+
+    return result
+
+
+def save_company_rules(db: Session, company_id: int, rules_data: List[dict]) -> List[dict]:
+    statement = select(ExtractionRule).where(ExtractionRule.company_id == company_id)
+    existing = db.exec(statement).all()
+    for e in existing:
+        db.delete(e)
+    db.commit()
+
+    for d in rules_data:
+        v_types = json.dumps(d.get("valueTypes", [])) if isinstance(d.get("valueTypes"), list) else None
+        db_rule = ExtractionRule(
+            rule_id=str(d.get("id", f"rule_{d.get('name', 'custom')}")),
+            name=str(d.get("name", "Custom Rule")),
+            description=d.get("description"),
+            method=d.get("method", "pattern"),
+            pattern=d.get("pattern"),
+            prefix=d.get("prefix"),
+            valueType=d.get("valueType"),
+            valueTypes=v_types,
+            lengthMode=d.get("lengthMode", "variable"),
+            minLength=d.get("minLength", 1),
+            maxLength=d.get("maxLength", 25),
+            constantLength=d.get("constantLength", 8),
+            keyword=d.get("keyword"),
+            result_label=d.get("result_label"),
+            target_placeholder=d.get("target_placeholder"),
+            is_active=d.get("is_active", True),
+            company_id=company_id,
+        )
+        db.add(db_rule)
+
+    db.commit()
+    return get_company_rules(db, company_id)
 
 
 def get_rules() -> List[dict]:

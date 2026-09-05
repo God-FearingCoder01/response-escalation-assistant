@@ -379,6 +379,43 @@ class AgentUserDataRead(AgentUserDataBase):
     updated_at: datetime
 
 
+class ExtractionRuleBase(SQLModel):
+    rule_id: str = Field(index=True)
+    name: str
+    description: Optional[str] = None
+    method: str = "pattern"
+    pattern: Optional[str] = None
+    prefix: Optional[str] = None
+    valueType: Optional[str] = None
+    valueTypes: Optional[str] = None
+    lengthMode: Optional[str] = "variable"
+    minLength: Optional[int] = 1
+    maxLength: Optional[int] = 25
+    constantLength: Optional[int] = 8
+    keyword: Optional[str] = None
+    result_label: Optional[str] = None
+    target_placeholder: Optional[str] = None
+    is_active: bool = True
+    company_id: int = Field(default=1, foreign_key="company.id", index=True)
+
+
+class ExtractionRule(ExtractionRuleBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+
+
+class ExtractionRuleCreate(ExtractionRuleBase):
+    company_id: int = 1
+
+
+class ExtractionRuleRead(ExtractionRuleBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+
 
 
 

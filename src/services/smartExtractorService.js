@@ -91,22 +91,27 @@ export const DEFAULT_EXTRACTION_RULES = [
   },
 ];
 
-// Helper to retrieve rules from API with localStorage fallback
+// Helper to retrieve rules from API with tenant-scoped localStorage fallback
 export async function fetchExtractionRules() {
+  const headers = getCompanyHeaders();
+  const companyId = headers["x-company-id"] || "default";
+  const storageKey = `${EXTRACTION_RULES_KEY}_${companyId}`;
+
   try {
-    const res = await fetch(`${API_BASE}/api/extraction-rules`, {
-      headers: getCompanyHeaders(),
-    });
+    const res = await fetch(`${API_BASE}/api/extraction-rules`, { headers });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(data));
+        } catch (e) {}
         return data;
       }
     }
   } catch (e) {}
 
   try {
-    const stored = localStorage.getItem(EXTRACTION_RULES_KEY);
+    const stored = localStorage.getItem(storageKey) || localStorage.getItem(EXTRACTION_RULES_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -118,14 +123,33 @@ export async function fetchExtractionRules() {
   return DEFAULT_EXTRACTION_RULES;
 }
 
-// Helper to save rules to localStorage and dispatch update event
-export function saveExtractionRulesLocally(rules) {
+// Helper to save rules to backend API and tenant-scoped localStorage
+export async function saveExtractionRulesLocally(rules) {
+  const headers = { ...getCompanyHeaders(), "Content-Type": "application/json" };
+  const companyId = headers["x-company-id"] || "default";
+  const storageKey = `${EXTRACTION_RULES_KEY}_${companyId}`;
+
   try {
-    localStorage.setItem(EXTRACTION_RULES_KEY, JSON.stringify(rules));
+    localStorage.setItem(storageKey, JSON.stringify(rules));
+  } catch (e) {}
+
+  try {
+    const res = await fetch(`${API_BASE}/api/extraction-rules`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(rules),
+    });
+
     window.dispatchEvent(new Event("rea_extraction_rules_updated"));
+    if (res.ok) {
+      const savedData = await res.json();
+      return savedData;
+    }
   } catch (e) {
-    console.error("Error saving extraction rules:", e);
+    console.error("Error persisting extraction rules to backend:", e);
+    window.dispatchEvent(new Event("rea_extraction_rules_updated"));
   }
+  return rules;
 }
 
 // Build regex string from Pattern Builder fields

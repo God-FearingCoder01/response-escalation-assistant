@@ -122,6 +122,38 @@ export default function SmartExtractorWidget({
     });
   };
 
+  const preprocessImage = (srcData) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imgData.data;
+
+        // Apply grayscale & contrast enhancement for OCR accuracy
+        const contrastFactor = 1.25;
+        for (let i = 0; i < data.length; i += 4) {
+          const avg = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          const enhanced = Math.min(255, Math.max(0, contrastFactor * (avg - 128) + 128));
+          data[i] = enhanced;
+          data[i + 1] = enhanced;
+          data[i + 2] = enhanced;
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = () => resolve(srcData);
+      img.src = srcData;
+    });
+  };
+
   const processImageFile = async (file) => {
     if (!file.type.startsWith("image/")) {
       showToast("Please upload a valid screenshot or image file.", "error");
@@ -135,10 +167,11 @@ export default function SmartExtractorWidget({
       setIsScanning(true);
 
       try {
+        const processedSrc = await preprocessImage(srcData);
         const tesseract = await loadTesseractEngine();
         let ocrText = "";
         if (tesseract) {
-          const res = await tesseract.recognize(srcData, "eng");
+          const res = await tesseract.recognize(processedSrc, "eng");
           ocrText = res?.data?.text || "";
         }
         setRawOcrText(ocrText);
@@ -307,7 +340,7 @@ export default function SmartExtractorWidget({
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="font-bold text-[var(--app-text)]">{res.label}</span>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#4cd34c]/20 text-[#4cd34c] border border-[#4cd34c]/30 flex items-center gap-1">
-                          🟢 High Confidence
+                          ✓ Pattern Matched
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
