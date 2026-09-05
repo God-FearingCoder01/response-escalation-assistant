@@ -202,33 +202,35 @@ export function buildPatternString({
 // Main Smart Extractor engine: Scans raw text against active rules
 export function extractStructuredData(rawText = "", rules = []) {
   if (!rawText || typeof rawText !== "string") return [];
-  const activeRules = (rules || []).filter((r) => r.is_active);
+  const activeRules = (rules || []).filter((r) => r && r.is_active !== false);
   const results = [];
 
   activeRules.forEach((rule) => {
     try {
-      if (rule.method === "keyword" && rule.keyword && typeof rule.keyword === "string") {
-        const kw = rule.keyword.trim().toLowerCase();
-        const lowerText = (rawText || "").toLowerCase();
-        if (kw && lowerText) {
-          const kwIdx = lowerText.indexOf(kw);
-          if (kwIdx !== -1) {
-            const afterKw = rawText.slice(kwIdx + kw.length).trim();
-            const match = afterKw.match(/^[:\s-]*([A-Za-z0-9$.#-]+)/);
-            if (match && match[1]) {
-              const val = match[1];
-              const valIdx = rawText.indexOf(val, kwIdx);
-              const startPos = valIdx !== -1 ? valIdx : kwIdx;
-              results.push({
-                id: rule.id,
-                label: rule.result_label || rule.name,
-                value: val,
-                startIndex: startPos,
-                endIndex: startPos + val.length,
-                confidence: "high",
-                ruleName: rule.name,
-                targetPlaceholder: rule.target_placeholder,
-              });
+      if (rule.method === "keyword") {
+        if (rule.keyword && typeof rule.keyword === "string") {
+          const kw = rule.keyword.trim().toLowerCase();
+          const lowerText = (rawText || "").toLowerCase();
+          if (kw && lowerText) {
+            const kwIdx = lowerText.indexOf(kw);
+            if (kwIdx !== -1) {
+              const afterKw = rawText.slice(kwIdx + kw.length).trim();
+              const match = afterKw.match(/^[:\s-]*([A-Za-z0-9$.#-]+)/);
+              if (match && match[1]) {
+                const val = match[1];
+                const valIdx = rawText.indexOf(val, kwIdx);
+                const startPos = valIdx !== -1 ? valIdx : kwIdx;
+                results.push({
+                  id: rule.id,
+                  label: rule.result_label || rule.name,
+                  value: val,
+                  startIndex: startPos,
+                  endIndex: startPos + val.length,
+                  confidence: "high",
+                  ruleName: rule.name,
+                  targetPlaceholder: rule.target_placeholder,
+                });
+              }
             }
           }
         }
@@ -237,8 +239,11 @@ export function extractStructuredData(rawText = "", rules = []) {
 
       // Pattern / Regex matching
       const patternStr = buildPatternString(rule);
+      if (!patternStr || !patternStr.trim()) return;
+
       const regex = new RegExp(patternStr, "gi");
       let matchExec;
+      let guard = 0;
       while ((matchExec = regex.exec(rawText)) !== null) {
         results.push({
           id: rule.id,
@@ -250,10 +255,20 @@ export function extractStructuredData(rawText = "", rules = []) {
           ruleName: rule.name,
           targetPlaceholder: rule.target_placeholder,
         });
+
+        // Guard against infinite loops on 0-width regex matches
+        if (matchExec[0].length === 0) {
+          regex.lastIndex++;
+          if (regex.lastIndex > rawText.length) break;
+        }
+
+        guard++;
+        if (guard > 500) break;
+
         if (!regex.global) break;
       }
     } catch (e) {
-      console.error(`Error processing rule ${rule.name}:`, e);
+      console.error(`Error processing rule ${rule?.name}:`, e);
     }
   });
 
@@ -386,24 +401,28 @@ export function autoExtractFieldsFromText(
 
       candidateChoices.forEach((choice) => {
         if (!choice || choice.length < 2) return;
-        // Escape regex special chars
-        const escapedChoice = choice.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
-        // Whole word or boundary match regex
-        const choiceRegex = new RegExp(`(?:^|\\b|\\s)${escapedChoice}(?:$|\\b|\\s)`, "i");
-        if (choiceRegex.test(cleanRawText) || choiceRegex.test(rawText)) {
-          const exists = extracted.some(
-            (e) => e.value.toLowerCase() === choice.toLowerCase() && (e.targetPlaceholder === ph || !e.targetPlaceholder)
-          );
-          if (!exists) {
-            extracted.push({
-              id: `choice_${ph}_${choice.replace(/[^A-Za-z0-9]/g, "_").slice(0, 15)}`,
-              label: `Configured Choice (${choice})`,
-              value: choice,
-              targetPlaceholder: ph,
-              isChoiceMatch: true,
-              confidence: "high",
-            });
+        try {
+          // Escape regex special chars
+          const escapedChoice = choice.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+          // Whole word or boundary match regex
+          const choiceRegex = new RegExp(`(?:^|\\b|\\s)${escapedChoice}(?:$|\\b|\\s)`, "i");
+          if (choiceRegex.test(cleanRawText) || choiceRegex.test(rawText)) {
+            const exists = extracted.some(
+              (e) => e.value.toLowerCase() === choice.toLowerCase() && (e.targetPlaceholder === ph || !e.targetPlaceholder)
+            );
+            if (!exists) {
+              extracted.push({
+                id: `choice_${ph}_${choice.replace(/[^A-Za-z0-9]/g, "_").slice(0, 15)}`,
+                label: `Configured Choice (${choice})`,
+                value: choice,
+                targetPlaceholder: ph,
+                isChoiceMatch: true,
+                confidence: "high",
+              });
+            }
           }
+        } catch (e) {
+          console.error("Error testing candidate choice regex:", e);
         }
       });
     });

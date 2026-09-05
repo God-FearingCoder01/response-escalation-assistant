@@ -782,17 +782,20 @@ export default function AdminDashboard({
                                           return <span className="opacity-75">{sampleText}</span>;
                                         }
 
-                                        const sortedMatches = [...testMatches].sort((a, b) => (a.startIndex || 0) - (b.startIndex || 0));
+                                        const sortedMatches = [...testMatches]
+                                          .filter((m) => m && m.value)
+                                          .sort((a, b) => (a.startIndex || 0) - (b.startIndex || 0));
                                         const elements = [];
                                         let lastIndex = 0;
 
                                         sortedMatches.forEach((m, idx) => {
                                           const sIdx = m.startIndex !== undefined && m.startIndex !== -1 ? m.startIndex : sampleText.indexOf(m.value, lastIndex);
+                                          if (sIdx === -1 || sIdx < lastIndex) return;
                                           const eIdx = m.endIndex !== undefined && m.endIndex !== -1 ? m.endIndex : sIdx + m.value.length;
 
                                           if (sIdx > lastIndex) {
                                             elements.push(
-                                              <span key={`text_${lastIndex}`}>
+                                              <span key={`text_${lastIndex}_${idx}`}>
                                                 {sampleText.slice(lastIndex, sIdx)}
                                               </span>
                                             );
@@ -800,7 +803,7 @@ export default function AdminDashboard({
 
                                           elements.push(
                                             <mark
-                                              key={`match_${idx}`}
+                                              key={`match_${idx}_${sIdx}`}
                                               className="inline-flex items-center gap-1 mx-1 px-2 py-0.5 rounded-md border bg-[#4cd34c]/20 border-[#4cd34c] text-[#4cd34c] font-mono font-bold text-xs shadow-sm cursor-help"
                                               title={`Extracted "${m.value}" (${m.label}) ➔ Auto-fills {${m.placeholder}}`}
                                             >
@@ -815,7 +818,7 @@ export default function AdminDashboard({
 
                                         if (lastIndex < sampleText.length) {
                                           elements.push(
-                                            <span key={`text_end`}>
+                                            <span key={`text_end_${lastIndex}`}>
                                               {sampleText.slice(lastIndex)}
                                             </span>
                                           );
