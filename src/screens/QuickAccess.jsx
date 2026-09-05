@@ -645,6 +645,14 @@ export default function QuickAccess({
                   const isDayField = ph === "day" || ph === "day_number" || ph === "day_num" || ph === "dd";
                   const isMonthNumberField = ph === "month_number" || ph === "month_num" || ph === "month" || ph === "mm";
 
+                  let controlType = customCfg?.control_type || (
+                    ph.endsWith("?") ? "combobox" :
+                    isReasonField ? "textarea" :
+                    isTimeUnitField ? "time_units_select" :
+                    isDayField || isMonthNumberField ? "number" :
+                    "text"
+                  );
+
                   let autoVal = "";
                   if (customCfg?.auto_fill_type === "date_day") autoVal = dateAuto.day;
                   else if (customCfg?.auto_fill_type === "date_month") autoVal = dateAuto.month_number;
@@ -668,14 +676,6 @@ export default function QuickAccess({
                     if (visMode === "always_hidden") return null;
                     if (visMode === "hide_if_autofilled" && hasVal) return null;
                   }
-
-                  let controlType = customCfg?.control_type || (
-                    ph.endsWith("?") ? "combobox" :
-                    isReasonField ? "textarea" :
-                    isTimeUnitField ? "time_units_select" :
-                    isDayField || isMonthNumberField ? "number" :
-                    "text"
-                  );
 
                   let options = Array.isArray(customCfg?.options) ? customCfg.options : [];
                   if (options.length === 0 && ph.endsWith("?")) {
