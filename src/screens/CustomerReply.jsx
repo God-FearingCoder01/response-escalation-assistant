@@ -334,6 +334,14 @@ export default function CustomerReply({
                       if (visMode === "hide_if_autofilled" && hasVal) return null;
                     }
 
+                    let controlType = customCfg?.control_type || (
+                      ph.endsWith("?") ? "combobox" :
+                      isReasonField ? "textarea" :
+                      isTimeUnitField ? "time_units_select" :
+                      isDayField || isMonthNumberField ? "number" :
+                      "text"
+                    );
+
                     let options = Array.isArray(customCfg?.options) ? customCfg.options : [];
                     if (options.length === 0 && ph.endsWith("?")) {
                       options = ["Elephant", "Rhino", "Lion", "Buffalo", "Leopard"];
