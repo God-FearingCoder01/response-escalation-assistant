@@ -5,7 +5,7 @@ from sqlmodel import Session
 from backend.database import engine
 from backend.models import Company
 from backend.security import get_current_company
-from backend.services.extraction_service import get_company_rules, save_company_rules
+from backend.services.extraction_service import get_company_rules, save_company_rules, reset_company_rules
 
 router = APIRouter(tags=["Smart Extraction Rules"])
 
@@ -24,3 +24,12 @@ def save_extraction_rules(rules: List[dict], company: Company = Depends(get_curr
     cid = company.id if company and company.id else 1
     with Session(engine) as session:
         return save_company_rules(session, cid, rules)
+
+
+@router.post("/api/extraction-rules/reset")
+@router.post("/extraction-rules/reset")
+def reset_extraction_rules(company: Company = Depends(get_current_company)):
+    cid = company.id if company and company.id else 1
+    with Session(engine) as session:
+        return reset_company_rules(session, cid)
+

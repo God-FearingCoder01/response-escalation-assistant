@@ -152,6 +152,36 @@ export async function saveExtractionRulesLocally(rules) {
   return rules;
 }
 
+// Helper to reset extraction rules back to default factory settings
+export async function resetExtractionRulesToDefault() {
+  const headers = { ...getCompanyHeaders(), "Content-Type": "application/json" };
+  const companyId = headers["x-company-id"] || "default";
+  const storageKey = `${EXTRACTION_RULES_KEY}_${companyId}`;
+
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(DEFAULT_EXTRACTION_RULES));
+  } catch (e) {}
+
+  try {
+    const res = await fetch(`${API_BASE}/api/extraction-rules/reset`, {
+      method: "POST",
+      headers,
+    });
+
+    window.dispatchEvent(new Event("rea_extraction_rules_updated"));
+    if (res.ok) {
+      const savedData = await res.json();
+      return savedData;
+    }
+  } catch (e) {
+    console.error("Error resetting extraction rules on backend:", e);
+    window.dispatchEvent(new Event("rea_extraction_rules_updated"));
+  }
+
+  return saveExtractionRulesLocally(DEFAULT_EXTRACTION_RULES);
+}
+
+
 // Build regex string from Pattern Builder fields
 export function buildPatternString({
   prefix = "",

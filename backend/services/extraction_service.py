@@ -181,6 +181,10 @@ def save_company_rules(db: Session, company_id: int, rules_data: List[dict]) -> 
     return get_company_rules(db, company_id)
 
 
+def reset_company_rules(db: Session, company_id: int) -> List[dict]:
+    return save_company_rules(db, company_id, DEFAULT_EXTRACTION_RULES_DATA)
+
+
 def get_rules() -> List[dict]:
     return DEFAULT_EXTRACTION_RULES_DATA
 
@@ -189,3 +193,4 @@ def save_rules(rules: List[dict]) -> List[dict]:
     global DEFAULT_EXTRACTION_RULES_DATA
     DEFAULT_EXTRACTION_RULES_DATA = rules
     return DEFAULT_EXTRACTION_RULES_DATA
+

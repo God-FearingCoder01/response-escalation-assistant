@@ -230,6 +230,17 @@ export default function SmartExtractorWidget({
     if (onClose) onClose();
   };
 
+  const handleReset = () => {
+    setImagePreview(null);
+    setExtractedResults([]);
+    setRawOcrText("");
+    setIsScanning(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    showToast("🔄 Smart Extractor reset!", "info");
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -251,15 +262,30 @@ export default function SmartExtractorWidget({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-sm font-bold px-2.5 py-1 rounded-xl bg-[var(--field-bg)] border hover:bg-red-500/20 hover:text-red-400 transition"
-            style={{ borderColor: "var(--field-border)" }}
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-2">
+            {(imagePreview || extractedResults.length > 0 || rawOcrText) && (
+              <button
+                type="button"
+                onClick={handleReset}
+                className="text-xs font-bold px-3 py-1 rounded-xl bg-[var(--field-bg)] border hover:bg-amber-500/20 hover:text-amber-400 transition flex items-center gap-1.5"
+                style={{ borderColor: "var(--field-border)", color: "var(--app-text)" }}
+                title="Reset Smart Extractor and clear image"
+              >
+                🔄 Reset
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-sm font-bold px-2.5 py-1 rounded-xl bg-[var(--field-bg)] border hover:bg-red-500/20 hover:text-red-400 transition"
+              style={{ borderColor: "var(--field-border)" }}
+              title="Close modal"
+            >
+              ✕
+            </button>
+          </div>
         </div>
+
 
         {/* Dropzone, Paste & Upload */}
         <div
@@ -374,26 +400,37 @@ export default function SmartExtractorWidget({
               )}
 
               {/* Action Buttons */}
-              {extractedResults.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-2 border-t" style={{ borderColor: "var(--field-border)" }}>
-                  <button
-                    type="button"
-                    onClick={handleCopyAll}
-                    className="flex-1 py-2 px-3 rounded-xl border border-[#4cd34c]/40 bg-[#4cd34c]/10 text-[#4cd34c] font-bold text-xs hover:bg-[#4cd34c] hover:text-black transition flex items-center justify-center gap-1.5"
-                  >
-                    📋 Copy All Extracted Data
-                  </button>
-                  {onAutoFillValues && (
+              <div className="flex flex-wrap gap-2 pt-2 border-t" style={{ borderColor: "var(--field-border)" }}>
+                {extractedResults.length > 0 && (
+                  <>
                     <button
                       type="button"
-                      onClick={handleAutoFill}
-                      className="flex-1 py-2 px-3 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-black font-extrabold text-xs shadow-md hover:opacity-90 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                      onClick={handleCopyAll}
+                      className="flex-1 py-2 px-3 rounded-xl border border-[#4cd34c]/40 bg-[#4cd34c]/10 text-[#4cd34c] font-bold text-xs hover:bg-[#4cd34c] hover:text-black transition flex items-center justify-center gap-1.5"
                     >
-                      ⚡ Auto-Fill Template
+                      📋 Copy All Extracted Data
                     </button>
-                  )}
-                </div>
-              )}
+                    {onAutoFillValues && (
+                      <button
+                        type="button"
+                        onClick={handleAutoFill}
+                        className="flex-1 py-2 px-3 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-black font-extrabold text-xs shadow-md hover:opacity-90 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        ⚡ Auto-Fill Template
+                      </button>
+                    )}
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="py-2 px-3 rounded-xl border border-red-500/40 bg-red-500/10 text-red-400 font-bold text-xs hover:bg-red-500 hover:text-white transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  title="Clear image preview & reset fields"
+                >
+                  🔄 Reset / Start Over
+                </button>
+              </div>
+
             </div>
           </div>
         )}

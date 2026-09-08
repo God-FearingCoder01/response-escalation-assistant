@@ -353,3 +353,11 @@ def test_extraction_rules_api():
     updated = res_save.json()
     assert any(r["id"] == "rule_test_99" for r in updated)
 
+    # Test reset endpoint
+    res_reset = client.post("/api/extraction-rules/reset")
+    assert res_reset.status_code == 200
+    reset_rules = res_reset.json()
+    assert not any(r["id"] == "rule_test_99" for r in reset_rules)
+    assert len(reset_rules) >= 5
+
+

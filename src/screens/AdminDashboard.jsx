@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from "react";
 import { getPresetPhrases, savePresetPhrases, DEFAULT_PRESET_PHRASES } from "../services/translationService";
-import { fetchExtractionRules, saveExtractionRulesLocally, buildPatternString, autoExtractFieldsFromText } from "../services/smartExtractorService";
+import { fetchExtractionRules, saveExtractionRulesLocally, resetExtractionRulesToDefault, buildPatternString, autoExtractFieldsFromText } from "../services/smartExtractorService";
 
 export default function AdminDashboard({
   activeScreen,
@@ -366,6 +366,15 @@ export default function AdminDashboard({
     saveExtractionRulesLocally(updated);
     if (editRuleId === id) handleResetRuleForm();
   };
+
+  const handleResetRulesToDefault = async () => {
+    if (window.confirm("Are you sure you want to reset all Smart Extractor rules to default factory settings?")) {
+      const restored = await resetExtractionRulesToDefault();
+      setExtractionRules(restored);
+      handleResetRuleForm();
+    }
+  };
+
 
   useEffect(() => {
     if (templateBodyRef.current) {
@@ -1956,9 +1965,20 @@ export default function AdminDashboard({
               Configure automated OCR extraction rules for screenshots, receipts, transaction numbers, and customer account details.
             </p>
           </div>
-          <span className="text-xs uppercase font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-3 py-1 rounded-full">
-            {extractionRules.filter(r => r.is_active !== false).length} Active Rules
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleResetRulesToDefault}
+              className="text-xs font-bold px-3 py-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-black transition flex items-center gap-1.5 cursor-pointer"
+              title="Reset all extraction rules back to factory defaults"
+            >
+              🔄 Reset Rules to Default
+            </button>
+            <span className="text-xs uppercase font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-3 py-1 rounded-full">
+              {extractionRules.filter(r => r.is_active !== false).length} Active Rules
+            </span>
+          </div>
+
         </div>
 
         {/* Rule Form */}
