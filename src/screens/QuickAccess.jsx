@@ -36,6 +36,8 @@ export default function QuickAccess({
   const [creatingNote, setCreatingNote] = useState(false);
   const [showHiddenFields, setShowHiddenFields] = useState(false);
   const [extractionRules, setExtractionRules] = useState([]);
+  const [noteSearchQuery, setNoteSearchQuery] = useState("");
+
 
   useEffect(() => {
     fetchExtractionRules().then(setExtractionRules);
@@ -109,6 +111,18 @@ export default function QuickAccess({
         : quickTab === "private_notes"
           ? privList
           : recList;
+
+  const filteredTabTemplates = currentTabTemplates.filter((t) => {
+    if (!noteSearchQuery.trim()) return true;
+    const q = noteSearchQuery.toLowerCase().trim();
+    return (
+      (t.name && t.name.toLowerCase().includes(q)) ||
+      (t.body && t.body.toLowerCase().includes(q)) ||
+      (t.category && t.category.toLowerCase().includes(q)) ||
+      (t.category_type && t.category_type.toLowerCase().includes(q))
+    );
+  });
+
 
   const handleStartCreateNote = () => {
     setEditingNote(null);
@@ -376,9 +390,59 @@ export default function QuickAccess({
           </button>
         </div>
 
+        {/* Search Bar for Notes & Templates */}
+        <div className="relative">
+          <input
+            type="text"
+            value={noteSearchQuery}
+            onChange={(e) => setNoteSearchQuery(e.target.value)}
+            placeholder={
+              quickTab === "private_notes"
+                ? "🔍 Search Personal Notes by title or content..."
+                : "🔍 Search templates by title or content..."
+            }
+            className="w-full rounded-xl border px-3 py-2 text-xs font-semibold focus:outline-none focus:border-[#4cd34c] transition pr-8"
+            style={{
+              borderColor: "var(--field-border)",
+              backgroundColor: "var(--field-bg)",
+              color: "var(--app-text)",
+            }}
+          />
+          {noteSearchQuery && (
+            <button
+              type="button"
+              onClick={() => setNoteSearchQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold opacity-60 hover:opacity-100 transition"
+              title="Clear search query"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
         {/* Template List Cards */}
         <div className="space-y-3 max-h-[32rem] overflow-y-auto pr-1">
-          {currentTabTemplates.length === 0 ? (
+          {noteSearchQuery.trim() && filteredTabTemplates.length === 0 ? (
+            <div
+              className="p-6 text-center rounded-2xl border backdrop-blur space-y-2"
+              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--text-muted)" }}
+            >
+              <div className="text-2xl">🔍</div>
+              <div className="font-bold text-sm text-[var(--app-text)]">
+                No matching {quickTab === "private_notes" ? "personal notes" : "templates"} found
+              </div>
+              <p className="text-xs max-w-sm mx-auto">
+                No items match your search for "{noteSearchQuery}". Try broadening your search terms.
+              </p>
+              <button
+                type="button"
+                onClick={() => setNoteSearchQuery("")}
+                className="mt-1 px-3 py-1.5 rounded-xl border border-[#4cd34c]/40 text-[#4cd34c] font-bold text-xs hover:bg-[#4cd34c]/10 transition"
+              >
+                Clear Search Filter
+              </button>
+            </div>
+          ) : currentTabTemplates.length === 0 ? (
             <div className="space-y-4">
               <div
                 className="p-6 text-center rounded-2xl border backdrop-blur space-y-2"
@@ -455,7 +519,8 @@ export default function QuickAccess({
               )}
             </div>
           ) : (
-            currentTabTemplates.map((t) => {
+            filteredTabTemplates.map((t) => {
+
               const isPrivateNote = t.is_private_note || String(t.id).startsWith("priv_") || t.agent_initials !== undefined;
               const copyCount = isPrivateNote ? (t.use_count || 0) : (counts[t.id] || 0);
 

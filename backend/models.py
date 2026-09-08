@@ -395,8 +395,10 @@ class ExtractionRuleBase(SQLModel):
     keyword: Optional[str] = None
     result_label: Optional[str] = None
     target_placeholder: Optional[str] = None
+    customRegex: Optional[str] = None
     is_active: bool = True
     company_id: int = Field(default=1, foreign_key="company.id", index=True)
+
 
 
 class ExtractionRule(ExtractionRuleBase, table=True):

@@ -111,7 +111,7 @@ export async function fetchExtractionRules() {
   } catch (e) {}
 
   try {
-    const stored = localStorage.getItem(storageKey) || localStorage.getItem(EXTRACTION_RULES_KEY);
+    const stored = localStorage.getItem(storageKey);
     if (stored) {
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -119,6 +119,7 @@ export async function fetchExtractionRules() {
       }
     }
   } catch (e) {}
+
 
   return DEFAULT_EXTRACTION_RULES;
 }
@@ -257,6 +258,7 @@ export function extractStructuredData(rawText = "", rules = []) {
                   startIndex: startPos,
                   endIndex: startPos + val.length,
                   confidence: "high",
+                  confidenceLabel: "Keyword Proximity Match",
                   ruleName: rule.name,
                   targetPlaceholder: rule.target_placeholder,
                 });
@@ -275,13 +277,21 @@ export function extractStructuredData(rawText = "", rules = []) {
       let matchExec;
       let guard = 0;
       while ((matchExec = regex.exec(rawText)) !== null) {
+        const val = matchExec[0];
+        const isPrefixExact = rule.prefix ? val.startsWith(rule.prefix) : true;
+        const isLengthExact = rule.lengthMode === "constant" ? val.length === parseInt(rule.constantLength, 10) : true;
+        const confidenceScore = isPrefixExact && isLengthExact ? 0.95 : 0.85;
+        const confidenceLabel = isPrefixExact ? "Rule Pattern Matched" : "Pattern Match";
+
         results.push({
           id: rule.id,
           label: rule.result_label || rule.name,
-          value: matchExec[0],
+          value: val,
           startIndex: matchExec.index,
-          endIndex: matchExec.index + matchExec[0].length,
-          confidence: "high",
+          endIndex: matchExec.index + val.length,
+          confidence: confidenceScore >= 0.9 ? "high" : "medium",
+          confidenceScore,
+          confidenceLabel,
           ruleName: rule.name,
           targetPlaceholder: rule.target_placeholder,
         });
@@ -301,6 +311,7 @@ export function extractStructuredData(rawText = "", rules = []) {
       console.error(`Error processing rule ${rule?.name}:`, e);
     }
   });
+
 
   return results;
 }

@@ -115,6 +115,7 @@ def get_company_rules(db: Session, company_id: int) -> List[dict]:
                 keyword=d.get("keyword"),
                 result_label=d.get("result_label"),
                 target_placeholder=d.get("target_placeholder"),
+                customRegex=d.get("customRegex"),
                 is_active=d.get("is_active", True),
                 company_id=company_id,
             )
@@ -140,6 +141,7 @@ def get_company_rules(db: Session, company_id: int) -> List[dict]:
             "keyword": r.keyword,
             "result_label": r.result_label,
             "target_placeholder": r.target_placeholder,
+            "customRegex": r.customRegex,
             "is_active": r.is_active,
         }
         result.append(rule_dict)
@@ -172,10 +174,12 @@ def save_company_rules(db: Session, company_id: int, rules_data: List[dict]) -> 
             keyword=d.get("keyword"),
             result_label=d.get("result_label"),
             target_placeholder=d.get("target_placeholder"),
+            customRegex=d.get("customRegex"),
             is_active=d.get("is_active", True),
             company_id=company_id,
         )
         db.add(db_rule)
+
 
     db.commit()
     return get_company_rules(db, company_id)
