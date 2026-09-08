@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { fetchExtractionRules, extractStructuredData } from "../services/smartExtractorService";
+import { sanitizeAccountNumber } from "../services/api";
 
 export default function SmartExtractorWidget({
   onAutoFillValues,
@@ -217,8 +218,12 @@ export default function SmartExtractorWidget({
     if (!onAutoFillValues || extractedResults.length === 0) return;
     const updates = {};
     extractedResults.forEach((r) => {
+      let val = r.value;
       if (r.targetPlaceholder) {
-        updates[r.targetPlaceholder] = r.value;
+        if (r.targetPlaceholder === "account_number" || r.targetPlaceholder.toLowerCase().includes("account_number")) {
+          val = sanitizeAccountNumber(val);
+        }
+        updates[r.targetPlaceholder] = val;
       }
       // Also map common placeholder aliases
       const lower = r.label.toLowerCase();
@@ -228,7 +233,7 @@ export default function SmartExtractorWidget({
       } else if (lower.includes("amount")) {
         updates["amount"] = r.value;
       } else if (lower.includes("account")) {
-        updates["account_number"] = r.value;
+        updates["account_number"] = sanitizeAccountNumber(r.value);
         updates["customer_name"] = updates["customer_name"] || r.value;
       } else if (lower.includes("phone")) {
         updates["phone_number"] = r.value;

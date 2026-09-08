@@ -1,5 +1,4 @@
-// Smart Extractor Service: Manages Image Extraction Rules & Rule Matching
-import { API_BASE, getCompanyHeaders } from "./api.js";
+import { API_BASE, getCompanyHeaders, sanitizeAccountNumber } from "./api.js";
 
 export const EXTRACTION_RULES_KEY = "rea_extraction_rules_v1";
 
@@ -556,6 +555,10 @@ export function autoExtractFieldsFromText(
           if (matchingKey && mapping[matchingKey]) {
             resolvedValue = mapping[matchingKey];
           }
+        }
+
+        if (ph === "account_number" || ph.toLowerCase().includes("account_number")) {
+          resolvedValue = sanitizeAccountNumber(resolvedValue);
         }
 
         updates[ph] = resolvedValue;

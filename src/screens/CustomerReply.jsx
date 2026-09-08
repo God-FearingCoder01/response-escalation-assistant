@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString } from "../services/api";
+import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString, sanitizeAccountNumber } from "../services/api";
 import { translateText } from "../services/translationService";
 import { fetchExtractionRules, autoExtractFieldsFromText } from "../services/smartExtractorService";
 import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
@@ -44,11 +44,15 @@ export default function CustomerReply({
   }, []);
 
   const handleFieldChange = (ph, newText, visiblePlaceholders, parsedCfgMap = {}) => {
+    let textToSet = newText;
+    if (ph === "account_number" || ph.toLowerCase().includes("account_number")) {
+      textToSet = sanitizeAccountNumber(newText);
+    }
     setValues((prev) => {
-      const updated = { ...prev, [ph]: newText };
-      if (newText && newText.trim().length >= 3) {
+      const updated = { ...prev, [ph]: textToSet };
+      if (textToSet && textToSet.trim().length >= 3) {
         const { updates: autoUpdates } = autoExtractFieldsFromText(
-          newText,
+          textToSet,
           extractionRules,
           visiblePlaceholders,
           ph,

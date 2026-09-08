@@ -48,9 +48,19 @@ export default function App() {
   const [showSmartExtractor, setShowSmartExtractor] = useState(false);
 
   const handleAutoFillValues = (updates) => {
+    const sanitizedUpdates = {};
+    if (updates && typeof updates === "object") {
+      Object.entries(updates).forEach(([k, v]) => {
+        if (k === "account_number" || k.toLowerCase().includes("account_number")) {
+          sanitizedUpdates[k] = sanitizeAccountNumber(v);
+        } else {
+          sanitizedUpdates[k] = v;
+        }
+      });
+    }
     setValues((prev) => ({
       ...prev,
-      ...updates,
+      ...sanitizedUpdates,
     }));
   };
 

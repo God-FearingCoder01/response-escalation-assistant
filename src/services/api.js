@@ -239,6 +239,14 @@ export function formatDateTimeString(val, controlType = "text", dateFormat = "")
   return `${DD}/${MM}/${YYYY} ${HH}:${mm}`;
 }
 
+export function sanitizeAccountNumber(val) {
+  if (val === null || val === undefined) return "";
+  const cleaned = String(val).replace(/\s+/g, "");
+  const idx = cleaned.indexOf("7");
+  if (idx === -1) return "";
+  return cleaned.slice(idx);
+}
+
 export function getDateAutoValues() {
   const now = new Date();
   const d = String(now.getDate()).padStart(2, "0");

@@ -9,6 +9,7 @@ import {
   getDateAutoValues,
   formatDateTimeString,
   resolveConditionalMappings,
+  sanitizeAccountNumber,
 } from "../services/api";
 
 export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteIds, usageCounts, recentlyUsed, showToast, privateNotes = [] }) {
@@ -292,6 +293,9 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
       }
 
       let formattedVal = formatDateTimeString(rawVal, ctrlType, cfg?.date_format);
+      if (key === "account_number" || keyLower.includes("account_number")) {
+        formattedVal = sanitizeAccountNumber(formattedVal);
+      }
       out = out.split(`{${key}}`).join(formattedVal);
     }
 
