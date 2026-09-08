@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString } from "../services/api";
 import { fetchExtractionRules, autoExtractFieldsFromText } from "../services/smartExtractorService";
 import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
@@ -33,10 +33,13 @@ export default function QuickAccess({
   const [newNoteName, setNewNoteName] = useState("");
   const [newNoteBody, setNewNoteBody] = useState("");
   const [newNoteType, setNewNoteType] = useState("customer_reply");
+  const [newNoteCategory, setNewNoteCategory] = useState("Personal Notes");
+  const [selectedNoteCategory, setSelectedNoteCategory] = useState("All");
   const [creatingNote, setCreatingNote] = useState(false);
   const [showHiddenFields, setShowHiddenFields] = useState(false);
   const [extractionRules, setExtractionRules] = useState([]);
   const [noteSearchQuery, setNoteSearchQuery] = useState("");
+
 
 
   useEffect(() => {
@@ -65,7 +68,6 @@ export default function QuickAccess({
     });
   };
 
-  if (activeScreen !== "quick_access" || !currentAgent) return null;
 
   const {
     privateNotes = [],
@@ -103,6 +105,15 @@ export default function QuickAccess({
   const counts = usageCounts || {};
   const phList = placeholders || [];
 
+  const privateNoteCategories = useMemo(() => {
+    const cats = new Set(["All"]);
+    privList.forEach((n) => {
+      const c = (n.category || "Personal Notes").trim();
+      if (c) cats.add(c);
+    });
+    return Array.from(cats);
+  }, [privList]);
+
   const currentTabTemplates =
     quickTab === "favorites"
       ? favList
@@ -113,6 +124,11 @@ export default function QuickAccess({
           : recList;
 
   const filteredTabTemplates = currentTabTemplates.filter((t) => {
+    if (quickTab === "private_notes" && selectedNoteCategory !== "All") {
+      const noteCat = (t.category || "Personal Notes").trim();
+      if (noteCat !== selectedNoteCategory) return false;
+    }
+
     if (!noteSearchQuery.trim()) return true;
     const q = noteSearchQuery.toLowerCase().trim();
     return (
@@ -123,12 +139,12 @@ export default function QuickAccess({
     );
   });
 
-
   const handleStartCreateNote = () => {
     setEditingNote(null);
     setNewNoteName("");
     setNewNoteBody("");
     setNewNoteType("customer_reply");
+    setNewNoteCategory(selectedNoteCategory !== "All" ? selectedNoteCategory : "Personal Notes");
     setShowCreateNote(true);
   };
 
@@ -137,6 +153,7 @@ export default function QuickAccess({
     setNewNoteName(note.name || "");
     setNewNoteBody(note.body || "");
     setNewNoteType(note.category_type || "customer_reply");
+    setNewNoteCategory(note.category || "Personal Notes");
     setShowCreateNote(true);
   };
 
@@ -144,12 +161,14 @@ export default function QuickAccess({
     e.preventDefault();
     if (!newNoteName.trim() || !newNoteBody.trim()) return;
     setCreatingNote(true);
+    const cat = newNoteCategory.trim() || "Personal Notes";
     try {
       if (editingNote && updatePrivateNote) {
         const updated = await updatePrivateNote(editingNote.id, {
           name: newNoteName.trim(),
           body: newNoteBody.trim(),
           category_type: newNoteType,
+          category: cat,
         });
         if (updated && setSelectedQuickId) {
           setSelectedQuickId(updated.id);
@@ -159,7 +178,7 @@ export default function QuickAccess({
           name: newNoteName.trim(),
           body: newNoteBody.trim(),
           category_type: newNoteType,
-          category: "Personal Notes",
+          category: cat,
         });
         if (created && setSelectedQuickId) {
           setSelectedQuickId(created.id);
@@ -168,12 +187,14 @@ export default function QuickAccess({
       setEditingNote(null);
       setNewNoteName("");
       setNewNoteBody("");
+      setNewNoteCategory("Personal Notes");
       setShowCreateNote(false);
     } catch (e) {
     } finally {
       setCreatingNote(false);
     }
   };
+
 
   const handleCopyAction = () => {
     copyText(generatedMsg, "Quick message copied to clipboard! 📋", activeTemplate?.id);
@@ -184,7 +205,11 @@ export default function QuickAccess({
     }
   };
 
+  if (activeScreen !== "quick_access" || !currentAgent) return null;
+
   return (
+
+
     <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto space-y-4 lg:space-y-0">
       {/* High-frequency Private Note Smart Suggestion Banner */}
       {promptBannerNote && (
@@ -264,7 +289,7 @@ export default function QuickAccess({
                 <span className="text-[10px] bg-[#4cd34c]/20 px-2 py-0.5 rounded-full">Editing ID: {editingNote.id}</span>
               )}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="text-[10px] uppercase font-bold block mb-1" style={{ color: "var(--text-muted)" }}>Template Title *</label>
                 <input
@@ -276,6 +301,31 @@ export default function QuickAccess({
                   className="w-full rounded-xl border p-2 text-xs font-semibold focus:outline-none focus:border-[#4cd34c]"
                   style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                 />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
+                  Category / Custom Category *
+                </label>
+                <input
+                  type="text"
+                  required
+                  list="private-note-categories-list"
+                  placeholder="e.g. Refunds, Verification, Personal..."
+                  value={newNoteCategory}
+                  onChange={(e) => setNewNoteCategory(e.target.value)}
+                  className="w-full rounded-xl border p-2 text-xs font-semibold focus:outline-none focus:border-[#4cd34c]"
+                  style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+                />
+                <datalist id="private-note-categories-list">
+                  <option value="Personal Notes" />
+                  <option value="Refunds & Payments" />
+                  <option value="Account Verification" />
+                  <option value="Escalation Checklists" />
+                  <option value="Customer Support" />
+                  {privateNoteCategories.filter((c) => c !== "All").map((cat) => (
+                    <option key={cat} value={cat} />
+                  ))}
+                </datalist>
               </div>
               <div>
                 <label className="text-[10px] uppercase font-bold block mb-1" style={{ color: "var(--text-muted)" }}>Template Type</label>
@@ -290,6 +340,26 @@ export default function QuickAccess({
                 </select>
               </div>
             </div>
+
+            {/* Quick Category Presets */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+              <span className="text-[10px] font-bold text-[var(--text-muted)]">Quick Presets:</span>
+              {["Personal Notes", "Refunds & Payments", "Account Verification", "Escalation Checklists"].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setNewNoteCategory(preset)}
+                  className={`text-[10px] px-2 py-0.5 rounded-lg border font-semibold transition ${
+                    newNoteCategory === preset
+                      ? "bg-[#4cd34c]/20 text-[#4cd34c] border-[#4cd34c]/40 font-bold"
+                      : "bg-[var(--app-bg)] text-[var(--text-muted)] border-[var(--field-border)] hover:opacity-100"
+                  }`}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+
             <div>
               <label className="text-[10px] uppercase font-bold block mb-1" style={{ color: "var(--text-muted)" }}>Message Body (Use {"{customer_name}"}, {"{greeting}"}, {"{reason}"} for placeholders) *</label>
               <textarea
@@ -420,6 +490,34 @@ export default function QuickAccess({
           )}
         </div>
 
+        {/* Category Filter Chips for Personal Notes */}
+        {quickTab === "private_notes" && privateNoteCategories.length > 1 && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <span className="text-[11px] font-bold text-[var(--text-muted)] shrink-0">Category Filter:</span>
+            {privateNoteCategories.map((cat) => {
+              const count = cat === "All" ? privList.length : privList.filter((n) => (n.category || "Personal Notes").trim() === cat).length;
+              const isSelected = selectedNoteCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedNoteCategory(cat)}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition border flex items-center gap-1.5 cursor-pointer ${
+                    isSelected
+                      ? "bg-[#4cd34c] text-black border-[#4cd34c] shadow-sm"
+                      : "bg-[var(--field-bg)] text-[var(--text-muted)] border-[var(--field-border)] hover:border-[#4cd34c]/40 hover:text-[var(--app-text)]"
+                  }`}
+                >
+                  <span>{cat === "All" ? "🏷️ All Notes" : `📁 ${cat}`}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${isSelected ? "bg-black/20 text-black" : "bg-[#4cd34c]/20 text-[#4cd34c]"}`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Template List Cards */}
         <div className="space-y-3 max-h-[32rem] overflow-y-auto pr-1">
           {noteSearchQuery.trim() && filteredTabTemplates.length === 0 ? (
@@ -538,6 +636,11 @@ export default function QuickAccess({
                   <div className="space-y-1 min-w-0 flex-1 pr-2">
                     <div className="font-bold text-sm flex flex-wrap items-center gap-1.5 min-w-0">
                       <span className="truncate">{t.name}</span>
+                      {t.category && (
+                        <span className="text-[10px] shrink-0 rounded-full border px-2 py-0.5 font-semibold bg-[#4cd34c]/10 text-[#4cd34c] border-[#4cd34c]/30 flex items-center gap-1">
+                          📁 {t.category}
+                        </span>
+                      )}
                       {quickTab !== "private_notes" && isPrivateNote ? (
                         <span className="text-[10px] shrink-0 rounded-full border px-2 py-0.5 font-semibold border-[#4cd34c] text-[#4cd34c]">
                           🔒 Private Note
@@ -550,6 +653,7 @@ export default function QuickAccess({
                         )
                       )}
                     </div>
+
                     <div className="text-xs truncate font-mono" style={{ color: "var(--text-muted)" }}>
                       {t.body}
                     </div>
