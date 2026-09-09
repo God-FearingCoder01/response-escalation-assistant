@@ -9,7 +9,7 @@ DEFAULT_EXTRACTION_RULES_DATA: List[dict] = [
         "name": "Deposit Confirmation Message",
         "description": "Mobile money deposit receipt / merchant payment reference (e.g. MP260831.1341.T9283748)",
         "method": "pattern",
-        "pattern": "MP[A-Za-z0-9.\\-_$%@#&=]{15,25}",
+        "pattern": r"MP\d{6}\.\d{4}\.T\d{7}",
         "prefix": "MP",
         "valueType": "alphanumeric",
         "valueTypes": ["numbers", "letters", "symbols"],
@@ -122,6 +122,16 @@ def get_company_rules(db: Session, company_id: int) -> List[dict]:
             db.add(db_rule)
         db.commit()
         rules = db.exec(statement).all()
+    else:
+        # Migrate any existing stored rule_1 pattern from legacy MP[... to MP\d{6}\.\d{4}\.T\d{7}
+        updated_any = False
+        for r in rules:
+            if r.rule_id == "rule_1" and ("MP[" in (r.pattern or "")):
+                r.pattern = r"MP\d{6}\.\d{4}\.T\d{7}"
+                db.add(r)
+                updated_any = True
+        if updated_any:
+            db.commit()
 
     result = []
     for r in rules:

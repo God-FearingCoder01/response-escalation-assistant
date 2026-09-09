@@ -8,7 +8,7 @@ export const DEFAULT_EXTRACTION_RULES = [
     name: "Deposit Confirmation Message",
     description: "Mobile money deposit receipt / merchant payment reference (e.g. MP260831.1341.T9283748)",
     method: "pattern",
-    pattern: "MP[A-Za-z0-9.\\-_$%@#&=]{15,25}",
+    pattern: "MP\\d{6}\\.\\d{4}\\.T\\d{7}",
     prefix: "MP",
     valueType: "alphanumeric",
     valueTypes: ["numbers", "letters", "symbols"],
