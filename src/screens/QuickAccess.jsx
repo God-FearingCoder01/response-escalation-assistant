@@ -49,19 +49,39 @@ export default function QuickAccess({
       return [];
     }
   });
+  const [deletedDefaultCategories, setDeletedDefaultCategories] = useState(() => {
+    try {
+      const agentKey = currentAgent?.agent_initials || "default";
+      const saved = localStorage.getItem(`rea_deleted_default_categories_${agentKey}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCustomCategoryName, setNewCustomCategoryName] = useState("");
   const [categoryError, setCategoryError] = useState("");
 
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [selectedNoteIds, setSelectedNoteIds] = useState([]);
+  const [batchTargetCategory, setBatchTargetCategory] = useState("Personal Notes");
+
   useEffect(() => {
     try {
       const agentKey = currentAgent?.agent_initials || "default";
-      const saved = localStorage.getItem(`rea_custom_private_note_categories_${agentKey}`);
-      if (saved) {
-        setCustomCategories(JSON.parse(saved));
+      const savedCustom = localStorage.getItem(`rea_custom_private_note_categories_${agentKey}`);
+      if (savedCustom) {
+        setCustomCategories(JSON.parse(savedCustom));
+      }
+      const savedDeleted = localStorage.getItem(`rea_deleted_default_categories_${agentKey}`);
+      if (savedDeleted) {
+        setDeletedDefaultCategories(JSON.parse(savedDeleted));
+      } else {
+        setDeletedDefaultCategories([]);
       }
     } catch (e) {
-      console.error("Failed to load custom categories:", e);
+      console.error("Failed to load custom or deleted categories:", e);
     }
   }, [currentAgent?.agent_initials]);
 
@@ -146,16 +166,20 @@ export default function QuickAccess({
 
   const privateNoteCategories = useMemo(() => {
     const cats = new Set(["All"]);
-    DEFAULT_NOTE_CATEGORIES.forEach((c) => cats.add(c));
+    DEFAULT_NOTE_CATEGORIES.forEach((c) => {
+      if (!deletedDefaultCategories.includes(c)) {
+        cats.add(c);
+      }
+    });
     allCustomCategories.forEach((c) => {
       if (c && c.trim()) cats.add(c.trim());
     });
     privList.forEach((n) => {
       const c = (n.category || "Personal Notes").trim();
-      if (c) cats.add(c);
+      if (c && !deletedDefaultCategories.includes(c)) cats.add(c);
     });
     return Array.from(cats);
-  }, [privList, allCustomCategories, DEFAULT_NOTE_CATEGORIES]);
+  }, [privList, allCustomCategories, DEFAULT_NOTE_CATEGORIES, deletedDefaultCategories]);
 
   const handleAddCustomCategory = async (nameToUse) => {
     const targetName = typeof nameToUse === "string" ? nameToUse : newCustomCategoryName;
@@ -199,20 +223,85 @@ export default function QuickAccess({
     setCategoryError("");
   };
 
-  const handleDeleteCustomCategory = async (catToDelete) => {
-    if (deleteCustomCategory) {
-      await deleteCustomCategory(catToDelete);
+  const handleDeleteAnyCategory = async (catToDelete) => {
+    if (!catToDelete || catToDelete === "All") return;
+    const isCustom = allCustomCategories.includes(catToDelete);
+    if (isCustom) {
+      if (deleteCustomCategory) {
+        await deleteCustomCategory(catToDelete);
+      }
+      const updated = customCategories.filter((c) => c !== catToDelete);
+      setCustomCategories(updated);
+      try {
+        const agentKey = currentAgent?.agent_initials || "default";
+        localStorage.setItem(`rea_custom_private_note_categories_${agentKey}`, JSON.stringify(updated));
+      } catch (e) {
+        console.error("Failed to update custom categories in localStorage:", e);
+      }
+    } else if (DEFAULT_NOTE_CATEGORIES.includes(catToDelete)) {
+      const updated = [...deletedDefaultCategories, catToDelete];
+      setDeletedDefaultCategories(updated);
+      try {
+        const agentKey = currentAgent?.agent_initials || "default";
+        localStorage.setItem(`rea_deleted_default_categories_${agentKey}`, JSON.stringify(updated));
+      } catch (e) {
+        console.error("Failed to save deleted default categories:", e);
+      }
+      if (showToast) showToast(`Removed default category "${catToDelete}"`, "info");
     }
-    const updated = customCategories.filter((c) => c !== catToDelete);
-    setCustomCategories(updated);
-    try {
-      const agentKey = currentAgent?.agent_initials || "default";
-      localStorage.setItem(`rea_custom_private_note_categories_${agentKey}`, JSON.stringify(updated));
-    } catch (e) {
-      console.error("Failed to update custom categories in localStorage:", e);
-    }
+
     if (selectedNoteCategory === catToDelete) {
       setSelectedNoteCategory("All");
+    }
+  };
+
+  const handleRestoreDefaultCategories = () => {
+    setDeletedDefaultCategories([]);
+    try {
+      const agentKey = currentAgent?.agent_initials || "default";
+      localStorage.removeItem(`rea_deleted_default_categories_${agentKey}`);
+    } catch (e) {
+      console.error("Failed to clear deleted default categories:", e);
+    }
+    if (showToast) showToast("Restored all default categories!", "success");
+  };
+
+  const handleToggleNoteSelection = (noteId) => {
+    setSelectedNoteIds((prev) =>
+      prev.includes(noteId) ? prev.filter((id) => id !== noteId) : [...prev, noteId]
+    );
+  };
+
+  const handleSelectAllNotes = () => {
+    const allNoteIds = filteredTabTemplates.map((t) => t.id);
+    setSelectedNoteIds(allNoteIds);
+  };
+
+  const handleDeselectAllNotes = () => {
+    setSelectedNoteIds([]);
+  };
+
+  const handleBatchAssignCategory = async () => {
+    if (selectedNoteIds.length === 0 || !batchTargetCategory) return;
+    setCreatingNote(true);
+    try {
+      await Promise.all(
+        selectedNoteIds.map((noteId) =>
+          updatePrivateNote(noteId, { category: batchTargetCategory })
+        )
+      );
+      if (showToast) {
+        showToast(
+          `📁 Moved ${selectedNoteIds.length} personal notes to category "${batchTargetCategory}"!`,
+          "success"
+        );
+      }
+      setSelectedNoteIds([]);
+      setIsMultiSelectMode(false);
+    } catch (e) {
+      if (showToast) showToast("Failed to update some notes", "error");
+    } finally {
+      setCreatingNote(false);
     }
   };
 
@@ -366,6 +455,22 @@ export default function QuickAccess({
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
+                onClick={() => {
+                  setIsMultiSelectMode((prev) => !prev);
+                  setSelectedNoteIds([]);
+                }}
+                className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1 shrink-0 cursor-pointer ${
+                  isMultiSelectMode
+                    ? "bg-[#4cd34c]/20 border-[#4cd34c] text-[#4cd34c]"
+                    : "border-[var(--field-border)] hover:bg-[var(--neutral-bg)] text-[var(--text-muted)]"
+                }`}
+                title="Multi-select personal notes to move to a category"
+              >
+                <span>☑️</span>
+                <span>{isMultiSelectMode ? "Exit Batch Mode" : "Batch Select"}</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setShowAddCategoryModal((prev) => !prev)}
                 className="px-3 py-1.5 rounded-xl border border-[#4cd34c]/40 text-[#4cd34c] font-bold text-xs hover:bg-[#4cd34c]/10 transition flex items-center gap-1 shrink-0 cursor-pointer"
                 title="Create a new custom category for private notes"
@@ -390,6 +495,55 @@ export default function QuickAccess({
             </div>
           )}
         </div>
+
+        {/* Multi-Select Batch Action Bar */}
+        {quickTab === "private_notes" && isMultiSelectMode && (
+          <div className="p-3.5 rounded-2xl border bg-[#4cd34c]/10 border-[#4cd34c]/40 flex flex-wrap items-center justify-between gap-3 shadow-md animate-fade-in">
+            <div className="flex items-center gap-2 text-xs font-bold text-[var(--app-text)]">
+              <span>☑️ {selectedNoteIds.length} notes selected</span>
+              <button
+                type="button"
+                onClick={handleSelectAllNotes}
+                className="px-2 py-1 rounded-lg border border-[var(--field-border)] bg-[var(--field-bg)] text-[10px] hover:border-[#4cd34c] cursor-pointer"
+              >
+                Select All ({filteredTabTemplates.length})
+              </button>
+              {selectedNoteIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleDeselectAllNotes}
+                  className="px-2 py-1 rounded-lg border border-[var(--field-border)] bg-[var(--field-bg)] text-[10px] hover:opacity-80 cursor-pointer"
+                >
+                  Clear Selection
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-[var(--text-muted)]">Move to:</span>
+              <select
+                value={batchTargetCategory}
+                onChange={(e) => setBatchTargetCategory(e.target.value)}
+                className="rounded-xl border p-1.5 text-xs font-semibold focus:outline-none focus:border-[#4cd34c]"
+                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+              >
+                {privateNoteCategories.filter((c) => c !== "All").map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={selectedNoteIds.length === 0 || creatingNote}
+                onClick={handleBatchAssignCategory}
+                className="px-3.5 py-1.5 rounded-xl bg-[#4cd34c] text-black font-extrabold text-xs hover:opacity-90 transition disabled:opacity-50 cursor-pointer"
+              >
+                {creatingNote ? "Moving..." : `Apply (${selectedNoteIds.length})`}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Custom Category Creation Modal/Panel */}
         {showAddCategoryModal && (
@@ -699,15 +853,15 @@ export default function QuickAccess({
                       {count}
                     </span>
                   </button>
-                  {isCustom && count === 0 && (
+                  {cat !== "All" && (
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteCustomCategory(cat);
+                        handleDeleteAnyCategory(cat);
                       }}
                       className="text-[10px] p-1 text-[var(--text-muted)] hover:text-red-400 transition cursor-pointer"
-                      title={`Remove custom category "${cat}"`}
+                      title={`Remove category "${cat}"`}
                     >
                       ✕
                     </button>
@@ -723,6 +877,16 @@ export default function QuickAccess({
             >
               <span>+ Custom Category</span>
             </button>
+            {deletedDefaultCategories.length > 0 && (
+              <button
+                type="button"
+                onClick={handleRestoreDefaultCategories}
+                className="px-2 py-1 rounded-xl text-xs font-bold border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition flex items-center gap-1 cursor-pointer"
+                title="Restore deleted default categories"
+              >
+                <span>🔄 Restore Defaults</span>
+              </button>
+            )}
           </div>
         )}
 
@@ -830,17 +994,38 @@ export default function QuickAccess({
               const isPrivateNote = t.is_private_note || String(t.id).startsWith("priv_") || t.agent_initials !== undefined;
               const copyCount = isPrivateNote ? (t.use_count || 0) : (counts[t.id] || 0);
 
+              const isSelectedInBatch = selectedNoteIds.includes(t.id);
+
               return (
                 <div
                   key={t.id}
-                  onClick={() => setSelectedQuickId(t.id)}
+                  onClick={() => {
+                    if (isMultiSelectMode && isPrivateNote) {
+                      handleToggleNoteSelection(t.id);
+                    } else {
+                      setSelectedQuickId(t.id);
+                    }
+                  }}
                   className={`p-3.5 rounded-2xl border cursor-pointer transition flex items-center justify-between ${
-                    t.id === activeTemplate?.id
-                      ? "border-[#4cd34c] ring-1 ring-[#4cd34c]/30 bg-[#4cd34c]/5"
-                      : "hover:border-[#4cd34c]/50"
+                    isSelectedInBatch
+                      ? "border-[#4cd34c] ring-2 ring-[#4cd34c]/50 bg-[#4cd34c]/15"
+                      : t.id === activeTemplate?.id
+                        ? "border-[#4cd34c] ring-1 ring-[#4cd34c]/30 bg-[#4cd34c]/5"
+                        : "hover:border-[#4cd34c]/50"
                   }`}
-                  style={{ borderColor: t.id === activeTemplate?.id ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
+                  style={{ borderColor: isSelectedInBatch || t.id === activeTemplate?.id ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
                 >
+                  {quickTab === "private_notes" && isMultiSelectMode && isPrivateNote && (
+                    <input
+                      type="checkbox"
+                      checked={isSelectedInBatch}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        handleToggleNoteSelection(t.id);
+                      }}
+                      className="h-4 w-4 rounded accent-[#4cd34c] cursor-pointer mr-3 shrink-0"
+                    />
+                  )}
                   <div className="space-y-1 min-w-0 flex-1 pr-2">
                     <div className="font-bold text-sm flex flex-wrap items-center gap-1.5 min-w-0">
                       <span className="truncate">{t.name}</span>
