@@ -877,16 +877,6 @@ export default function QuickAccess({
             >
               <span>+ Custom Category</span>
             </button>
-            {deletedDefaultCategories.length > 0 && (
-              <button
-                type="button"
-                onClick={handleRestoreDefaultCategories}
-                className="px-2 py-1 rounded-xl text-xs font-bold border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition flex items-center gap-1 cursor-pointer"
-                title="Restore deleted default categories"
-              >
-                <span>🔄 Restore Defaults</span>
-              </button>
-            )}
           </div>
         )}
 
