@@ -365,6 +365,7 @@ class AgentUserDataBase(SQLModel):
     usage_date: str = Field(default="")
     private_notes_json: str = Field(default="[]")
     translation_history_json: str = Field(default="[]")
+    custom_categories_json: str = Field(default="[]")
 
 
 class AgentUserData(AgentUserDataBase, table=True):
@@ -377,6 +378,27 @@ class AgentUserDataRead(AgentUserDataBase):
     id: int
     created_at: datetime
     updated_at: datetime
+
+
+class PrivateNoteCategoryBase(SQLModel):
+    name: str = Field(index=True)
+    agent_initials: str = Field(index=True)
+    company_id: int = Field(default=1, foreign_key="company.id", index=True)
+
+
+class PrivateNoteCategory(PrivateNoteCategoryBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+
+
+class PrivateNoteCategoryCreate(SQLModel):
+    name: str
+    agent_initials: Optional[str] = None
+
+
+class PrivateNoteCategoryRead(PrivateNoteCategoryBase):
+    id: int
+    created_at: datetime
 
 
 class ExtractionRuleBase(SQLModel):

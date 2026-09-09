@@ -19,6 +19,7 @@ class SaveAgentDataPayload(BaseModel):
     usage_counts: Optional[dict] = None
     private_notes: Optional[List[dict]] = None
     translation_history: Optional[List[dict]] = None
+    custom_categories: Optional[List[str]] = None
 
 
 @router.get("/api/agent-data")
@@ -45,6 +46,7 @@ def get_agent_user_data(agent_initials: str, company: Company = Depends(get_curr
                 usage_date=today_str,
                 private_notes_json="[]",
                 translation_history_json="[]",
+                custom_categories_json="[]",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
             )
@@ -85,6 +87,11 @@ def get_agent_user_data(agent_initials: str, company: Company = Depends(get_curr
         except Exception:
             history = []
 
+        try:
+            cats = json.loads(getattr(record, "custom_categories_json", "[]") or "[]")
+        except Exception:
+            cats = []
+
         return {
             "agent_initials": init,
             "company_id": cid,
@@ -94,6 +101,7 @@ def get_agent_user_data(agent_initials: str, company: Company = Depends(get_curr
             "usage_date": record.usage_date,
             "private_notes": notes,
             "translation_history": history,
+            "custom_categories": cats,
         }
 
 
@@ -121,6 +129,7 @@ def save_agent_user_data(payload: SaveAgentDataPayload, company: Company = Depen
                 usage_date=today_str,
                 private_notes_json="[]",
                 translation_history_json="[]",
+                custom_categories_json="[]",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
             )
@@ -139,6 +148,8 @@ def save_agent_user_data(payload: SaveAgentDataPayload, company: Company = Depen
             record.private_notes_json = json.dumps(payload.private_notes)
         if payload.translation_history is not None:
             record.translation_history_json = json.dumps(payload.translation_history)
+        if payload.custom_categories is not None:
+            record.custom_categories_json = json.dumps(payload.custom_categories)
 
         record.updated_at = datetime.now(timezone.utc)
         session.add(record)

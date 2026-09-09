@@ -95,6 +95,7 @@ def create_db_and_tables():
             ("suggestion", "status", "VARCHAR DEFAULT 'pending'"),
             ("suggestion", "created_at", "TIMESTAMP"),
             ("suggestion", "updated_at", "TIMESTAMP"),
+            ("agentuserdata", "custom_categories_json", "TEXT DEFAULT '[]'"),
         ]
 
         with engine.begin() as conn:

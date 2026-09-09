@@ -10,10 +10,86 @@ from backend.models import (
     PrivateNoteCreate,
     PrivateNoteRead,
     PrivateNoteUpdate,
+    PrivateNoteCategory,
+    PrivateNoteCategoryCreate,
+    PrivateNoteCategoryRead,
 )
 from backend.security import get_current_company
 
 router = APIRouter(tags=["Private Notes"])
+
+
+@router.get("/private-notes/categories", response_model=List[PrivateNoteCategoryRead])
+def list_private_note_categories(
+    agent_initials: Optional[str] = Header(None, alias="X-Agent-Initials"),
+    company: Company = Depends(get_current_company),
+):
+    cid = company.id if company and company.id else 1
+    if not agent_initials:
+        return []
+    with Session(engine) as session:
+        return session.exec(
+            select(PrivateNoteCategory)
+            .where(PrivateNoteCategory.company_id == cid)
+            .where(PrivateNoteCategory.agent_initials == agent_initials.upper())
+            .order_by(col(PrivateNoteCategory.name).asc())
+        ).all()
+
+
+@router.post("/private-notes/categories", response_model=PrivateNoteCategoryRead)
+def create_private_note_category(
+    payload: PrivateNoteCategoryCreate,
+    agent_initials: Optional[str] = Header(None, alias="X-Agent-Initials"),
+    company: Company = Depends(get_current_company),
+):
+    cid = company.id if company and company.id else 1
+    init = (payload.agent_initials or agent_initials or "SA").upper()
+    cat_name = payload.name.strip()
+    if not cat_name:
+        raise HTTPException(status_code=400, detail="Category name cannot be empty")
+
+    with Session(engine) as session:
+        existing = session.exec(
+            select(PrivateNoteCategory)
+            .where(PrivateNoteCategory.company_id == cid)
+            .where(PrivateNoteCategory.agent_initials == init)
+            .where(PrivateNoteCategory.name == cat_name)
+        ).first()
+        if existing:
+            return existing
+
+        now = datetime.now(timezone.utc)
+        db_cat = PrivateNoteCategory(
+            name=cat_name,
+            agent_initials=init,
+            company_id=cid,
+            created_at=now,
+        )
+        session.add(db_cat)
+        session.commit()
+        session.refresh(db_cat)
+        return db_cat
+
+
+@router.delete("/private-notes/categories/{category_name}")
+def delete_private_note_category(
+    category_name: str,
+    agent_initials: Optional[str] = Header(None, alias="X-Agent-Initials"),
+    company: Company = Depends(get_current_company),
+):
+    cid = company.id if company and company.id else 1
+    init = (agent_initials or "").upper()
+    with Session(engine) as session:
+        cats = session.exec(
+            select(PrivateNoteCategory)
+            .where(PrivateNoteCategory.company_id == cid)
+            .where(PrivateNoteCategory.agent_initials == init)
+            .where(PrivateNoteCategory.name == category_name.strip())
+        ).all()
+        for cat in cats:
+            session.delete(cat)
+        session.commit()
+    return {"ok": True, "message": f"Category '{category_name}' deleted"}
 
 
 @router.get("/private-notes", response_model=List[PrivateNoteRead])

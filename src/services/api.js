@@ -869,6 +869,41 @@ export async function deletePrivateNoteApi(id, agentInitials) {
   return await res.json();
 }
 
+export async function fetchPrivateNoteCategoriesApi(agentInitials) {
+  const headers = { ...getCompanyHeaders() };
+  if (agentInitials) headers["X-Agent-Initials"] = agentInitials;
+  return await safeFetchJson(`${API_BASE}/private-notes/categories`, { headers });
+}
+
+export async function createPrivateNoteCategoryApi(categoryName, agentInitials) {
+  const headers = { "Content-Type": "application/json", ...getCompanyHeaders() };
+  if (agentInitials) headers["X-Agent-Initials"] = agentInitials;
+  const res = await fetch(`${API_BASE}/private-notes/categories`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ name: categoryName }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to create category"));
+  }
+  return await res.json();
+}
+
+export async function deletePrivateNoteCategoryApi(categoryName, agentInitials) {
+  const headers = { ...getCompanyHeaders() };
+  if (agentInitials) headers["X-Agent-Initials"] = agentInitials;
+  const res = await fetch(`${API_BASE}/private-notes/categories/${encodeURIComponent(categoryName)}`, {
+    method: "DELETE",
+    headers,
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to delete category"));
+  }
+  return await res.json();
+}
+
 export async function trackPrivateNoteUsageApi(id) {
   const res = await fetch(`${API_BASE}/private-notes/${id}/use`, {
     method: "POST",

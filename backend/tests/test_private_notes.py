@@ -57,3 +57,40 @@ def test_private_notes_lifecycle_and_privacy():
 
     res_list_sa_after = client.get("/private-notes", headers=headers_sa)
     assert not any(n["id"] == note_id for n in res_list_sa_after.json())
+
+
+def test_private_note_custom_categories_lifecycle():
+    headers_sa = {"X-Agent-Initials": "SA", "X-Company-ID": "1"}
+    
+    # 1. Create custom category
+    res_create = client.post(
+        "/private-notes/categories",
+        json={"name": "VIP Billing Desk"},
+        headers=headers_sa
+    )
+    assert res_create.status_code == 200
+    cat_data = res_create.json()
+    assert cat_data["name"] == "VIP Billing Desk"
+    assert cat_data["agent_initials"] == "SA"
+
+    # 2. List categories
+    res_list = client.get("/private-notes/categories", headers=headers_sa)
+    assert res_list.status_code == 200
+    cats = res_list.json()
+    assert any(c["name"] == "VIP Billing Desk" for c in cats)
+
+    # 3. Agent privacy check (Agent CW should not see SA's custom category)
+    headers_cw = {"X-Agent-Initials": "CW", "X-Company-ID": "1"}
+    res_list_cw = client.get("/private-notes/categories", headers=headers_cw)
+    assert res_list_cw.status_code == 200
+    cw_cats = res_list_cw.json()
+    assert not any(c["name"] == "VIP Billing Desk" for c in cw_cats)
+
+    # 4. Delete custom category
+    res_del = client.delete("/private-notes/categories/VIP%20Billing%20Desk", headers=headers_sa)
+    assert res_del.status_code == 200
+
+    # 5. Verify deleted
+    res_list_after = client.get("/private-notes/categories", headers=headers_sa)
+    assert not any(c["name"] == "VIP Billing Desk" for c in res_list_after.json())
+

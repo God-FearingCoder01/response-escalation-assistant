@@ -6,6 +6,9 @@ import {
   deletePrivateNoteApi,
   trackPrivateNoteUsageApi,
   createSuggestionApi,
+  fetchPrivateNoteCategoriesApi,
+  createPrivateNoteCategoryApi,
+  deletePrivateNoteCategoryApi,
 } from "../services/api";
 
 function getRawId(id) {
@@ -36,6 +39,7 @@ function getTodayDateStr() {
 
 export function usePrivateNotes({ currentAgent, showToast, refreshSuggestions }) {
   const [privateNotes, setPrivateNotes] = useState([]);
+  const [dbCustomCategories, setDbCustomCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [promptBannerNote, setPromptBannerNote] = useState(null);
 
@@ -45,7 +49,11 @@ export function usePrivateNotes({ currentAgent, showToast, refreshSuggestions })
     if (!agentInitials) return;
     setLoading(true);
     try {
-      const data = await fetchPrivateNotesApi(agentInitials);
+      const [data, catsData] = await Promise.all([
+        fetchPrivateNotesApi(agentInitials),
+        fetchPrivateNoteCategoriesApi(agentInitials).catch(() => []),
+      ]);
+
       if (Array.isArray(data)) {
         const today = getTodayDateStr();
         const formatted = data.map((n) => {
@@ -60,6 +68,11 @@ export function usePrivateNotes({ currentAgent, showToast, refreshSuggestions })
         });
         setPrivateNotes(formatted);
       }
+
+      if (Array.isArray(catsData)) {
+        const names = catsData.map((c) => (typeof c === "string" ? c : c.name)).filter(Boolean);
+        setDbCustomCategories(names);
+      }
     } catch (e) {
       console.error("Failed to load private notes:", e);
     } finally {
@@ -70,6 +83,34 @@ export function usePrivateNotes({ currentAgent, showToast, refreshSuggestions })
   useEffect(() => {
     refreshPrivateNotes();
   }, [refreshPrivateNotes]);
+
+  const handleCreateCategory = async (categoryName) => {
+    const trimmed = (categoryName || "").trim();
+    if (!trimmed) return;
+    try {
+      await createPrivateNoteCategoryApi(trimmed, agentInitials);
+      setDbCustomCategories((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+      if (showToast) showToast(`📁 Custom category "${trimmed}" saved to DB!`, "success");
+      return trimmed;
+    } catch (e) {
+      console.warn("Failed to create category on DB, storing locally:", e);
+      setDbCustomCategories((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+      return trimmed;
+    }
+  };
+
+  const handleDeleteCategory = async (categoryName) => {
+    const trimmed = (categoryName || "").trim();
+    if (!trimmed) return;
+    try {
+      await deletePrivateNoteCategoryApi(trimmed, agentInitials);
+      setDbCustomCategories((prev) => prev.filter((c) => c !== trimmed));
+      if (showToast) showToast(`Removed custom category "${trimmed}"`, "info");
+    } catch (e) {
+      console.warn("Failed to delete category from DB:", e);
+      setDbCustomCategories((prev) => prev.filter((c) => c !== trimmed));
+    }
+  };
 
   // High-frequency private notes (used 150+ times in a single day, not yet submitted as team suggestion)
   const frequentNotes = useMemo(() => {
@@ -175,6 +216,7 @@ export function usePrivateNotes({ currentAgent, showToast, refreshSuggestions })
 
   return {
     privateNotes,
+    customCategories: dbCustomCategories,
     loading,
     frequentNotes,
     promptBannerNote,
@@ -182,6 +224,8 @@ export function usePrivateNotes({ currentAgent, showToast, refreshSuggestions })
     createPrivateNote: handleCreateNote,
     updatePrivateNote: handleUpdateNote,
     deletePrivateNote: handleDeleteNote,
+    createCustomCategory: handleCreateCategory,
+    deleteCustomCategory: handleDeleteCategory,
     trackPrivateNoteUsage: handleTrackUsage,
     promoteToSuggestion,
     dismissPromptBanner,

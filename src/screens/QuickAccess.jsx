@@ -40,7 +40,30 @@ export default function QuickAccess({
   const [extractionRules, setExtractionRules] = useState([]);
   const [noteSearchQuery, setNoteSearchQuery] = useState("");
 
+  const [customCategories, setCustomCategories] = useState(() => {
+    try {
+      const agentKey = currentAgent?.agent_initials || "default";
+      const saved = localStorage.getItem(`rea_custom_private_note_categories_${agentKey}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [newCustomCategoryName, setNewCustomCategoryName] = useState("");
+  const [categoryError, setCategoryError] = useState("");
 
+  useEffect(() => {
+    try {
+      const agentKey = currentAgent?.agent_initials || "default";
+      const saved = localStorage.getItem(`rea_custom_private_note_categories_${agentKey}`);
+      if (saved) {
+        setCustomCategories(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error("Failed to load custom categories:", e);
+    }
+  }, [currentAgent?.agent_initials]);
 
   useEffect(() => {
     fetchExtractionRules().then(setExtractionRules);
@@ -72,12 +95,19 @@ export default function QuickAccess({
     });
   };
 
+  const DEFAULT_NOTE_CATEGORIES = useMemo(
+    () => ["Personal Notes", "Refunds & Payments", "Account Verification", "Escalation Checklists"],
+    []
+  );
 
   const {
     privateNotes = [],
+    customCategories: hookCustomCategories = [],
     createPrivateNote,
     updatePrivateNote,
     deletePrivateNote,
+    createCustomCategory,
+    deleteCustomCategory,
     trackPrivateNoteUsage,
     promoteToSuggestion,
     promptBannerNote,
@@ -109,14 +139,82 @@ export default function QuickAccess({
   const counts = usageCounts || {};
   const phList = placeholders || [];
 
+  const allCustomCategories = useMemo(() => {
+    const combined = new Set([...customCategories, ...hookCustomCategories]);
+    return Array.from(combined);
+  }, [customCategories, hookCustomCategories]);
+
   const privateNoteCategories = useMemo(() => {
     const cats = new Set(["All"]);
+    DEFAULT_NOTE_CATEGORIES.forEach((c) => cats.add(c));
+    allCustomCategories.forEach((c) => {
+      if (c && c.trim()) cats.add(c.trim());
+    });
     privList.forEach((n) => {
       const c = (n.category || "Personal Notes").trim();
       if (c) cats.add(c);
     });
     return Array.from(cats);
-  }, [privList]);
+  }, [privList, allCustomCategories, DEFAULT_NOTE_CATEGORIES]);
+
+  const handleAddCustomCategory = async (nameToUse) => {
+    const targetName = typeof nameToUse === "string" ? nameToUse : newCustomCategoryName;
+    const trimmed = (targetName || "").trim();
+    if (!trimmed) {
+      setCategoryError("Category name cannot be empty");
+      return;
+    }
+    if (trimmed.toLowerCase() === "all") {
+      setCategoryError("'All' is a reserved category name");
+      return;
+    }
+
+    const existingMatch = privateNoteCategories.find((c) => c.toLowerCase() === trimmed.toLowerCase());
+    if (existingMatch) {
+      setSelectedNoteCategory(existingMatch);
+      setNewNoteCategory(existingMatch);
+      setShowAddCategoryModal(false);
+      setNewCustomCategoryName("");
+      setCategoryError("");
+      if (showToast) showToast(`📁 Selected category "${existingMatch}"`, "info");
+      return;
+    }
+
+    if (createCustomCategory) {
+      await createCustomCategory(trimmed);
+    }
+
+    const updated = [...customCategories, trimmed];
+    setCustomCategories(updated);
+    try {
+      const agentKey = currentAgent?.agent_initials || "default";
+      localStorage.setItem(`rea_custom_private_note_categories_${agentKey}`, JSON.stringify(updated));
+    } catch (e) {
+      console.error("Failed to save custom category to localStorage:", e);
+    }
+    setSelectedNoteCategory(trimmed);
+    setNewNoteCategory(trimmed);
+    setShowAddCategoryModal(false);
+    setNewCustomCategoryName("");
+    setCategoryError("");
+  };
+
+  const handleDeleteCustomCategory = async (catToDelete) => {
+    if (deleteCustomCategory) {
+      await deleteCustomCategory(catToDelete);
+    }
+    const updated = customCategories.filter((c) => c !== catToDelete);
+    setCustomCategories(updated);
+    try {
+      const agentKey = currentAgent?.agent_initials || "default";
+      localStorage.setItem(`rea_custom_private_note_categories_${agentKey}`, JSON.stringify(updated));
+    } catch (e) {
+      console.error("Failed to update custom categories in localStorage:", e);
+    }
+    if (selectedNoteCategory === catToDelete) {
+      setSelectedNoteCategory("All");
+    }
+  };
 
   const currentTabTemplates =
     quickTab === "favorites"
@@ -265,24 +363,100 @@ export default function QuickAccess({
             </p>
           </div>
           {quickTab === "private_notes" && (
-            <button
-              type="button"
-              onClick={() => {
-                if (showCreateNote) {
-                  setShowCreateNote(false);
-                  setEditingNote(null);
-                } else {
-                  handleStartCreateNote();
-                }
-              }}
-              className="px-3 py-1.5 rounded-xl bg-[#4cd34c] text-black font-bold text-xs shadow-sm hover:opacity-90 transition flex items-center gap-1 shrink-0"
-            >
-              {showCreateNote ? "✕ Close Form" : "+ Add Private Note"}
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowAddCategoryModal((prev) => !prev)}
+                className="px-3 py-1.5 rounded-xl border border-[#4cd34c]/40 text-[#4cd34c] font-bold text-xs hover:bg-[#4cd34c]/10 transition flex items-center gap-1 shrink-0 cursor-pointer"
+                title="Create a new custom category for private notes"
+              >
+                <span>📁+</span>
+                <span>Add Category</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (showCreateNote) {
+                    setShowCreateNote(false);
+                    setEditingNote(null);
+                  } else {
+                    handleStartCreateNote();
+                  }
+                }}
+                className="px-3 py-1.5 rounded-xl bg-[#4cd34c] text-black font-bold text-xs shadow-sm hover:opacity-90 transition flex items-center gap-1 shrink-0"
+              >
+                {showCreateNote ? "✕ Close Form" : "+ Add Private Note"}
+              </button>
+            </div>
           )}
         </div>
 
-
+        {/* Custom Category Creation Modal/Panel */}
+        {showAddCategoryModal && (
+          <div className="p-4 rounded-2xl border bg-[var(--field-bg)] space-y-3 shadow-md border-[#4cd34c]/60 animate-fade-in">
+            <div className="flex items-center justify-between font-bold text-xs text-[#4cd34c]">
+              <span className="flex items-center gap-1.5">
+                <span className="text-base">📁</span> Create New Custom Private Note Category
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddCategoryModal(false);
+                  setNewCustomCategoryName("");
+                  setCategoryError("");
+                }}
+                className="text-[var(--text-muted)] hover:text-[var(--app-text)] text-xs font-bold cursor-pointer"
+              >
+                ✕ Close
+              </button>
+            </div>
+            <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+              Add custom categories (e.g. VIP Desk, Billing Escalations, Account Audits) to organize your personal notes in the Private Notes center.
+            </p>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <input
+                type="text"
+                autoFocus
+                placeholder="Enter custom category name e.g. VIP Desk"
+                value={newCustomCategoryName}
+                onChange={(e) => {
+                  setNewCustomCategoryName(e.target.value);
+                  if (categoryError) setCategoryError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddCustomCategory();
+                  }
+                }}
+                className="flex-1 rounded-xl border p-2 text-xs font-semibold focus:outline-none focus:border-[#4cd34c]"
+                style={{ borderColor: categoryError ? "#f87171" : "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddCategoryModal(false);
+                    setNewCustomCategoryName("");
+                    setCategoryError("");
+                  }}
+                  className="px-3 py-2 rounded-xl border text-xs font-semibold hover:bg-[var(--neutral-bg)] cursor-pointer"
+                  style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddCustomCategory()}
+                  className="px-4 py-2 rounded-xl bg-[#4cd34c] text-black font-bold text-xs hover:opacity-90 transition shrink-0 cursor-pointer"
+                >
+                  Save Category
+                </button>
+              </div>
+            </div>
+            {categoryError && <p className="text-[10px] text-red-400 font-bold">{categoryError}</p>}
+          </div>
+        )}
 
         {/* Create / Edit Private Note Form */}
         {showCreateNote && (
@@ -348,7 +522,7 @@ export default function QuickAccess({
             {/* Quick Category Presets */}
             <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
               <span className="text-[10px] font-bold text-[var(--text-muted)]">Quick Presets:</span>
-              {["Personal Notes", "Refunds & Payments", "Account Verification", "Escalation Checklists"].map((preset) => (
+              {privateNoteCategories.filter((c) => c !== "All").map((preset) => (
                 <button
                   key={preset}
                   type="button"
@@ -359,9 +533,16 @@ export default function QuickAccess({
                       : "bg-[var(--app-bg)] text-[var(--text-muted)] border-[var(--field-border)] hover:opacity-100"
                   }`}
                 >
-                  {preset}
+                  {allCustomCategories.includes(preset) ? `✨ ${preset}` : preset}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setShowAddCategoryModal(true)}
+                className="text-[10px] px-2 py-0.5 rounded-lg border border-dashed border-[#4cd34c]/60 text-[#4cd34c] font-bold hover:bg-[#4cd34c]/10 transition cursor-pointer"
+              >
+                + Custom Category
+              </button>
             </div>
 
             <div>
@@ -495,30 +676,53 @@ export default function QuickAccess({
         </div>
 
         {/* Category Filter Chips for Personal Notes */}
-        {quickTab === "private_notes" && privateNoteCategories.length > 1 && (
+        {quickTab === "private_notes" && (
           <div className="flex flex-wrap items-center gap-1.5 pt-1">
             <span className="text-[11px] font-bold text-[var(--text-muted)] shrink-0">Category Filter:</span>
             {privateNoteCategories.map((cat) => {
               const count = cat === "All" ? privList.length : privList.filter((n) => (n.category || "Personal Notes").trim() === cat).length;
               const isSelected = selectedNoteCategory === cat;
+              const isCustom = allCustomCategories.includes(cat);
               return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setSelectedNoteCategory(cat)}
-                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition border flex items-center gap-1.5 cursor-pointer ${
-                    isSelected
-                      ? "bg-[#4cd34c] text-black border-[#4cd34c] shadow-sm"
-                      : "bg-[var(--field-bg)] text-[var(--text-muted)] border-[var(--field-border)] hover:border-[#4cd34c]/40 hover:text-[var(--app-text)]"
-                  }`}
-                >
-                  <span>{cat === "All" ? "🏷️ All Notes" : `📁 ${cat}`}</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${isSelected ? "bg-black/20 text-black" : "bg-[#4cd34c]/20 text-[#4cd34c]"}`}>
-                    {count}
-                  </span>
-                </button>
+                <div key={cat} className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedNoteCategory(cat)}
+                    className={`px-2.5 py-1 rounded-xl text-xs font-bold transition border flex items-center gap-1.5 cursor-pointer ${
+                      isSelected
+                        ? "bg-[#4cd34c] text-black border-[#4cd34c] shadow-sm"
+                        : "bg-[var(--field-bg)] text-[var(--text-muted)] border-[var(--field-border)] hover:border-[#4cd34c]/40 hover:text-[var(--app-text)]"
+                    }`}
+                  >
+                    <span>{cat === "All" ? "🏷️ All Notes" : isCustom ? `✨ ${cat}` : `📁 ${cat}`}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${isSelected ? "bg-black/20 text-black" : "bg-[#4cd34c]/20 text-[#4cd34c]"}`}>
+                      {count}
+                    </span>
+                  </button>
+                  {isCustom && count === 0 && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCustomCategory(cat);
+                      }}
+                      className="text-[10px] p-1 text-[var(--text-muted)] hover:text-red-400 transition cursor-pointer"
+                      title={`Remove custom category "${cat}"`}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               );
             })}
+            <button
+              type="button"
+              onClick={() => setShowAddCategoryModal(true)}
+              className="px-2 py-1 rounded-xl text-xs font-bold border border-dashed border-[#4cd34c]/50 text-[#4cd34c] hover:bg-[#4cd34c]/10 transition flex items-center gap-1 cursor-pointer"
+              title="Create custom category"
+            >
+              <span>+ Custom Category</span>
+            </button>
           </div>
         )}
 
