@@ -67,6 +67,9 @@ export default function QuickAccess({
   const [selectedNoteIds, setSelectedNoteIds] = useState([]);
   const [batchTargetCategory, setBatchTargetCategory] = useState("Personal Notes");
 
+  const [isCategoryHovered, setIsCategoryHovered] = useState(false);
+  const [isCategoryPinExpanded, setIsCategoryPinExpanded] = useState(false);
+
   useEffect(() => {
     try {
       const agentKey = currentAgent?.agent_initials || "default";
@@ -329,6 +332,25 @@ export default function QuickAccess({
       (t.category_type && t.category_type.toLowerCase().includes(q))
     );
   });
+
+  const allSameCategory = useMemo(() => {
+    if (!filteredTabTemplates || filteredTabTemplates.length === 0) return false;
+    const firstCat = (filteredTabTemplates[0].category || "Personal Notes").trim();
+    return filteredTabTemplates.every(
+      (t) => (t.category || "Personal Notes").trim() === firstCat
+    );
+  }, [filteredTabTemplates]);
+
+  const allSameGroupType = useMemo(() => {
+    if (!filteredTabTemplates || filteredTabTemplates.length === 0) return false;
+    const getTypeKey = (t) => {
+      const isPriv = t.is_private_note || String(t.id).startsWith("priv_") || t.agent_initials !== undefined;
+      if (isPriv) return "private_note";
+      return t.category_type || "customer_reply";
+    };
+    const firstType = getTypeKey(filteredTabTemplates[0]);
+    return filteredTabTemplates.every((t) => getTypeKey(t) === firstType);
+  }, [filteredTabTemplates]);
 
   const handleStartCreateNote = () => {
     setEditingNote(null);
@@ -799,7 +821,91 @@ export default function QuickAccess({
           </button>
         </div>
 
-        {/* Search Bar for Notes & Templates */}
+        {/* Category Filter Chips for Personal Notes (Collapsible & Expandable on Mouse Hover) */}
+        {quickTab === "private_notes" && (
+          <div
+            onMouseEnter={() => setIsCategoryHovered(true)}
+            onMouseLeave={() => setIsCategoryHovered(false)}
+            className="rounded-2xl border p-3 bg-[var(--field-bg)] transition-all duration-300 space-y-2.5 shadow-sm"
+            style={{ borderColor: "var(--field-border)" }}
+          >
+            <div
+              className="flex items-center justify-between cursor-pointer select-none"
+              onClick={() => setIsCategoryPinExpanded((prev) => !prev)}
+              title="Click to lock expand/collapse, or hover mouse to view categories"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#4cd34c] flex items-center gap-1.5">
+                  <span>📁</span> Category Filter
+                </span>
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full border bg-[var(--app-bg)] text-[var(--app-text)] font-bold border-[#4cd34c]/40 flex items-center gap-1">
+                  Active: {selectedNoteCategory === "All" ? "🏷️ All Notes" : `📁 ${selectedNoteCategory}`}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-[var(--text-muted)] hover:text-[#4cd34c] transition">
+                <span>
+                  {isCategoryHovered || isCategoryPinExpanded
+                    ? `Expanded (${privateNoteCategories.length - 1} categories)`
+                    : `Hover to Expand (${privateNoteCategories.length - 1} categories)`}
+                </span>
+                <span className="text-xs transition-transform duration-200">
+                  {isCategoryHovered || isCategoryPinExpanded ? "▴" : "▾"}
+                </span>
+              </div>
+            </div>
+
+            {(isCategoryHovered || isCategoryPinExpanded) && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[var(--field-border)] animate-fade-in">
+                {privateNoteCategories.map((cat) => {
+                  const count = cat === "All" ? privList.length : privList.filter((n) => (n.category || "Personal Notes").trim() === cat).length;
+                  const isSelected = selectedNoteCategory === cat;
+                  const isCustom = allCustomCategories.includes(cat);
+                  return (
+                    <div key={cat} className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedNoteCategory(cat)}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-bold transition border flex items-center gap-1.5 cursor-pointer ${
+                          isSelected
+                            ? "bg-[#4cd34c] text-black border-[#4cd34c] shadow-sm"
+                            : "bg-[var(--app-bg)] text-[var(--text-muted)] border-[var(--field-border)] hover:border-[#4cd34c]/40 hover:text-[var(--app-text)]"
+                        }`}
+                      >
+                        <span>{cat === "All" ? "🏷️ All Notes" : isCustom ? `✨ ${cat}` : `📁 ${cat}`}</span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${isSelected ? "bg-black/20 text-black" : "bg-[#4cd34c]/20 text-[#4cd34c]"}`}>
+                          {count}
+                        </span>
+                      </button>
+                      {cat !== "All" && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteAnyCategory(cat);
+                          }}
+                          className="text-[10px] p-1 text-[var(--text-muted)] hover:text-red-400 transition cursor-pointer"
+                          title={`Remove category "${cat}"`}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setShowAddCategoryModal(true)}
+                  className="px-2 py-1 rounded-xl text-xs font-bold border border-dashed border-[#4cd34c]/50 text-[#4cd34c] hover:bg-[#4cd34c]/10 transition flex items-center gap-1 cursor-pointer"
+                  title="Create custom category"
+                >
+                  <span>+ Custom Category</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Search Bar for Notes & Templates (Positioned Under Category Filter) */}
         <div className="relative">
           <input
             type="text"
@@ -828,57 +934,6 @@ export default function QuickAccess({
             </button>
           )}
         </div>
-
-        {/* Category Filter Chips for Personal Notes */}
-        {quickTab === "private_notes" && (
-          <div className="flex flex-wrap items-center gap-1.5 pt-1">
-            <span className="text-[11px] font-bold text-[var(--text-muted)] shrink-0">Category Filter:</span>
-            {privateNoteCategories.map((cat) => {
-              const count = cat === "All" ? privList.length : privList.filter((n) => (n.category || "Personal Notes").trim() === cat).length;
-              const isSelected = selectedNoteCategory === cat;
-              const isCustom = allCustomCategories.includes(cat);
-              return (
-                <div key={cat} className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedNoteCategory(cat)}
-                    className={`px-2.5 py-1 rounded-xl text-xs font-bold transition border flex items-center gap-1.5 cursor-pointer ${
-                      isSelected
-                        ? "bg-[#4cd34c] text-black border-[#4cd34c] shadow-sm"
-                        : "bg-[var(--field-bg)] text-[var(--text-muted)] border-[var(--field-border)] hover:border-[#4cd34c]/40 hover:text-[var(--app-text)]"
-                    }`}
-                  >
-                    <span>{cat === "All" ? "🏷️ All Notes" : isCustom ? `✨ ${cat}` : `📁 ${cat}`}</span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${isSelected ? "bg-black/20 text-black" : "bg-[#4cd34c]/20 text-[#4cd34c]"}`}>
-                      {count}
-                    </span>
-                  </button>
-                  {cat !== "All" && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteAnyCategory(cat);
-                      }}
-                      className="text-[10px] p-1 text-[var(--text-muted)] hover:text-red-400 transition cursor-pointer"
-                      title={`Remove category "${cat}"`}
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => setShowAddCategoryModal(true)}
-              className="px-2 py-1 rounded-xl text-xs font-bold border border-dashed border-[#4cd34c]/50 text-[#4cd34c] hover:bg-[#4cd34c]/10 transition flex items-center gap-1 cursor-pointer"
-              title="Create custom category"
-            >
-              <span>+ Custom Category</span>
-            </button>
-          </div>
-        )}
 
         {/* Template List Cards */}
         <div className="space-y-3 max-h-[32rem] overflow-y-auto pr-1">
@@ -1019,20 +1074,22 @@ export default function QuickAccess({
                   <div className="space-y-1 min-w-0 flex-1 pr-2">
                     <div className="font-bold text-sm flex flex-wrap items-center gap-1.5 min-w-0">
                       <span className="truncate">{t.name}</span>
-                      {t.category && (
+                      {t.category && !allSameCategory && (
                         <span className="text-[10px] shrink-0 rounded-full border px-2 py-0.5 font-semibold bg-[#4cd34c]/10 text-[#4cd34c] border-[#4cd34c]/30 flex items-center gap-1">
                           📁 {t.category}
                         </span>
                       )}
-                      {quickTab !== "private_notes" && isPrivateNote ? (
-                        <span className="text-[10px] shrink-0 rounded-full border px-2 py-0.5 font-semibold border-[#4cd34c] text-[#4cd34c]">
-                          🔒 Private Note
-                        </span>
-                      ) : (
-                        quickTab !== "private_notes" && (
-                          <span className="text-[10px] shrink-0 rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
-                            {t.category_type === "tech_escalation" ? "Tech Escalation" : "Customer Reply"}
+                      {!allSameGroupType && (
+                        quickTab !== "private_notes" && isPrivateNote ? (
+                          <span className="text-[10px] shrink-0 rounded-full border px-2 py-0.5 font-semibold border-[#4cd34c] text-[#4cd34c]">
+                            🔒 Private Note
                           </span>
+                        ) : (
+                          quickTab !== "private_notes" && (
+                            <span className="text-[10px] shrink-0 rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                              {t.category_type === "tech_escalation" ? "Tech Escalation" : "Customer Reply"}
+                            </span>
+                          )
                         )
                       )}
                     </div>
