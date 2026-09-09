@@ -463,7 +463,7 @@ export default function QuickAccess({
         className="lg:col-span-7 rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-5"
         style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold mb-1 flex items-center gap-2" style={{ color: "var(--app-text)" }}>
               <span className="text-xl">⭐</span>
@@ -474,7 +474,7 @@ export default function QuickAccess({
             </p>
           </div>
           {quickTab === "private_notes" && (
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:justify-end">
               <button
                 type="button"
                 onClick={() => {
@@ -510,7 +510,7 @@ export default function QuickAccess({
                     handleStartCreateNote();
                   }
                 }}
-                className="px-3 py-1.5 rounded-xl bg-[#4cd34c] text-black font-bold text-xs shadow-sm hover:opacity-90 transition flex items-center gap-1 shrink-0"
+                className="px-3 py-1.5 rounded-xl bg-[#4cd34c] text-black font-bold text-xs shadow-sm hover:opacity-90 transition flex items-center gap-1 shrink-0 cursor-pointer"
               >
                 {showCreateNote ? "✕ Close Form" : "+ Add Private Note"}
               </button>
@@ -520,8 +520,8 @@ export default function QuickAccess({
 
         {/* Multi-Select Batch Action Bar */}
         {quickTab === "private_notes" && isMultiSelectMode && (
-          <div className="p-3.5 rounded-2xl border bg-[#4cd34c]/10 border-[#4cd34c]/40 flex flex-wrap items-center justify-between gap-3 shadow-md animate-fade-in">
-            <div className="flex items-center gap-2 text-xs font-bold text-[var(--app-text)]">
+          <div className="p-3.5 rounded-2xl border bg-[#4cd34c]/10 border-[#4cd34c]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md animate-fade-in">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[var(--app-text)]">
               <span>☑️ {selectedNoteIds.length} notes selected</span>
               <button
                 type="button"
@@ -541,7 +541,7 @@ export default function QuickAccess({
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               <span className="text-[11px] font-bold text-[var(--text-muted)]">Move to:</span>
               <select
                 value={batchTargetCategory}
@@ -830,15 +830,15 @@ export default function QuickAccess({
             style={{ borderColor: "var(--field-border)" }}
           >
             <div
-              className="flex items-center justify-between cursor-pointer select-none"
+              className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 cursor-pointer select-none"
               onClick={() => setIsCategoryPinExpanded((prev) => !prev)}
               title="Click to lock expand/collapse, or hover mouse to view categories"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#4cd34c] flex items-center gap-1.5">
                   <span>📁</span> Category Filter
                 </span>
-                <span className="text-[10px] px-2.5 py-0.5 rounded-full border bg-[var(--app-bg)] text-[var(--app-text)] font-bold border-[#4cd34c]/40 flex items-center gap-1">
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full border bg-[var(--app-bg)] text-[var(--app-text)] font-bold border-[#4cd34c]/40 flex items-center gap-1 truncate max-w-full">
                   Active: {selectedNoteCategory === "All" ? "🏷️ All Notes" : `📁 ${selectedNoteCategory}`}
                 </span>
               </div>
@@ -1051,7 +1051,7 @@ export default function QuickAccess({
                       setSelectedQuickId(t.id);
                     }
                   }}
-                  className={`p-3.5 rounded-2xl border cursor-pointer transition flex items-center justify-between ${
+                  className={`p-3.5 rounded-2xl border cursor-pointer transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0 ${
                     isSelectedInBatch
                       ? "border-[#4cd34c] ring-2 ring-[#4cd34c]/50 bg-[#4cd34c]/15"
                       : t.id === activeTemplate?.id
@@ -1071,11 +1071,11 @@ export default function QuickAccess({
                       className="h-4 w-4 rounded accent-[#4cd34c] cursor-pointer mr-3 shrink-0"
                     />
                   )}
-                  <div className="space-y-1 min-w-0 flex-1 pr-2">
+                  <div className="space-y-1 min-w-0 flex-1 w-full sm:w-auto pr-0 sm:pr-2">
                     <div className="font-bold text-sm flex flex-wrap items-center gap-1.5 min-w-0">
-                      <span className="truncate">{t.name}</span>
+                      <span className="font-bold truncate max-w-full">{t.name}</span>
                       {t.category && !allSameCategory && (
-                        <span className="text-[10px] shrink-0 rounded-full border px-2 py-0.5 font-semibold bg-[#4cd34c]/10 text-[#4cd34c] border-[#4cd34c]/30 flex items-center gap-1">
+                        <span className="text-[10px] shrink-0 rounded-full border px-2 py-0.5 font-semibold bg-[#4cd34c]/10 text-[#4cd34c] border-[#4cd34c]/30 flex items-center gap-1 max-w-full truncate">
                           📁 {t.category}
                         </span>
                       )}
@@ -1094,12 +1094,12 @@ export default function QuickAccess({
                       )}
                     </div>
 
-                    <div className="text-xs truncate font-mono" style={{ color: "var(--text-muted)" }}>
+                    <div className="text-xs truncate font-mono max-w-full" style={{ color: "var(--text-muted)" }}>
                       {t.body}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0 self-start sm:self-center">
                     {copyCount > 0 ? (
                       <span className="text-[10px] font-semibold rounded-full bg-[#4cd34c]/10 text-[#4cd34c] border border-[#4cd34c]/30 px-2 py-0.5">
                         {copyCount} {copyCount === 1 ? "use" : "uses"}
@@ -1113,7 +1113,7 @@ export default function QuickAccess({
                           e.stopPropagation();
                           if (promoteToSuggestion) promoteToSuggestion(t);
                         }}
-                        className="px-2 py-1 rounded-lg bg-[#4cd34c]/20 text-[#4cd34c] text-[10px] font-bold border border-[#4cd34c]/40 hover:bg-[#4cd34c] hover:text-black transition"
+                        className="px-2 py-1 rounded-lg bg-[#4cd34c]/20 text-[#4cd34c] text-[10px] font-bold border border-[#4cd34c]/40 hover:bg-[#4cd34c] hover:text-black transition cursor-pointer"
                         title="Submit this high-frequency note (150+ daily uses) as a Team Suggestion"
                       >
                         🚀 Suggest
@@ -1127,7 +1127,7 @@ export default function QuickAccess({
                           e.stopPropagation();
                           handleStartEditNote(t);
                         }}
-                        className="p-1 rounded-lg text-xs hover:text-[#4cd34c] transition"
+                        className="p-1 rounded-lg text-xs hover:text-[#4cd34c] transition cursor-pointer"
                         title="Edit Private Note"
                       >
                         ✏️
@@ -1143,7 +1143,7 @@ export default function QuickAccess({
                             deletePrivateNote(t.id);
                           }
                         }}
-                        className="p-1 rounded-lg text-xs hover:text-red-400 transition"
+                        className="p-1 rounded-lg text-xs hover:text-red-400 transition cursor-pointer"
                         title="Delete Private Note"
                       >
                         🗑️
@@ -1156,7 +1156,7 @@ export default function QuickAccess({
                         e.stopPropagation();
                         toggleFavorite(t.id);
                       }}
-                      className="p-1 rounded-lg text-sm hover:scale-125 transition"
+                      className="p-1 rounded-lg text-sm hover:scale-125 transition cursor-pointer"
                       title={favIds.includes(t.id) ? "Remove from Favorites" : "Add to Favorites"}
                     >
                       {favIds.includes(t.id) ? "⭐" : "☆"}
@@ -1175,20 +1175,20 @@ export default function QuickAccess({
         style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}
       >
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <h2 className="text-xl font-bold" style={{ color: "var(--app-text)" }}>
               Quick Message Preview
             </h2>
             {activeTemplate ? (
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2.5 py-0.5 rounded-full">
+              <div className="flex flex-wrap items-center gap-2 max-w-full min-w-0">
+                <span className="text-xs font-semibold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2.5 py-0.5 rounded-full truncate max-w-[200px]">
                   {activeTemplate.name}
                 </span>
                 {activeTemplate.is_private_note && (
                   <button
                     type="button"
                     onClick={() => handleStartEditNote(activeTemplate)}
-                    className="text-xs text-[#4cd34c] font-bold hover:underline"
+                    className="text-xs text-[#4cd34c] font-bold hover:underline cursor-pointer"
                   >
                     ✏️ Edit
                   </button>
@@ -1297,11 +1297,11 @@ export default function QuickAccess({
 
                   return (
                     <div key={ph}>
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs capitalize font-medium flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
+                        <span className="text-xs capitalize font-medium flex items-center gap-1.5 min-w-0" style={{ color: "var(--text-muted)" }}>
                           {ph.replace("_", " ")}:
                         </span>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           {(isReasonField || controlType === "textarea" || (values[ph] && values[ph].length >= 4)) && (
                             <button
                               type="button"

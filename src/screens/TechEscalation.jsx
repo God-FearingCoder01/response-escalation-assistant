@@ -62,7 +62,7 @@ export default function TechEscalation({
         className="lg:col-span-7 rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-5"
         style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: "var(--app-text)" }}>
               <img src="/Lightning.png" alt="Tech Escalation" className="h-6 w-6 shrink-0 object-contain" />
@@ -72,7 +72,7 @@ export default function TechEscalation({
               Escalation requests targeted exclusively for Telegram resolution.
             </p>
           </div>
-          <span className="text-xs uppercase font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-3 py-1 rounded-full flex items-center gap-1.5">
+          <span className="text-xs uppercase font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-3 py-1 rounded-full flex items-center gap-1.5 shrink-0 w-fit">
             <img src="/telegram.png" alt="Telegram Logo" className="h-4 w-4 shrink-0 object-contain" />
             Telegram Exclusive
           </span>
