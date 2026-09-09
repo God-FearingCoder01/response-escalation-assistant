@@ -68,9 +68,9 @@ export default function TranslatorScreen({
         </div>
 
         {/* Controls: Language Selectors + Swap */}
-        <div className="flex items-center gap-2 self-start md:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-stretch md:self-auto w-full md:w-auto min-w-0">
           <div
-            className="flex items-center gap-2 rounded-2xl border p-1.5 shadow-inner"
+            className="flex flex-col sm:flex-row items-center gap-2 rounded-2xl border p-2 shadow-inner w-full sm:w-auto min-w-0"
             style={{
               borderColor: "var(--panel-border)",
               backgroundColor: "var(--app-bg)",
@@ -79,7 +79,7 @@ export default function TranslatorScreen({
             <select
               value={sourceLang || "en"}
               onChange={(e) => setSourceLang?.(e.target.value)}
-              className="rounded-xl border px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-[#4cd34c] outline-none cursor-pointer"
+              className="w-full sm:w-auto rounded-xl border px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-[#4cd34c] outline-none cursor-pointer truncate max-w-full"
               style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}
             >
               <option value="en">English 🇬🇧</option>
@@ -89,7 +89,7 @@ export default function TranslatorScreen({
 
             <button
               onClick={handleSwapLanguages}
-              className="flex h-8 w-8 items-center justify-center rounded-xl transition hover:scale-110 active:scale-95 bg-[var(--neutral-bg)] text-[var(--neutral-text)] shadow-sm"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition hover:scale-110 active:scale-95 bg-[var(--neutral-bg)] text-[var(--neutral-text)] shadow-sm cursor-pointer"
               title="Swap Languages"
             >
               ⇄
@@ -98,7 +98,7 @@ export default function TranslatorScreen({
             <select
               value={targetLang || "sn"}
               onChange={(e) => setTargetLang?.(e.target.value)}
-              className="rounded-xl border px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-[#4cd34c] outline-none cursor-pointer"
+              className="w-full sm:w-auto rounded-xl border px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-[#4cd34c] outline-none cursor-pointer truncate max-w-full"
               style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}
             >
               <option value="sn">Shona 🇿🇼</option>

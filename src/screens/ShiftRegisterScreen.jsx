@@ -613,9 +613,9 @@ export default function ShiftRegisterScreen({
           <button
             type="button"
             onClick={handleOpenRecordModal}
-            className="px-4.5 py-2 rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-black shadow-md transition hover:opacity-90 flex items-center gap-1.5 cursor-pointer"
+            className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-2xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs sm:text-sm font-black shadow-lg transition hover:opacity-95 hover:scale-[1.02] active:scale-95 flex items-center gap-2 cursor-pointer"
           >
-            <span className="text-base font-black leading-none">+</span>
+            <span className="text-base sm:text-lg font-black leading-none">+</span>
             <span>Record Issue</span>
           </button>
         </div>
