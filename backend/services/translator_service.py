@@ -115,11 +115,13 @@ def _unmask_placeholders(text: str, token_map: dict) -> str:
     return out
 
 
-def _call_google_translate_api(text: str, target_lang_code: str) -> str | None:
+def _call_google_translate_api(text: str, target_lang_code: str, source_lang_code: str = "auto") -> str | None:
     try:
         masked_text, token_map = _mask_placeholders(text)
         url = (
-            "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl="
+            "https://translate.googleapis.com/translate_a/single?client=gtx&sl="
+            + urllib.parse.quote(source_lang_code)
+            + "&tl="
             + urllib.parse.quote(target_lang_code)
             + "&dt=t&q="
             + urllib.parse.quote(masked_text)
@@ -136,40 +138,62 @@ def _call_google_translate_api(text: str, target_lang_code: str) -> str | None:
     return None
 
 
-def translate_text_with_engine(text_input: str, target_lang: str) -> tuple[str, str]:
+def translate_text_with_engine(text_input: str, target_lang: str, source_lang: str = "en") -> tuple[str, str]:
     if not text_input or not text_input.strip():
         return "", "empty"
 
-    lang = target_lang.strip().lower()
-    is_shona = lang in ["shona", "sn"]
-    dictionary = SUPPORT_DICTIONARY_SHONA if is_shona else SUPPORT_DICTIONARY_NDEBELE
-
     clean = text_input.strip()
+    src = source_lang.strip().lower() if source_lang else "en"
+    tgt = target_lang.strip().lower() if target_lang else "sn"
+
+    if src in ["nd", "ndebele"]:
+        src = "nde"
+    if tgt in ["nd", "ndebele"]:
+        tgt = "nde"
+    if src in ["shona"]:
+        src = "sn"
+    if tgt in ["shona"]:
+        tgt = "sn"
+
+    rev_ndebele = {v.lower(): k for k, v in SUPPORT_DICTIONARY_NDEBELE.items()}
+    rev_shona = {v.lower(): k for k, v in SUPPORT_DICTIONARY_SHONA.items()}
+
     clean_lower = clean.lower()
+    if src == "en" and tgt == "sn" and clean_lower in SUPPORT_DICTIONARY_SHONA:
+        return SUPPORT_DICTIONARY_SHONA[clean_lower], "dictionary"
+    if src == "en" and tgt == "nde" and clean_lower in SUPPORT_DICTIONARY_NDEBELE:
+        return SUPPORT_DICTIONARY_NDEBELE[clean_lower], "dictionary"
+    if src == "nde" and tgt == "en" and clean_lower in rev_ndebele:
+        return rev_ndebele[clean_lower], "dictionary"
+    if src == "sn" and tgt == "en" and clean_lower in rev_shona:
+        return rev_shona[clean_lower], "dictionary"
 
-    # 1. Exact dictionary phrase match
-    if clean_lower in dictionary:
-        return dictionary[clean_lower], "dictionary"
+    # External Engine API call (Google Translate)
+    gt_src = "sn" if src == "sn" else ("zu" if src == "nde" else "auto")
+    gt_tgt = "sn" if tgt == "sn" else ("zu" if tgt == "nde" else "en")
 
-    # 2. External Engine API call (Google Translate / NLLB-200)
-    if is_shona:
-        gt_result = _call_google_translate_api(clean, "sn")
-        if gt_result and gt_result.strip():
-            return gt_result, "google_translate"
-    else:
-        # Ndebele -> NLLB-200 / Google Engine (tl=nr / tl=zu)
-        gt_result = _call_google_translate_api(clean, "nr")
-        if not gt_result:
-            gt_result = _call_google_translate_api(clean, "zu")
-        if gt_result and gt_result.strip():
-            return gt_result, "nllb_200"
+    gt_result = _call_google_translate_api(clean, gt_tgt, gt_src)
+    if gt_result and gt_result.strip() and gt_result.strip().lower() != clean_lower:
+        return gt_result, "google_translate"
 
-    # 3. Fallback: Phrase substitution using support dictionary
+    if tgt == "nde" or src == "nde":
+        fallback_tgt = "nr" if tgt == "nde" else "en"
+        fallback_src = "nr" if src == "nde" else "auto"
+        gt_result2 = _call_google_translate_api(clean, fallback_tgt, fallback_src)
+        if gt_result2 and gt_result2.strip() and gt_result2.strip().lower() != clean_lower:
+            return gt_result2, "google_translate"
+
+    # Dictionary phrase substitution fallback
+    target_dict = (
+        rev_ndebele if src == "nde" else
+        rev_shona if src == "sn" else
+        (SUPPORT_DICTIONARY_NDEBELE if tgt == "nde" else SUPPORT_DICTIONARY_SHONA)
+    )
     result = clean
-    sorted_phrases = sorted(dictionary.keys(), key=lambda x: len(x), reverse=True)
+    sorted_phrases = sorted(target_dict.keys(), key=lambda x: len(x), reverse=True)
     for phrase in sorted_phrases:
-        pattern = re.compile(re.escape(phrase), re.IGNORECASE)
-        translated = dictionary[phrase]
+        pattern = re.compile(r"\b" + re.escape(phrase) + r"\b", re.IGNORECASE)
+        translated = target_dict[phrase]
 
         def replace_match(match):
             m = match.group(0)
@@ -185,6 +209,6 @@ def translate_text_with_engine(text_input: str, target_lang: str) -> tuple[str, 
     return result, provider
 
 
-def translate_text(text_input: str, target_lang: str) -> str:
-    res, _ = translate_text_with_engine(text_input, target_lang)
+def translate_text(text_input: str, target_lang: str, source_lang: str = "en") -> str:
+    res, _ = translate_text_with_engine(text_input, target_lang, source_lang)
     return res

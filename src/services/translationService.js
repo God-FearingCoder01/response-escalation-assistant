@@ -105,6 +105,30 @@ const SUPPORT_NDEBELE_DICTIONARY = {
   "invoice": "i-invoysi",
   "balance": "ibhalansi",
   "thank you for choosing us": "siyabonga ngokukhetha thina",
+
+  // Additional ISP & Common Support Vocabulary
+  "please provide your registered account number": "cela unikeze inombolo yakho ye-akhawunti ebhalisiweyo",
+  "please provide": "cela unikeze",
+  "registered account number": "inombolo ye-akhawunti ebhalisiweyo",
+  "registered": "ebhalisiweyo",
+  "query": "umbuzo",
+  "request": "isicelo",
+  "issue": "inkinga",
+  "problem": "inkinga",
+  "customer": "umthengi",
+  "client": "umthengi",
+  "refund": "imbuyiselo",
+  "refunds": "izimbuyiselo",
+  "details": "imininingwane",
+  "information": "ulwazi",
+  "message": "umlayezo",
+  "status": "isimo",
+  "working": "iyasebenza",
+  "not working": "kayisebenzi",
+  "fixed": "ilungisiwe",
+  "help": "usizo",
+  "days": "izinsuku",
+  "business days": "izinsuku zomsebenzi",
 };
 
 const REVERSE_NDEBELE_DICTIONARY = Object.entries(SUPPORT_NDEBELE_DICTIONARY).reduce((acc, [en, nd]) => {

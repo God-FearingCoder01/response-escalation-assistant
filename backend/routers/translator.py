@@ -14,12 +14,13 @@ class TranslateRequest(BaseModel):
 
 @router.post("/translate")
 def handle_translation(req: TranslateRequest):
-    translated, provider = translate_text_with_engine(req.text, req.target_lang)
+    translated, provider = translate_text_with_engine(req.text, req.target_lang, req.source_lang or "en")
     return {
         "status": "ok",
         "original_text": req.text,
         "translated_text": translated,
         "translatedText": translated,
         "target_lang": req.target_lang,
+        "source_lang": req.source_lang or "en",
         "provider": provider,
     }
