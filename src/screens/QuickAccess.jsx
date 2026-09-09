@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString, sanitizeAccountNumber } from "../services/api";
 import { fetchExtractionRules, autoExtractFieldsFromText } from "../services/smartExtractorService";
+import { parseNotesFile } from "../hooks/usePrivateNotes";
 import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
 
 export default function QuickAccess({
@@ -135,7 +136,33 @@ export default function QuickAccess({
     promoteToSuggestion,
     promptBannerNote,
     dismissPromptBanner,
+    exportPrivateNotes,
+    importPrivateNotes,
   } = privateNotesHook || {};
+
+  const fileInputRef = useRef(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  const handleFileImportSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const content = event.target?.result;
+      if (content && typeof content === "string") {
+        const parsed = parseNotesFile(content, file.name);
+        if (parsed && parsed.length > 0) {
+          if (importPrivateNotes) {
+            await importPrivateNotes(parsed);
+          }
+        } else {
+          if (showToast) showToast("Could not find valid personal notes in file", "error");
+        }
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
 
   const {
     sourceLang = "en",
@@ -500,6 +527,67 @@ export default function QuickAccess({
                 <span>📁+</span>
                 <span>Add Category</span>
               </button>
+
+              {/* Import Notes Button */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3 py-1.5 rounded-xl border border-[#4cd34c]/40 text-[#4cd34c] font-bold text-xs hover:bg-[#4cd34c]/10 transition flex items-center gap-1 shrink-0 cursor-pointer"
+                title="Import personal notes from JSON or CSV file"
+              >
+                <span>📥</span>
+                <span>Import Notes</span>
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".json,.csv"
+                onChange={handleFileImportSelect}
+                className="hidden"
+              />
+
+              {/* Export Notes Dropdown */}
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowExportMenu((prev) => !prev)}
+                  className="px-3 py-1.5 rounded-xl border border-[#4cd34c]/40 text-[#4cd34c] font-bold text-xs hover:bg-[#4cd34c]/10 transition flex items-center gap-1 cursor-pointer"
+                  title="Export personal notes to JSON or CSV file"
+                >
+                  <span>📤</span>
+                  <span>Export Notes ▾</span>
+                </button>
+                {showExportMenu && (
+                  <div
+                    className="absolute right-0 mt-1 w-36 rounded-xl border shadow-xl z-30 overflow-hidden py-1"
+                    style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (exportPrivateNotes) exportPrivateNotes("json");
+                        setShowExportMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-[#4cd34c]/20 text-[var(--app-text)] transition flex items-center gap-2 cursor-pointer"
+                    >
+                      <span>📄</span>
+                      <span>JSON (.json)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (exportPrivateNotes) exportPrivateNotes("csv");
+                        setShowExportMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-[#4cd34c]/20 text-[var(--app-text)] transition flex items-center gap-2 cursor-pointer"
+                    >
+                      <span>📊</span>
+                      <span>CSV (.csv)</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <button
                 type="button"
                 onClick={() => {

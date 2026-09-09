@@ -214,6 +214,85 @@ export function usePrivateNotes({ currentAgent, showToast, refreshSuggestions })
     setPromptBannerNote(null);
   };
 
+  const exportPrivateNotes = (format = "json") => {
+    if (!privateNotes || privateNotes.length === 0) {
+      if (showToast) showToast("No personal notes to export", "info");
+      return;
+    }
+    const cleanNotes = privateNotes.map((n) => ({
+      name: n.name,
+      category: n.category || "Personal Notes",
+      category_type: n.category_type || "customer_reply",
+      body: n.body,
+      placeholder_config: n.placeholder_config || null,
+    }));
+
+    const dateStr = getTodayDateStr();
+    const fileName = `personal_notes_${agentInitials}_${dateStr}`;
+
+    if (format === "csv") {
+      const headers = ["Name", "Category", "Category Type", "Body"];
+      const rows = cleanNotes.map((n) => [
+        `"${(n.name || "").replace(/"/g, '""')}"`,
+        `"${(n.category || "").replace(/"/g, '""')}"`,
+        `"${(n.category_type || "").replace(/"/g, '""')}"`,
+        `"${(n.body || "").replace(/"/g, '""')}"`,
+      ]);
+      const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${fileName}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      if (showToast) showToast("📤 Personal notes exported to CSV!", "success");
+    } else {
+      const jsonStr = JSON.stringify(cleanNotes, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${fileName}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      if (showToast) showToast("📤 Personal notes exported to JSON!", "success");
+    }
+  };
+
+  const importPrivateNotes = async (importedList) => {
+    if (!Array.isArray(importedList) || importedList.length === 0) {
+      if (showToast) showToast("No valid personal notes found in file", "error");
+      return;
+    }
+    setLoading(true);
+    let successCount = 0;
+    try {
+      for (const item of importedList) {
+        if (!item.name || !item.body) continue;
+        const cat = (item.category || "Personal Notes").trim();
+        if (cat !== "Personal Notes" && !dbCustomCategories.includes(cat)) {
+          await handleCreateCategory(cat);
+        }
+        await handleCreateNote({
+          name: item.name,
+          body: item.body,
+          category: cat,
+          category_type: item.category_type || "customer_reply",
+          placeholder_config: item.placeholder_config || null,
+        });
+        successCount++;
+      }
+      await refreshPrivateNotes();
+      if (showToast) showToast(`📥 Successfully imported ${successCount} personal notes!`, "success");
+    } catch (e) {
+      console.error("Error importing private notes:", e);
+      if (showToast) showToast(`Imported ${successCount} notes with some errors`, "warning");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     privateNotes,
     customCategories: dbCustomCategories,
@@ -229,5 +308,45 @@ export function usePrivateNotes({ currentAgent, showToast, refreshSuggestions })
     trackPrivateNoteUsage: handleTrackUsage,
     promoteToSuggestion,
     dismissPromptBanner,
+    exportPrivateNotes,
+    importPrivateNotes,
   };
+}
+
+export function parseNotesFile(fileContent, fileName = "") {
+  const isCsv = fileName.toLowerCase().endsWith(".csv") || (!fileContent.trim().startsWith("[") && !fileContent.trim().startsWith("{"));
+  if (!isCsv) {
+    try {
+      const parsed = JSON.parse(fileContent);
+      return Array.isArray(parsed) ? parsed : (parsed.notes || parsed.private_notes || []);
+    } catch (e) {
+      console.error("Error parsing JSON notes file:", e);
+      return [];
+    }
+  } else {
+    const lines = fileContent.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length < 2) return [];
+    
+    const headers = lines[0].split(",").map((h) => h.replace(/^"|"$/g, "").trim().toLowerCase());
+    const nameIdx = headers.findIndex((h) => h.includes("name") || h.includes("title"));
+    const bodyIdx = headers.findIndex((h) => h.includes("body") || h.includes("content") || h.includes("message") || h.includes("template"));
+    const catIdx = headers.findIndex((h) => h.includes("category"));
+    const typeIdx = headers.findIndex((h) => h.includes("type"));
+
+    const result = [];
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map((cell) => cell.replace(/^"|"$/g, "").replace(/""/g, '"').trim());
+      const name = nameIdx !== -1 ? row[nameIdx] : row[0];
+      const body = bodyIdx !== -1 ? row[bodyIdx] : row[row.length - 1];
+      if (name && body) {
+        result.push({
+          name,
+          body,
+          category: catIdx !== -1 && row[catIdx] ? row[catIdx] : "Personal Notes",
+          category_type: typeIdx !== -1 && row[typeIdx] ? row[typeIdx] : "customer_reply",
+        });
+      }
+    }
+    return result;
+  }
 }
