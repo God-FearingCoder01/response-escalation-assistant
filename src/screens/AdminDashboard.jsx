@@ -582,6 +582,9 @@ export default function AdminDashboard({
                                 <option value="date_month">System Month (MM)</option>
                                 <option value="date_year">System Year (YYYY)</option>
                                 <option value="date_time">System Time (HH:mm)</option>
+                                {(cfg.control_type === "text" || !cfg.control_type) && (
+                                  <option value="formatted_date">📅 Format Extracted Date (Custom Format)</option>
+                                )}
                                 <option value="custom">Custom Default Value</option>
                               </select>
                             </div>
@@ -601,8 +604,8 @@ export default function AdminDashboard({
                             </div>
                           </div>
 
-                          {/* Date/Time Format Configurator */}
-                          {(cfg.control_type === "date" || cfg.control_type === "time" || cfg.control_type === "datetime") && (() => {
+                          {/* Date/Time Format Configurator — shown for date/time pickers AND for formatted_date auto-fill on text fields */}
+                          {(cfg.control_type === "date" || cfg.control_type === "time" || cfg.control_type === "datetime" || cfg.auto_fill_type === "formatted_date") && (() => {
                             const presetFormats = ["default", "DD/MM/YYYY", "DD.MM.YYYY", "DD/MM/YYYY HH:mm", "YYYY/MM/DD", "YYYY-MM-DD", "HHmm"];
                             const isCustomFormat = cfg.date_format_mode === "custom" || cfg.is_custom_date_format || (cfg.date_format && !presetFormats.includes(cfg.date_format));
 

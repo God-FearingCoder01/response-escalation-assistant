@@ -334,6 +334,7 @@ export default function CustomerReply({
                     else if (customCfg?.auto_fill_type === "agent_fullname" || customCfg?.auto_fill_type === "agent") autoVal = (currentAgent?.agent || currentAgent?.agent_name) ?? "";
                     else if (customCfg?.auto_fill_type === "agent_initials") autoVal = currentAgent?.agent_initials ?? "";
                     else if (customCfg?.auto_fill_type === "custom") autoVal = customCfg.custom_default ?? "";
+                    else if (customCfg?.auto_fill_type === "formatted_date") autoVal = ""; // display handled at render time
                     else if (isAgentField) autoVal = ph === "agent_initials" ? currentAgent?.agent_initials : (ph === "agent" ? (currentAgent?.agent || currentAgent?.agent_name) : currentAgent?.agent_name);
                     else if (isDateField) autoVal = dateAuto[ph] ?? dateAuto[ph.toLowerCase()];
                     else if (isTimeUnitField) autoVal = "hour(s)";
@@ -567,10 +568,14 @@ export default function CustomerReply({
                         />
                       ) : (
                         <input
-                          value={valMap[ph] ?? autoVal}
+                          value={
+                            customCfg?.auto_fill_type === "formatted_date"
+                              ? formatDateTimeString(valMap[ph] ?? "", "date", customCfg?.date_format)
+                              : (valMap[ph] ?? autoVal)
+                          }
                           onChange={(e) => handleFieldChange(ph, e.target.value, visiblePlaceholders, parsedCfgMap)}
-                          placeholder={`Enter ${ph.replace("_", " ")}`}
-                          className="w-full rounded-xl border p-2.5 text-sm placeholder:text-[var(--field-placeholder)]"
+                          placeholder={customCfg?.auto_fill_type === "formatted_date" ? (customCfg?.date_format || "DD/MM/YYYY") : `Enter ${ph.replace("_", " ")}`}
+                          className="w-full rounded-xl border p-2.5 text-sm placeholder:text-[var(--field-placeholder)] font-mono"
                           style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                         />
                       )}
