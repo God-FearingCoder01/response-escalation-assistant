@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString, sanitizeAccountNumber } from "../services/api";
+import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString, sanitizeAccountNumber, toHTMLDateValue } from "../services/api";
 import { fetchExtractionRules, autoExtractFieldsFromText } from "../services/smartExtractorService";
 import { parseNotesFile } from "../hooks/usePrivateNotes";
 import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
@@ -1520,6 +1520,7 @@ export default function QuickAccess({
                       <div className="flex items-center gap-2">
                         <input
                           type="date"
+                          value={toHTMLDateValue(values[ph] ?? autoVal)}
                           onChange={(e) => {
                             const raw = e.target.value;
                             if (raw) {

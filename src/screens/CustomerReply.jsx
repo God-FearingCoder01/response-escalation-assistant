@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString, sanitizeAccountNumber } from "../services/api";
+import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString, sanitizeAccountNumber, toHTMLDateValue } from "../services/api";
 import { translateText } from "../services/translationService";
 import { fetchExtractionRules, autoExtractFieldsFromText } from "../services/smartExtractorService";
 import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
@@ -494,6 +494,7 @@ export default function CustomerReply({
                         <div className="flex items-center gap-2">
                           <input
                             type="date"
+                            value={toHTMLDateValue(valMap[ph] ?? autoVal)}
                             onChange={(e) => {
                               const raw = e.target.value;
                               if (raw) {

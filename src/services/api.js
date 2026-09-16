@@ -185,9 +185,12 @@ export function formatDateTimeString(val, controlType = "text", dateFormat = "")
   }
 
   // Check if string matches YYYY-MM-DD, DD/MM/YYYY, DD.MM.YYYY, DD-MM-YYYY, or ISO datetime
-  const dtMatch = strVal.match(/^(?:(\d{4})[-/.](d{2})[-/.](d{2})|(\d{2})[/.-](\d{2})[/.-](\d{4}))(?:[T\s](\d{2}):?(\d{2}))?/);
+  const dtMatch = strVal.match(/^(?:(\d{4})[-/.](\d{2})[-/.](\d{2})|(\d{2})[/.-](\d{2})[/.-](\d{4}))(?:[T\s](\d{2}):?(\d{2}))?/);
 
+  // NOTE: variables declared first so the YYMMDD branch below can assign into them safely
   let YYYY = "2026", MM = "01", DD = "01", HH = "00", mm = "00";
+  let parsedByYYMMDD = false;
+
   if (dtMatch) {
     if (dtMatch[1]) {
       YYYY = dtMatch[1];
@@ -203,19 +206,28 @@ export function formatDateTimeString(val, controlType = "text", dateFormat = "")
       if (dtMatch[8]) mm = dtMatch[8];
     }
   } else {
-    // If the input value is non-date text (e.g., agent name, customer name, manual text), return as-is
-    const isNumericOnly = /^\d+$/.test(strVal.replace(/[/.:-]/g, ""));
-    const isDateParsable = !isNaN(Date.parse(strVal));
-    if (!isNumericOnly && !isDateParsable) {
-      return strVal;
+    // Try to parse a compact 6-digit YYMMDD string (e.g. "260828" from MP260828.1718.T4291255)
+    const yymmddMatch = strVal.match(/^(\d{2})(\d{2})(\d{2})$/);
+    if (yymmddMatch) {
+      YYYY = `20${yymmddMatch[1]}`;
+      MM = yymmddMatch[2];
+      DD = yymmddMatch[3];
+      parsedByYYMMDD = true;
+    } else {
+      // If the input value is non-date text (e.g., agent name, customer name, manual text), return as-is
+      const isNumericOnly = /^\d+$/.test(strVal.replace(/[/.:-]/g, ""));
+      const isDateParsable = !isNaN(Date.parse(strVal));
+      if (!isNumericOnly && !isDateParsable) {
+        return strVal;
+      }
+      // Fallback extraction from system date if raw string doesn't match full ISO pattern
+      const now = new Date();
+      YYYY = String(now.getFullYear());
+      MM = String(now.getMonth() + 1).padStart(2, "0");
+      DD = String(now.getDate()).padStart(2, "0");
+      HH = String(now.getHours()).padStart(2, "0");
+      mm = String(now.getMinutes()).padStart(2, "0");
     }
-    // Fallback extraction from system date if raw string doesn't match full ISO pattern
-    const now = new Date();
-    YYYY = String(now.getFullYear());
-    MM = String(now.getMonth() + 1).padStart(2, "0");
-    DD = String(now.getDate()).padStart(2, "0");
-    HH = String(now.getHours()).padStart(2, "0");
-    mm = String(now.getMinutes()).padStart(2, "0");
   }
 
   if (dateFormat && dateFormat !== "default") {
@@ -245,6 +257,30 @@ export function sanitizeAccountNumber(val) {
   const idx = cleaned.indexOf("7");
   if (idx === -1) return "";
   return cleaned.slice(idx);
+}
+
+/**
+ * Converts any supported date string into "YYYY-MM-DD" format required by <input type="date">.
+ * Accepts: YYMMDD (6 digits), DD/MM/YYYY, DD.MM.YYYY, DD-MM-YYYY, YYYY-MM-DD.
+ * Returns "" if the input cannot be parsed as a date.
+ */
+export function toHTMLDateValue(val) {
+  if (val === null || val === undefined) return "";
+  const s = String(val).trim();
+  if (!s) return "";
+
+  // YYYY-MM-DD — already in the correct format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  // DD/MM/YYYY, DD.MM.YYYY, DD-MM-YYYY
+  const ddmmyyyy = s.match(/^(\d{2})[/.\-](\d{2})[/.\-](\d{4})$/);
+  if (ddmmyyyy) return `${ddmmyyyy[3]}-${ddmmyyyy[2]}-${ddmmyyyy[1]}`;
+
+  // YYMMDD (6 digits, e.g. "260828" from MP260828...)
+  const yymmdd = s.match(/^(\d{2})(\d{2})(\d{2})$/);
+  if (yymmdd) return `20${yymmdd[1]}-${yymmdd[2]}-${yymmdd[3]}`;
+
+  return "";
 }
 
 export function getDateAutoValues() {
@@ -308,13 +344,13 @@ export function splitIntoSentences(text) {
   const matches = trimmed.match(/[^.!?\n]+[.!?\n]+/g);
   if (!matches || matches.length === 0) return [trimmed];
   const sentences = matches.map((s) => s.trim()).filter(Boolean);
-  
+
   const matchedLength = matches.reduce((acc, curr) => acc + curr.length, 0);
   if (matchedLength < trimmed.length) {
     const remainder = trimmed.slice(matchedLength).trim();
     if (remainder) sentences.push(remainder);
   }
-  
+
   return sentences.length > 0 ? sentences : [trimmed];
 }
 
