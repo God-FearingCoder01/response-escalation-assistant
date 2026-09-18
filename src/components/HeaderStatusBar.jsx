@@ -65,9 +65,18 @@ export default function HeaderStatusBar({
               style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--badge-bg)" }}
             >
               <span className="text-[#4cd34c] font-semibold">Org:</span>
-              <span className="font-bold truncate max-w-[120px]" style={{ color: "var(--header-text)" }}>
-                {(companies.find((c) => c.id === activeCompanyId) || companies[0])?.name}
-              </span>
+              <select
+                className="font-bold bg-transparent border-none outline-none cursor-pointer max-w-[120px] truncate"
+                style={{ color: "var(--header-text)" }}
+                value={activeCompanyId}
+                onChange={(e) => switchCompany(e.target.value)}
+              >
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id} className="bg-[#12121a] text-white">
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
           ) : null}
 

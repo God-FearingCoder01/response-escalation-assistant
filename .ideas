@@ -1,48 +1,142 @@
-Agent to choose their profile 
-Agent profile to consist of {agent_name}, {agent_initials}
+# Development Prompt: REA Browser Extension and Side Panel
 
-Message to be for WhatsApp or Live Chart or Telegram
-WhatsApp to end with {agent_initials}
-Live Chat message to not have anything
+You are acting as a **Senior Software Engineer** working on the existing **Response & Escalation Assistant (REA)** project.
 
+## Objective
 
-Admin dashbord
-1. Message Template modifier (or creator)
-2. Agent Control
-3. 
+Extend REA so agents can access the existing tool from within their browser, without having to leave the webpage they are currently working on.
 
-Tech_Escalation Screen & Customer_Response Screen & Admin_Dashboard Screen
-1. Reset button
-2. Reset changes when I logout (Agent User Sessions)
+Build a browser extension that provides:
 
-Admin_DashBoard Screen
-1. Sort Created Message Templates according to catergories and subcategories.  
-2. Upon Clicking 'Edit' button automatically shift Focus to the text area
+1. A **browser side panel** containing the REA application.
+2. A **toolbar icon** that agents can click to open the side panel.
+3. An optional **floating REA button** positioned along the right edge of supported webpages. Clicking it should open the side panel.
 
-Tech_Esclation Screen
-1. Order Alphabetically the templates in the comboBox.
-2. Auto-fill for {day} and {month_number} field with the current correct values as according to the current date in real life.
+**Do not implement the AI Response Assistant or any AI-related functionality as part of this task.**
 
-More feature
-1. Need a suggestions Screen from which all the other non-admin agents are able to either provide specific communication messages that they rather found useful/relevant and but would like for them to be added to the templates library for other agents to also use it ( or just for the team lead  aka manager to review and approve of that template message). This would ensure all the time all across agents and shifts standardized communication.
-2. Need a favourites and/or most used and recent used screen for the agents
+## 1. Inspect the existing project first
 
+Before making changes:
 
-MF
-1. Pinned sections for the whole team with pinned du
-2. Photo text detector for particularly simple transaction id extraction (and maybe verification through scanning and using given cues for whether the message is associated with the company or not) 
+* Inspect the current repository structure and identify the frontend framework, routing, authentication flow, API configuration, and existing Tech Escalation Center.
+* Identify which existing REA screens and workflows can be reused in the extension.
+* Check how company/tenant context is established and how the frontend authenticates API requests.
+* Review the existing design system, branding, icons, and responsive layouts.
+* Identify any technical limitations that could prevent the existing application from running in a browser side panel.
 
-numerical u/D to run on 2 digits when default auto fill is Month (MM)
-Conditional placeholders {animal?game}
-SIR needs to persist 
-Deactive an agent (they don't appear on the Welcome)
+Do not assume the repository matches an earlier description. Base implementation decisions on the current code.
 
-Add an update button to the Record Issue Form
+## 2. Browser extension requirements
 
-Add transaltion options in the QA&F screen
-Make the 
-Option to free a message template--which would stop it from appearing in the other screens and therefore be unavailable to the team, until it is unfrozen by the admin.
+Build a **Manifest V3 browser extension**, initially targeting Chrome and Microsoft Edge.
 
-bleeding text on Agent profile details in Admin Dashboard
+The extension must provide:
 
-icons for SIR
+### A. Toolbar icon
+
+* Use REA’s branding and a professional, recognizable icon.
+* Clicking the icon should open the REA side panel.
+* The toolbar icon must remain available even when the floating button is hidden or unsupported on the current webpage.
+
+### B. Browser side panel
+
+* Display the existing REA application or a carefully adapted version of it.
+* Reuse existing frontend components, API services, authentication logic, and business rules wherever practical.
+* Avoid duplicating backend functionality or creating a separate database for the extension.
+* Provide access to the existing REA features that are practical within a narrow panel, prioritizing the Tech Escalation Center for the first working milestone.
+* Provide a clear option to open the full REA website when a workflow needs more space.
+
+### C. Floating webpage button
+
+* Add a small REA-branded floating button near the right edge of supported webpages.
+* Clicking it should open the extension’s side panel where browser support allows.
+* Keep the button visually unobtrusive and consistent with REA’s design.
+* Allow the user to hide or dismiss it.
+* Avoid covering important webpage controls or interfering with normal page interaction.
+* Do not inject it into browser-internal pages or unsupported websites.
+* Start with a limited, clearly defined set of supported sites or a user-controlled activation approach. Do not request unrestricted access to all websites without a clear need.
+
+## 3. Side-panel layout and usability
+
+The side panel is narrower than the normal REA website. Adapt the interface for that environment rather than simply shrinking the existing page.
+
+Requirements:
+
+* Use a compact navigation pattern suitable for a narrow panel.
+* Ensure forms, buttons, text fields, lists, and dialogs fit the available width.
+* Avoid horizontal overflow and clipped content.
+* Keep the most important actions easy to reach.
+* Preserve REA’s branding, visual consistency, and professional appearance.
+* Make loading, empty, error, and success states clear.
+* Ensure the interface remains usable at different panel widths and browser zoom levels.
+* Do not redesign the full REA website unnecessarily.
+
+## 4. Authentication, company context, and security
+
+The extension must use REA’s existing authentication and authorization model wherever possible.
+
+* Agents should not need to repeatedly sign in every time they open the side panel.
+* Preserve company/tenant context so users only access data belonging to their organization.
+* Do not bypass backend authorization or rely on frontend checks for security.
+* Do not hardcode credentials, secrets, PINs, or tokens into extension source files.
+* Do not expose sensitive authentication data to webpage scripts.
+* Use the minimum browser permissions required.
+* Clearly document any authentication changes required for extension compatibility.
+
+If the existing authentication design cannot safely support the extension, explain the issue and propose a secure approach before implementing a workaround.
+
+## 5. Technical and architectural expectations
+
+* Keep extension-specific code in a clearly separated directory, such as `browser-extension/`, unless the existing repository structure suggests a better approach.
+* Reuse the existing REA frontend and backend where practical.
+* Keep browser-extension code separate from ordinary website code.
+* Use supported browser-extension APIs and document any Chrome/Edge compatibility considerations.
+* Avoid unnecessary dependencies.
+* Do not introduce unrelated feature changes or implement the AI functionality.
+* Do not change production configuration or deployment behavior without explaining why and obtaining approval.
+
+## 6. Testing and acceptance criteria
+
+The feature is not complete until the following can be verified:
+
+* [ ] The extension can be loaded locally in Chrome using the browser’s extension developer tools.
+* [ ] The toolbar icon opens the REA side panel.
+* [ ] The side panel loads the REA interface without a blank screen or console errors.
+* [ ] The floating button appears only on supported webpages.
+* [ ] Clicking the floating button opens the side panel, where supported.
+* [ ] The floating button can be hidden or dismissed.
+* [ ] The extension does not interfere with ordinary webpage interaction.
+* [ ] An agent can authenticate and access the Tech Escalation Center.
+* [ ] Existing escalation API calls work through the extension.
+* [ ] Company/tenant isolation remains enforced.
+* [ ] The side panel works at narrow widths without horizontal overflow.
+* [ ] Unsupported pages and permission failures are handled gracefully.
+* [ ] Installation and local testing instructions are documented.
+
+## 7. Implementation approach
+
+Work incrementally:
+
+1. Inspect the current repository and report the relevant architecture.
+2. Propose the extension structure and explain how it will reuse the existing REA application.
+3. Identify authentication, tenant-context, and browser-permission risks.
+4. Implement the smallest working extension: toolbar icon plus side panel.
+5. Load and verify the existing Tech Escalation Center in the panel.
+6. Add the floating webpage button.
+7. Test the extension and fix integration issues.
+8. Document how to install, run, test, and package it.
+
+After each major stage, summarize what changed, why it changed, and how it can be tested.
+
+## Deliverables
+
+Provide:
+
+* The extension source code.
+* Any necessary, justified changes to the existing REA frontend or backend.
+* A clear explanation of the architecture.
+* Local installation and testing instructions.
+* A list of required browser permissions and why each is needed.
+* A list of known limitations and recommended next steps.
+
+**Start by inspecting the current repository. Do not begin with a large rewrite, and do not implement the AI feature.**

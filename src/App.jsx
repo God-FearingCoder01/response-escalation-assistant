@@ -139,6 +139,12 @@ export default function App() {
             setActiveScreen(mapRoute);
           }
         }
+      } else {
+        // If no specific route is set, check if we're in the browser extension side panel
+        const isExtension = typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.id;
+        if (isExtension) {
+          setActiveScreen("tech_escalation");
+        }
       }
     }
   }, [activeCompany, setActiveScreen]);
@@ -354,14 +360,17 @@ export default function App() {
 
   // Route matching analysis
   const pathParts = currentPath.split("/").filter(Boolean);
-  const isRoot = currentPath === "/" || pathParts.length === 0;
+  const isExtension = typeof chrome !== "undefined" && !!(chrome.runtime && chrome.runtime.id);
+  const isRoot = !isExtension && (currentPath === "/" || pathParts.length === 0);
   const isMonitorRoute = currentPath === "/monitor" || pathParts[0] === "monitor";
 
   // Check if current URL slug matches a known company
   const slugFromUrl = pathParts.length > 0 && !isMonitorRoute ? pathParts[0].toLowerCase() : null;
   const matchedCompany = slugFromUrl ? companies.find((c) => c.slug.toLowerCase() === slugFromUrl) : null;
-  const isCompanyRoute = !!matchedCompany;
-  const isCompanyInactive = matchedCompany && matchedCompany.is_active === false;
+  const isCompanyRoute = !!matchedCompany || (isExtension && !!activeCompany);
+  
+  const displayCompany = matchedCompany || activeCompany;
+  const isCompanyInactive = displayCompany ? displayCompany.is_active === false : false;
 
   // Render Root or Unregistered URL Landing page
   if (isRoot || (!isMonitorRoute && !isCompanyRoute)) {
@@ -375,8 +384,7 @@ export default function App() {
     );
   }
 
-  // Render Inactive Organization Page if company is deactivated
-  if (isCompanyRoute && isCompanyInactive) {
+  if (isCompanyRoute && isCompanyInactive && displayCompany) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-black/80 backdrop-blur animate-fade-in text-center">
         <div className="max-w-xl w-full rounded-3xl border border-red-500/30 p-8 shadow-2xl space-y-6 bg-[#12121a]">
@@ -387,7 +395,7 @@ export default function App() {
             Organization Space Inactive
           </h2>
           <p className="text-sm text-gray-300 leading-relaxed">
-            The organization space for <strong className="text-red-400">/{matchedCompany.name}</strong> (<code className="text-white font-mono">/{matchedCompany.slug}</code>) is currently set to <strong>Inactive</strong> by the system super administrator.
+            The organization space for <strong className="text-red-400">/{displayCompany.name}</strong> (<code className="text-white font-mono">/{displayCompany.slug}</code>) is currently set to <strong>Inactive</strong> by the system super administrator.
           </p>
           <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-xs text-red-300">
             Please contact <strong>System Support / Developer</strong> to reactivate this organization space or update your company URL.
