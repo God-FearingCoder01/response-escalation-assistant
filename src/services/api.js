@@ -1,6 +1,9 @@
 export const getApiBase = () => {
   if (import.meta?.env?.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (typeof window !== "undefined") {
+    if (window.location.protocol === "chrome-extension:") {
+      return "http://localhost:8000";
+    }
     const host = window.location.hostname;
     if (host === "localhost" || host === "127.0.0.1") {
       return "http://localhost:8000";
