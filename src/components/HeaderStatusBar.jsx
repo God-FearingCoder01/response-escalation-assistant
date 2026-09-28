@@ -10,7 +10,6 @@ export default function HeaderStatusBar({
   activeCompanyId = 1,
   switchCompany = () => {},
   handleNavigate = () => {},
-  onOpenSmartExtractor = () => {},
 }) {
   return (
     <>
@@ -92,15 +91,6 @@ export default function HeaderStatusBar({
 
           {currentAgent ? (
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onOpenSmartExtractor}
-                className="flex items-center gap-1 px-3 py-1 rounded-full bg-[#4cd34c]/10 border border-[#4cd34c]/40 text-[#4cd34c] font-bold text-xs hover:bg-[#4cd34c] hover:text-black transition cursor-pointer"
-                title="Smart Information Extractor (Scan Screenshots & Receipts)"
-              >
-                <span>📷</span>
-                <span>Smart Extractor</span>
-              </button>
               <div
                 className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs"
                 style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--badge-bg)" }}

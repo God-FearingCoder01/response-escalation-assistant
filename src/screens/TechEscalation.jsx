@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString, sanitizeAccountNumber, toHTMLDateValue } from "../services/api";
-import { fetchExtractionRules, autoExtractFieldsFromText } from "../services/smartExtractorService";
 import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
 
 export default function TechEscalation({
@@ -20,36 +19,16 @@ export default function TechEscalation({
   privateNotesHook,
 }) {
   const [showHiddenFields, setShowHiddenFields] = useState(false);
-  const [extractionRules, setExtractionRules] = useState([]);
 
-  useEffect(() => {
-    fetchExtractionRules().then(setExtractionRules);
-    const handleRulesUpdated = () => fetchExtractionRules().then(setExtractionRules);
-    window.addEventListener("rea_extraction_rules_updated", handleRulesUpdated);
-    return () => window.removeEventListener("rea_extraction_rules_updated", handleRulesUpdated);
-  }, []);
-
-  const handleFieldChange = (ph, newText, visiblePlaceholders, parsedCfgMap = {}) => {
+  const handleFieldChange = (ph, newText) => {
     let textToSet = newText;
     if (ph === "account_number" || ph.toLowerCase().includes("account_number")) {
       textToSet = sanitizeAccountNumber(newText);
     }
-    setValues((prev) => {
-      const updated = { ...prev, [ph]: textToSet };
-      if (textToSet && textToSet.trim().length >= 3) {
-        const { updates: autoUpdates } = autoExtractFieldsFromText(
-          textToSet,
-          extractionRules,
-          visiblePlaceholders,
-          ph,
-          parsedCfgMap
-        );
-        if (Object.keys(autoUpdates).length > 0) {
-          return { ...updated, ...autoUpdates };
-        }
-      }
-      return updated;
-    });
+    setValues((prev) => ({
+      ...prev,
+      [ph]: textToSet,
+    }));
   };
 
   const { createPrivateNote, trackPrivateNoteUsage, showToast } = privateNotesHook || {};
@@ -219,28 +198,6 @@ export default function TechEscalation({
                           {ph.replace("_", " ")}:
                         </span>
                         <div className="flex items-center gap-1.5">
-                          {(isReasonField || controlType === "textarea" || (values[ph] && values[ph].length >= 4)) && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const val = values[ph] ?? autoVal;
-                                const { updates: autoUpdates, extractedList } = autoExtractFieldsFromText(val, extractionRules, visiblePlaceholders, ph, parsedCfgMap);
-                                if (Object.keys(autoUpdates).length > 0) {
-                                  setValues((s) => ({ ...s, ...autoUpdates }));
-                                  if (showToast) {
-                                    const names = extractedList.map((e) => `${e.label} ("${e.value}")`).join(", ");
-                                    showToast(`⚡ Auto-extracted fields: ${names}`, "success");
-                                  }
-                                } else if (showToast) {
-                                  showToast("No extractable pattern (e.g. MP..., INN..., ACC..., 07..., $...) found in text.", "info");
-                                }
-                              }}
-                              className="text-[10px] text-[#4cd34c] font-bold bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2 py-0.5 rounded-md hover:bg-[#4cd34c] hover:text-black transition cursor-pointer"
-                              title="Auto-extract values for other placeholders from this field's text"
-                            >
-                              ⚡ Auto-Extract Fields
-                            </button>
-                          )}
                           {targetKey && autoMappedVal ? (
                             <span className="text-[10px] text-[#4cd34c] font-extrabold bg-[#4cd34c]/15 px-2 py-0.5 rounded-full border border-[#4cd34c]/30">
                               ⚡ Auto-maps {targetKey} ➔ "{autoMappedVal}"

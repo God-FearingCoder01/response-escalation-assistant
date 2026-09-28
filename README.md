@@ -90,9 +90,8 @@ backend/
 ├── security.py                 # PIN hashing, rate-limiting, token auth, require_admin & get_current_company
 ├── services/                   # Business logic & starter data
 │   ├── seed_service.py         # Default organization, starter templates & agent profile seeding
-│   ├── translator_service.py   # Shona & Ndebele dictionaries & sentence translation engine
-│   └── extraction_service.py   # Smart parameter extraction rules & state management
-├── routers/                    # 12 Modular FastAPI APIRouters
+│   └── translator_service.py   # Shona & Ndebele dictionaries & sentence translation engine
+├── routers/                    # 11 Modular FastAPI APIRouters
 │   ├── health.py               # GET /health
 │   ├── superadmin.py           # /superadmin/* & /companies/*
 │   ├── templates.py            # /templates/*, /export, /import, /templates/deduplicate
@@ -102,7 +101,6 @@ backend/
 │   ├── support_requests.py     # /support-requests/*
 │   ├── favorites_history.py    # /favorites/* & /history/*
 │   ├── translator.py           # POST /translate
-│   ├── extraction.py           # /api/extraction-rules
 │   ├── sir.py                  # /sir/shifts, /sir/targets, /sir/issues
 │   └── agent_data.py           # /api/agent-data
 └── tests/                      # Pytest automated test package

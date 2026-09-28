@@ -16,9 +16,8 @@ backend/
 ├── security.py                 # PIN hashing, rate-limiting, token auth & get_current_company dependency
 ├── services/                   # Business domain services
 │   ├── seed_service.py         # Default organization, starter templates & agent profile seeding
-│   ├── translator_service.py   # Shona & Ndebele dictionaries & sentence translation engine
-│   └── extraction_service.py   # Smart parameter extraction rules & state management
-├── routers/                    # 12 Modular FastAPI APIRouters
+│   └── translator_service.py   # Shona & Ndebele dictionaries & sentence translation engine
+├── routers/                    # 11 Modular FastAPI APIRouters
 │   ├── health.py               # GET /health (Database health ping & readiness)
 │   ├── superadmin.py           # Super Admin authentication, PIN reset & company provisioning
 │   ├── templates.py            # Organization template CRUD, import/export & deduplication
@@ -28,7 +27,6 @@ backend/
 │   ├── support_requests.py     # Public workspace requests & admin resolution workflow
 │   ├── favorites_history.py    # Agent template favorites & copy usage history
 │   ├── translator.py           # Multilingual Shona/Ndebele response translator
-│   ├── extraction.py           # Smart parameter extraction rule management
 │   ├── sir.py                  # Shift Issue Register (Shifts, Escalation Targets, Shift Issues)
 │   └── agent_data.py           # Cross-device agent user data synchronization
 └── tests/                      # Pytest automated test package (30 tests)

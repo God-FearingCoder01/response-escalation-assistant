@@ -71,7 +71,6 @@ from backend.routers.suggestions import router as suggestions_router
 from backend.routers.support_requests import router as support_requests_router
 from backend.routers.favorites_history import router as favorites_history_router
 from backend.routers.translator import router as translator_router
-from backend.routers.extraction import router as extraction_router
 from backend.routers.sir import router as sir_router
 from backend.routers.agent_data import router as agent_data_router
 
@@ -102,6 +101,5 @@ app.include_router(suggestions_router)
 app.include_router(support_requests_router)
 app.include_router(favorites_history_router)
 app.include_router(translator_router)
-app.include_router(extraction_router)
 app.include_router(sir_router)
 app.include_router(agent_data_router)

@@ -329,35 +329,5 @@ def test_agent_user_data_sync_and_daily_reset():
     assert len(synced["translation_history"]) == 1
 
 
-def test_extraction_rules_api():
-    res = client.get("/api/extraction-rules")
-    assert res.status_code == 200
-    rules = res.json()
-    assert isinstance(rules, list)
-    assert len(rules) >= 5
-    rule1 = next((r for r in rules if r["id"] == "rule_1"), None)
-    assert rule1 is not None
-    assert rule1["prefix"] == "MP"
-    assert rule1["target_placeholder"] == "transaction_number"
-
-    # Save updated rules
-    new_rules = rules + [{
-        "id": "rule_test_99",
-        "name": "Custom Test Rule",
-        "method": "pattern",
-        "pattern": "TEST-\\d{5}",
-        "is_active": True
-    }]
-    res_save = client.post("/api/extraction-rules", json=new_rules)
-    assert res_save.status_code == 200
-    updated = res_save.json()
-    assert any(r["id"] == "rule_test_99" for r in updated)
-
-    # Test reset endpoint
-    res_reset = client.post("/api/extraction-rules/reset")
-    assert res_reset.status_code == 200
-    reset_rules = res_reset.json()
-    assert not any(r["id"] == "rule_test_99" for r in reset_rules)
-    assert len(reset_rules) >= 5
 
 
