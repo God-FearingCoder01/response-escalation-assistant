@@ -15,6 +15,8 @@ import PinModal from "./components/PinModal";
 import SuperAdminPinModal from "./components/SuperAdminPinModal";
 import Toast from "./components/Toast";
 import HeaderStatusBar from "./components/HeaderStatusBar";
+
+import WelcomeScreen from "./screens/WelcomeScreen";
 import TechEscalation from "./screens/TechEscalation";
 import CustomerReply from "./screens/CustomerReply";
 import AdminDashboard from "./screens/AdminDashboard";
