@@ -1,142 +1,607 @@
-# Development Prompt: REA Browser Extension and Side Panel
+Yes. I’d give your coding agent a prompt that tells it to **debug the existing implementation rather than redesign the feature**, because your description suggests the extraction configuration UI is working but the **runtime auto-fill pipeline is breaking when it reaches certain control types/visibility rules**.
 
-You are acting as a **Senior Software Engineer** working on the existing **Response & Escalation Assistant (REA)** project.
+Here is a copy-ready prompt:
 
-## Objective
+---
 
-Extend REA so agents can access the existing tool from within their browser, without having to leave the webpage they are currently working on.
+# REA Development Task — Fix Extractable Field Auto-Fill and Visibility
 
-Build a browser extension that provides:
+You are working on the existing **Response & Escalation Assistant (REA)** codebase.
 
-1. A **browser side panel** containing the REA application.
-2. A **toolbar icon** that agents can click to open the side panel.
-3. An optional **floating REA button** positioned along the right edge of supported webpages. Clicking it should open the side panel.
+The existing **Extractable Field / Auto-fill** functionality needs to be investigated and fixed. **Do not redesign the feature or replace the existing extraction architecture unless the investigation proves that the current architecture cannot support the required behavior.**
 
-**Do not implement the AI Response Assistant or any AI-related functionality as part of this task.**
+The Admin Dashboard configuration UI currently appears to work correctly, so focus particularly on the **runtime extraction → mapping → auto-fill → control rendering pipeline**.
 
-## 1. Inspect the existing project first
+## 1. Understand the existing feature before changing anything
 
-Before making changes:
+First inspect the current implementation end-to-end.
 
-* Inspect the current repository structure and identify the frontend framework, routing, authentication flow, API configuration, and existing Tech Escalation Center.
-* Identify which existing REA screens and workflows can be reused in the extension.
-* Check how company/tenant context is established and how the frontend authenticates API requests.
-* Review the existing design system, branding, icons, and responsive layouts.
-* Identify any technical limitations that could prevent the existing application from running in a browser side panel.
+Trace the complete flow:
 
-Do not assume the repository matches an earlier description. Base implementation decisions on the current code.
+```text
+Message Template
+      ↓
+Extractable field configuration
+      ↓
+Square-bracket extraction
+      ↓
+Extracted substring
+      ↓
+Auto-map / Auto-fill configuration
+      ↓
+Target field
+      ↓
+Value transformation / conversion
+      ↓
+Target control type
+      ↓
+Visibility rules
+      ↓
+Rendered template/input
+```
 
-## 2. Browser extension requirements
+Identify all frontend components, services, state-management logic, API calls, and backend models/endpoints involved.
 
-Build a **Manifest V3 browser extension**, initially targeting Chrome and Microsoft Edge.
+Do not assume the problem is in the Admin Dashboard simply because the resulting behavior is wrong.
 
-The extension must provide:
+---
 
-### A. Toolbar icon
+# 2. Preserve the existing successful functionality
 
-* Use REA’s branding and a professional, recognizable icon.
-* Clicking the icon should open the REA side panel.
-* The toolbar icon must remain available even when the floating button is hidden or unsupported on the current webpage.
+The following functionality is currently working and must continue working:
 
-### B. Browser side panel
+### Square-bracket extraction
 
-* Display the existing REA application or a carefully adapted version of it.
-* Reuse existing frontend components, API services, authentication logic, and business rules wherever practical.
-* Avoid duplicating backend functionality or creating a separate database for the extension.
-* Provide access to the existing REA features that are practical within a narrow panel, prioritizing the Tech Escalation Center for the first working milestone.
-* Provide a clear option to open the full REA website when a workflow needs more space.
+For example, if a template/input contains something like:
 
-### C. Floating webpage button
+```text
+Transaction received from [MP260831.1923.T7382831]
+```
 
-* Add a small REA-branded floating button near the right edge of supported webpages.
-* Clicking it should open the extension’s side panel where browser support allows.
-* Keep the button visually unobtrusive and consistent with REA’s design.
-* Allow the user to hide or dismiss it.
-* Avoid covering important webpage controls or interfering with normal page interaction.
-* Do not inject it into browser-internal pages or unsupported websites.
-* Start with a limited, clearly defined set of supported sites or a user-controlled activation approach. Do not request unrestricted access to all websites without a clear need.
+the square brackets identify the substring that should be extracted.
 
-## 3. Side-panel layout and usability
+The Admin Dashboard preview correctly:
 
-The side panel is narrower than the normal REA website. Adapt the interface for that environment rather than simply shrinking the existing page.
+- recognizes the bracketed substring,
+- isolates it from the larger input,
+- allows it to be associated with a chosen field,
+- and allows the extracted value, or a modified version of it, to be used for auto-fill.
 
-Requirements:
+**Do not break this behavior.**
 
-* Use a compact navigation pattern suitable for a narrow panel.
-* Ensure forms, buttons, text fields, lists, and dialogs fit the available width.
-* Avoid horizontal overflow and clipped content.
-* Keep the most important actions easy to reach.
-* Preserve REA’s branding, visual consistency, and professional appearance.
-* Make loading, empty, error, and success states clear.
-* Ensure the interface remains usable at different panel widths and browser zoom levels.
-* Do not redesign the full REA website unnecessarily.
+Existing extraction rules and configurations should remain compatible unless a migration is genuinely required.
 
-## 4. Authentication, company context, and security
+---
 
-The extension must use REA’s existing authentication and authorization model wherever possible.
+# 3. Critical bug: Date Only and Time Only auto-fill
 
-* Agents should not need to repeatedly sign in every time they open the side panel.
-* Preserve company/tenant context so users only access data belonging to their organization.
-* Do not bypass backend authorization or rely on frontend checks for security.
-* Do not hardcode credentials, secrets, PINs, or tokens into extension source files.
-* Do not expose sensitive authentication data to webpage scripts.
-* Use the minimum browser permissions required.
-* Clearly document any authentication changes required for extension compatibility.
+There is currently a major runtime problem.
 
-If the existing authentication design cannot safely support the extension, explain the issue and propose a secure approach before implementing a workaround.
+When an extracted field is configured to automatically populate another field, the target field can have a Control Type such as:
 
-## 5. Technical and architectural expectations
+```text
+Date Only
+Time Only
+```
 
-* Keep extension-specific code in a clearly separated directory, such as `browser-extension/`, unless the existing repository structure suggests a better approach.
-* Reuse the existing REA frontend and backend where practical.
-* Keep browser-extension code separate from ordinary website code.
-* Use supported browser-extension APIs and document any Chrome/Edge compatibility considerations.
-* Avoid unnecessary dependencies.
-* Do not introduce unrelated feature changes or implement the AI functionality.
-* Do not change production configuration or deployment behavior without explaining why and obtaining approval.
+These fields currently **do not auto-fill correctly**.
 
-## 6. Testing and acceptance criteria
+Example conceptual flow:
 
-The feature is not complete until the following can be verified:
+```text
+Extracted source field
+        ↓
+Auto-map / Auto-fill
+        ↓
+Target field
+        ↓
+Control Type = Date Only
+```
 
-* [ ] The extension can be loaded locally in Chrome using the browser’s extension developer tools.
-* [ ] The toolbar icon opens the REA side panel.
-* [ ] The side panel loads the REA interface without a blank screen or console errors.
-* [ ] The floating button appears only on supported webpages.
-* [ ] Clicking the floating button opens the side panel, where supported.
-* [ ] The floating button can be hidden or dismissed.
-* [ ] The extension does not interfere with ordinary webpage interaction.
-* [ ] An agent can authenticate and access the Tech Escalation Center.
-* [ ] Existing escalation API calls work through the extension.
-* [ ] Company/tenant isolation remains enforced.
-* [ ] The side panel works at narrow widths without horizontal overflow.
-* [ ] Unsupported pages and permission failures are handled gracefully.
-* [ ] Installation and local testing instructions are documented.
+Expected:
 
-## 7. Implementation approach
+```text
+Target field automatically receives the
+appropriate date value derived from the extracted value.
+```
 
-Work incrementally:
+But currently the target field may remain empty.
 
-1. Inspect the current repository and report the relevant architecture.
-2. Propose the extension structure and explain how it will reuse the existing REA application.
-3. Identify authentication, tenant-context, and browser-permission risks.
-4. Implement the smallest working extension: toolbar icon plus side panel.
-5. Load and verify the existing Tech Escalation Center in the panel.
-6. Add the floating webpage button.
-7. Test the extension and fix integration issues.
-8. Document how to install, run, test, and package it.
+The same problem occurs for:
 
-After each major stage, summarize what changed, why it changed, and how it can be tested.
+```text
+Control Type = Time Only
+```
 
-## Deliverables
+### Investigate the actual cause
 
-Provide:
+Do not simply patch the UI with a hardcoded value.
 
-* The extension source code.
-* Any necessary, justified changes to the existing REA frontend or backend.
-* A clear explanation of the architecture.
-* Local installation and testing instructions.
-* A list of required browser permissions and why each is needed.
-* A list of known limitations and recommended next steps.
+Determine:
 
-**Start by inspecting the current repository. Do not begin with a large rewrite, and do not implement the AI feature.**
+- What value is produced by the extractor?
+- What value is stored in the auto-map configuration?
+- What transformation is applied?
+- What format does the target control expect?
+- Does the Date Only control expect `YYYY-MM-DD`?
+- Does the Time Only control expect `HH:mm`?
+- Is the source value being interpreted as a string when it should be converted?
+- Is the browser's `<input type="date">` / `<input type="time">` behavior involved?
+- Is the auto-fill state being overwritten after it is initially populated?
+- Is the target field being initialized after the auto-fill operation?
+- Is a controlled React input rejecting the supplied value because it is in the wrong format?
+
+Trace the value all the way from extraction to the rendered control.
+
+---
+
+# 4. Do not assume every extracted value is already in target-control format
+
+The implementation should clearly distinguish between:
+
+```text
+Extracted value
+```
+
+and:
+
+```text
+Value required by target control
+```
+
+For example:
+
+```text
+Source extracted value
+        ↓
+Transformation
+        ↓
+Target-control-compatible value
+```
+
+If the existing Auto-fill configuration supports modifications/transforms, make sure Date Only and Time Only participate in that same mechanism rather than introducing an unrelated special case.
+
+If the system already has a transformation mechanism, reuse it.
+
+---
+
+# 5. Critical bug: Visibility = "Not always visible"
+
+There is another runtime problem involving fields that are auto-filled from extracted fields.
+
+A target field may be configured as:
+
+```text
+Visibility:
+Not always visible
+```
+
+and also:
+
+```text
+Auto-filled from:
+[Extracted Field]
+```
+
+The expected behavior is:
+
+- The field remains hidden when its visibility condition says it should be hidden.
+- The field should only appear when the existing visibility rules say it should appear.
+- Auto-fill must **not itself force the field to become visible**.
+
+Current behavior:
+
+> Some fields configured as `Not always visible` are appearing automatically and cannot be hidden.
+
+This is incorrect.
+
+---
+
+# 6. Separate value state from visibility state
+
+Investigate whether the implementation is incorrectly doing something conceptually equivalent to:
+
+```javascript
+if (autoFilledValue) {
+    showField();
+}
+```
+
+or:
+
+```javascript
+if (mappedField) {
+    setVisible(true);
+}
+```
+
+Auto-filling a field and displaying a field are two different concerns.
+
+The correct conceptual model is:
+
+```text
+                 ┌── Value
+Extracted data ──┤
+                 └── Visibility
+```
+
+An extracted value may exist even when the target field is not currently visible.
+
+Therefore:
+
+> **Auto-fill must never override the configured visibility behavior unless the product's existing visibility rules explicitly require that behavior.**
+
+---
+
+# 7. Preserve existing visibility functionality
+
+Before changing visibility logic, identify exactly how REA currently implements:
+
+- Always visible
+- Not always visible
+- Any conditional visibility
+- Any field dependencies
+- Any extracted-field dependencies
+
+Do not replace the visibility system with a new implementation.
+
+Fix the interaction between:
+
+```text
+Visibility rules
++
+Auto-fill
++
+Extracted values
+```
+
+while preserving existing behavior for fields that are not auto-filled.
+
+---
+
+# 8. Investigate the difference between Admin Preview and Runtime
+
+An important clue is that the Admin Dashboard configuration appears to work:
+
+```text
+Template editor
+    ↓
+Square brackets
+    ↓
+Preview
+    ↓
+Extracted substring
+    ↓
+Field mapping
+```
+
+but the actual runtime behavior is failing.
+
+Therefore explicitly compare:
+
+### Admin configuration/preview pipeline
+
+with:
+
+### Actual agent/template execution pipeline
+
+Look for mismatches such as:
+
+- Different field IDs.
+- Different placeholder names.
+- Different control-type representations.
+- Different serialization/deserialization.
+- Different state objects.
+- Configuration saved differently from how runtime expects it.
+- Auto-map information present in the Admin UI but lost when the template is loaded.
+- Boolean/string mismatches.
+- `null` vs `undefined`.
+- Visibility configuration being reconstructed incorrectly.
+- Date/time values being reformatted or discarded.
+- Auto-fill executing before the target fields exist.
+
+---
+
+# 9. Inspect persistence
+
+Verify that the complete extractable-field configuration is correctly persisted and restored.
+
+Inspect:
+
+- Template database model.
+- Template API payloads.
+- Frontend save logic.
+- Frontend load logic.
+- Serialization/deserialization.
+- Placeholder configuration.
+- Extractable-field metadata.
+- Auto-map metadata.
+- Visibility metadata.
+- Control type metadata.
+
+The following information must survive:
+
+```text
+Source field
+Target field
+Extraction configuration
+Auto-map configuration
+Transformation configuration
+Control type
+Visibility configuration
+```
+
+If the Admin Dashboard displays a configuration correctly before saving but the runtime loses part of it after reload, fix the persistence/serialization issue rather than patching the runtime.
+
+---
+
+# 10. Remove the unwanted Auto-map / Auto-fill labels
+
+Currently fields that have automatic mapping/filling applied display labels such as:
+
+```text
+Auto-maps: ...
+```
+
+and:
+
+```text
+Auto-fill: ...
+```
+
+above the field.
+
+**Remove these labels from the normal agent-facing template UI.**
+
+The automatic behavior should remain functional, but these implementation/configuration labels should not be exposed above the field.
+
+For example, instead of:
+
+```text
+Auto-maps: Transaction Number
+Auto-fill: Transaction Number
+
+Transaction Number
+[ MP260831... ]
+```
+
+the agent should simply see the appropriate normal field UI:
+
+```text
+Transaction Number
+[ MP260831... ]
+```
+
+The Admin Dashboard may continue showing configuration information where appropriate because administrators need to understand how the template is configured.
+
+The requirement is specifically to remove these technical/configuration labels from the **normal runtime/template experience**.
+
+Do not remove the underlying configuration.
+
+---
+
+# 11. Important: Do not break ordinary fields
+
+The fix must not affect fields that:
+
+- Are manually entered.
+- Have no auto-map.
+- Have no extraction source.
+- Are always visible.
+- Are conditionally visible.
+- Use ordinary text controls.
+- Use existing date/time controls without extraction.
+
+Test these separately.
+
+---
+
+# 12. Required test scenarios
+
+Add or update automated tests where the current project testing architecture supports them.
+
+At minimum verify:
+
+### Extraction
+
+```text
+✓ Square-bracket substring is extracted correctly
+✓ Existing extraction behavior remains intact
+✓ Auto-map identifies the correct source field
+```
+
+### Auto-fill
+
+```text
+✓ Extracted value populates a normal text field
+✓ Extracted value populates a modified/transformed field
+✓ Extracted value populates a Date Only field
+✓ Extracted value populates a Time Only field
+```
+
+### Date
+
+Verify that the resulting value is in the exact format required by the Date Only control.
+
+For example, if using an HTML date input:
+
+```text
+YYYY-MM-DD
+```
+
+### Time
+
+Verify that the resulting value is in the exact format required by the Time Only control.
+
+For example:
+
+```text
+HH:mm
+```
+
+Use the format actually required by the current implementation rather than assuming it.
+
+### Visibility
+
+```text
+✓ Always visible + auto-filled → visible
+✓ Not always visible + auto-filled → remains governed by visibility rules
+✓ Auto-fill does not force visibility
+✓ Hidden field does not become permanently visible merely because it has a value
+✓ Existing visibility behavior continues working for non-auto-filled fields
+```
+
+### Persistence
+
+```text
+✓ Save template
+✓ Reload template
+✓ Extractable configuration remains intact
+✓ Auto-map remains intact
+✓ Control type remains intact
+✓ Visibility setting remains intact
+```
+
+### UI
+
+```text
+✓ "Auto-maps: ..." is not shown to ordinary agents
+✓ "Auto-fill: ..." is not shown to ordinary agents
+✓ Admin configuration information remains available where appropriate
+```
+
+---
+
+# 13. Debugging requirements
+
+Before changing code, identify the exact failure point.
+
+For each failing scenario, trace:
+
+```text
+SOURCE
+  ↓
+Extracted value
+  ↓
+Mapping
+  ↓
+Transformation
+  ↓
+Target field state
+  ↓
+Control rendering
+  ↓
+Visibility calculation
+```
+
+Document what is actually happening.
+
+For example:
+
+```text
+Extracted value:
+"260831"
+
+Mapped target:
+"transaction_date"
+
+Transformed value:
+"2026-08-31"
+
+Target state:
+"2026-08-31"
+
+Rendered input:
+""
+
+Reason:
+React state initialization overwrites auto-filled value
+```
+
+The example above is illustrative only. Determine the actual cause from the code.
+
+---
+
+# 14. Implementation principles
+
+### Do:
+
+- Reuse existing extraction architecture.
+- Reuse existing auto-map configuration.
+- Reuse existing visibility logic where possible.
+- Preserve backwards compatibility with existing templates.
+- Keep source and target fields clearly separated.
+- Normalize values according to the target control type.
+- Keep configuration metadata separate from runtime presentation.
+- Add regression tests.
+
+### Do not:
+
+- Rewrite the entire extractable-field system.
+- Introduce a second extraction mechanism.
+- Hardcode individual template names.
+- Hardcode specific field names.
+- Make auto-fill automatically imply visibility.
+- Remove functionality simply because it is difficult to fix.
+- Fix the Admin preview while leaving runtime broken.
+- Hide errors by silently discarding incompatible values.
+
+---
+
+# 15. Final acceptance criteria
+
+The feature should be considered fixed only when this complete workflow works:
+
+```text
+Admin creates/edits template
+        ↓
+Marks part of a field using [square brackets]
+        ↓
+Maps extracted value to a target field
+        ↓
+Configures target control type
+        ↓
+Configures visibility
+        ↓
+Saves template
+        ↓
+Agent opens template
+        ↓
+Extraction occurs
+        ↓
+Correct substring is obtained
+        ↓
+Auto-map executes
+        ↓
+Correct transformation occurs
+        ↓
+Target field receives value
+        ↓
+Target control displays value correctly
+        ↓
+Visibility rules remain respected
+```
+
+And the agent-facing interface should contain **no unnecessary `Auto-maps:` or `Auto-fill:` labels**.
+
+---
+
+## Final instruction
+
+**Start by investigating the existing implementation and identifying the precise root causes of the Date Only/Time Only auto-fill failure and the visibility failure.**
+
+Do not immediately rewrite the feature.
+
+After investigation, report:
+
+1. **Root cause(s)**
+2. **Affected files/components**
+3. **Why normal text auto-fill works while Date/Time fails**
+4. **Why auto-filled fields are becoming visible**
+5. **What data is being lost or transformed incorrectly, if applicable**
+6. **Proposed minimal fix**
+7. **Regression tests required**
+
+Only then implement the fix.
+
+The goal is to make the existing **Extractable Field → Auto-map → Auto-fill** system reliable across control types while keeping extraction, visibility, persistence, and the agent-facing UI properly separated.
