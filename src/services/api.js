@@ -275,6 +275,10 @@ export function toHTMLDateValue(val) {
   // YYYY-MM-DD — already in the correct format
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
 
+  // YYYY-MM-DDTHH:mm or YYYY-MM-DD HH:mm or YYYY/MM/DD
+  const isoMatch = s.match(/^(\d{4})[-/.](\d{2})[-/.](\d{2})/);
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2].padStart(2, "0")}-${isoMatch[3].padStart(2, "0")}`;
+
   // DD/MM/YYYY, DD.MM.YYYY, DD-MM-YYYY
   const ddmmyyyy = s.match(/^(\d{2})[/.\-](\d{2})[/.\-](\d{4})$/);
   if (ddmmyyyy) return `${ddmmyyyy[3]}-${ddmmyyyy[2]}-${ddmmyyyy[1]}`;
@@ -282,6 +286,44 @@ export function toHTMLDateValue(val) {
   // YYMMDD (6 digits, e.g. "260828" from MP260828...)
   const yymmdd = s.match(/^(\d{2})(\d{2})(\d{2})$/);
   if (yymmdd) return `20${yymmdd[1]}-${yymmdd[2]}-${yymmdd[3]}`;
+
+  const parsed = new Date(s);
+  if (!isNaN(parsed.getTime())) {
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, "0");
+    const d = String(parsed.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  return "";
+}
+
+/**
+ * Converts any supported time string into "HH:mm" format required by <input type="time">.
+ * Accepts: HH:mm, HH:mm:ss, HHMM (4 digits), ISO datetime strings.
+ * Returns "" if the input cannot be parsed.
+ */
+export function toHTMLTimeValue(val) {
+  if (val === null || val === undefined) return "";
+  const s = String(val).trim();
+  if (!s) return "";
+
+  // HH:mm format (e.g. "14:30")
+  if (/^\d{2}:\d{2}$/.test(s)) return s;
+
+  // HH:mm:ss format (e.g. "14:30:00")
+  if (/^\d{2}:\d{2}:\d{2}$/.test(s)) return s.slice(0, 5);
+
+  // HHMM format (4 digits, e.g. "1430" or "0915")
+  if (/^\d{4}$/.test(s)) {
+    return `${s.slice(0, 2)}:${s.slice(2, 4)}`;
+  }
+
+  // ISO string or timestamp with time (e.g. "2026-08-31T14:30:00")
+  const dtMatch = s.match(/[T\s](\d{2}):(\d{2})/);
+  if (dtMatch) {
+    return `${dtMatch[1]}:${dtMatch[2]}`;
+  }
 
   return "";
 }

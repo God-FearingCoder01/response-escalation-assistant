@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString, sanitizeAccountNumber, toHTMLDateValue } from "../services/api";
+import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString, sanitizeAccountNumber, toHTMLDateValue, toHTMLTimeValue } from "../services/api";
 import { translateText } from "../services/translationService";
 import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
 
@@ -254,13 +254,42 @@ export default function CustomerReply({
             };
             const visiblePlaceholders = (placeholderList || []).filter((ph) => !ph.startsWith(":") && !mappedTargetKeys.has(ph) && !isAgentPh(ph));
 
+            const getAutoVal = (ph, customCfg) => {
+              const dateAuto = getDateAutoValues();
+              const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
+              const isDateField = dateAuto[ph] !== undefined || dateAuto[ph.toLowerCase()] !== undefined;
+              const isTimeUnitField = /^time_unit/i.test(ph);
+
+              if (customCfg?.auto_fill_type === "date_day") return dateAuto.day;
+              if (customCfg?.auto_fill_type === "date_month") return dateAuto.month_number;
+              if (customCfg?.auto_fill_type === "date_year") return dateAuto.year;
+              if (customCfg?.auto_fill_type === "date_time") return dateAuto.time;
+              if (customCfg?.auto_fill_type === "greeting" || customCfg?.auto_fill_type === "time_of_day") return dateAuto.greeting;
+              if (customCfg?.auto_fill_type === "Greeting" || customCfg?.auto_fill_type === "greeting_cap") return dateAuto.Greeting;
+              if (customCfg?.auto_fill_type === "good_greeting") return dateAuto.good_greeting;
+              if (customCfg?.auto_fill_type === "agent_name") return currentAgent?.agent_name ?? "";
+              if (customCfg?.auto_fill_type === "agent_fullname" || customCfg?.auto_fill_type === "agent") return (currentAgent?.agent || currentAgent?.agent_name) ?? "";
+              if (customCfg?.auto_fill_type === "agent_initials") return currentAgent?.agent_initials ?? "";
+              if (customCfg?.auto_fill_type === "custom") return customCfg.custom_default ?? "";
+              if (customCfg?.auto_fill_type === "formatted_date") return "";
+              if (isAgentField) return ph === "agent_initials" ? currentAgent?.agent_initials : (ph === "agent" ? (currentAgent?.agent || currentAgent?.agent_name) : currentAgent?.agent_name);
+              if (isDateField) return dateAuto[ph] ?? dateAuto[ph.toLowerCase()];
+              if (isTimeUnitField) return "hour(s)";
+              return "";
+            };
+
             const hiddenByConfigCount = visiblePlaceholders.filter((ph) => {
               const cfg = parsedCfgMap[ph] || {};
               const mode = cfg.visibility_mode || "show";
               if (mode === "always_hidden") return true;
               if (mode === "hide_if_autofilled") {
-                const currentVal = values[ph] ?? resolvedValues[ph];
-                return Boolean(currentVal);
+                const autoVal = getAutoVal(ph, cfg);
+                const val = (values[ph] !== undefined && values[ph] !== null)
+                  ? values[ph]
+                  : (resolvedValues[ph] !== undefined && resolvedValues[ph] !== null && String(resolvedValues[ph]).trim() !== ""
+                      ? resolvedValues[ph]
+                      : autoVal);
+                return Boolean(String(val).trim());
               }
               return false;
             }).length;
@@ -283,13 +312,9 @@ export default function CustomerReply({
                 </div>
                 <div className="space-y-3">
                   {visiblePlaceholders.map((ph) => {
-                    const dateAuto = getDateAutoValues();
                     const customCfg = parsedCfgMap[ph] || null;
-
-                    const isAgentField = ph === "agent_name" || ph === "agent_initials" || ph === "agent";
-                    const isDateField = dateAuto[ph] !== undefined || dateAuto[ph.toLowerCase()] !== undefined;
-                    const isTimeUnitField = /^time_unit/i.test(ph);
                     const isReasonField = ph.toLowerCase().includes("reason") || ph.toLowerCase().includes("details") || ph.toLowerCase().includes("note") || ph.toLowerCase().includes("description");
+                    const isTimeUnitField = /^time_unit/i.test(ph);
                     const isDayField = ph === "day" || ph === "day_number" || ph === "day_num" || ph === "dd";
                     const isMonthNumberField = ph === "month_number" || ph === "month_num" || ph === "month" || ph === "mm";
 
@@ -301,25 +326,14 @@ export default function CustomerReply({
                       "text"
                     );
 
-                    let autoVal = "";
-                    if (customCfg?.auto_fill_type === "date_day") autoVal = dateAuto.day;
-                    else if (customCfg?.auto_fill_type === "date_month") autoVal = dateAuto.month_number;
-                    else if (customCfg?.auto_fill_type === "date_year") autoVal = dateAuto.year;
-                    else if (customCfg?.auto_fill_type === "date_time") autoVal = dateAuto.time;
-                    else if (customCfg?.auto_fill_type === "greeting" || customCfg?.auto_fill_type === "time_of_day") autoVal = dateAuto.greeting;
-                    else if (customCfg?.auto_fill_type === "Greeting" || customCfg?.auto_fill_type === "greeting_cap") autoVal = dateAuto.Greeting;
-                    else if (customCfg?.auto_fill_type === "good_greeting") autoVal = dateAuto.good_greeting;
-                    else if (customCfg?.auto_fill_type === "agent_name") autoVal = currentAgent?.agent_name ?? "";
-                    else if (customCfg?.auto_fill_type === "agent_fullname" || customCfg?.auto_fill_type === "agent") autoVal = (currentAgent?.agent || currentAgent?.agent_name) ?? "";
-                    else if (customCfg?.auto_fill_type === "agent_initials") autoVal = currentAgent?.agent_initials ?? "";
-                    else if (customCfg?.auto_fill_type === "custom") autoVal = customCfg.custom_default ?? "";
-                    else if (customCfg?.auto_fill_type === "formatted_date") autoVal = ""; // display handled at render time
-                    else if (isAgentField) autoVal = ph === "agent_initials" ? currentAgent?.agent_initials : (ph === "agent" ? (currentAgent?.agent || currentAgent?.agent_name) : currentAgent?.agent_name);
-                    else if (isDateField) autoVal = dateAuto[ph] ?? dateAuto[ph.toLowerCase()];
-                    else if (isTimeUnitField) autoVal = "hour(s)";
-
+                    const autoVal = getAutoVal(ph, customCfg);
                     const visMode = customCfg?.visibility_mode || "show";
-                    const hasVal = values[ph] !== undefined ? Boolean(values[ph]) : Boolean(autoVal);
+                    const effectiveVal = (values[ph] !== undefined && values[ph] !== null)
+                      ? values[ph]
+                      : (resolvedValues[ph] !== undefined && resolvedValues[ph] !== null && String(resolvedValues[ph]).trim() !== ""
+                          ? resolvedValues[ph]
+                          : autoVal);
+                    const hasVal = Boolean(String(effectiveVal).trim());
 
                     if (!showHiddenFields) {
                       if (visMode === "always_hidden") return null;
@@ -331,40 +345,17 @@ export default function CustomerReply({
                       options = ["Elephant", "Rhino", "Lion", "Buffalo", "Leopard"];
                     }
 
-                    const isTrigger = ph.endsWith("?") || (Boolean(customCfg?.mapped_target) && customCfg.mapped_target.trim() !== "");
-                    const targetKey = isTrigger ? (customCfg?.mapped_target || `:${ph.replace(/\?$/, "")}`) : null;
-                    const autoMappedVal = targetKey ? resolvedValues[targetKey] : null;
-
                     return (
                       <div key={ph}>
-                        <div className="flex justify-between items-center mb-1">
+                        <div className="mb-1">
                           <span className="text-xs capitalize font-medium flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
                             {ph.replace("_", " ")}:
                           </span>
-                          <div className="flex items-center gap-1.5">
-                            {targetKey && autoMappedVal ? (
-                              <span className="text-[10px] text-[#4cd34c] font-extrabold bg-[#4cd34c]/15 px-2 py-0.5 rounded-full border border-[#4cd34c]/30">
-                                ⚡ Auto-maps {targetKey} ➔ "{autoMappedVal}"
-                              </span>
-                            ) : customCfg ? (
-                              <span className="text-[10px] text-[#4cd34c] font-semibold">Configured: {controlType}</span>
-                            ) : isAgentField ? (
-                              <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from profile</span>
-                            ) : isDayField || isMonthNumberField ? (
-                              <span className="text-[10px] text-[#4cd34c] font-semibold">Numeric up/down (Auto-filled)</span>
-                            ) : isDateField ? (
-                              <span className="text-[10px] text-[#4cd34c] font-semibold">Auto-filled from date</span>
-                            ) : isTimeUnitField ? (
-                              <span className="text-[10px] text-[#4cd34c] font-semibold">Preset dropdown</span>
-                            ) : isReasonField ? (
-                              <span className="text-[10px] text-[#4cd34c] font-semibold">Multi-line resizable text</span>
-                            ) : null}
-                          </div>
                         </div>
 
                       {controlType === "combobox" ? (
                         <select
-                          value={valMap[ph] ?? (options[0] || autoVal)}
+                          value={effectiveVal || (options[0] || autoVal)}
                           onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
                           className="w-full rounded-xl border p-2.5 text-sm font-medium"
                           style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
@@ -386,9 +377,9 @@ export default function CustomerReply({
                               type="text"
                               maxLength={2}
                               value={
-                                valMap[ph] !== undefined
-                                  ? (valMap[ph] ? String(parseInt(valMap[ph], 10) || 1).padStart(2, "0") : "")
-                                  : (autoVal ? String(parseInt(autoVal, 10) || 1).padStart(2, "0") : "01")
+                                effectiveVal
+                                  ? String(parseInt(effectiveVal, 10) || 1).padStart(2, "0")
+                                  : ""
                               }
                               onChange={(e) => {
                                 const digits = e.target.value.replace(/\D/g, "");
@@ -410,7 +401,7 @@ export default function CustomerReply({
                                 type="button"
                                 onClick={() => {
                                   const maxVal = (isMonthNumberField || customCfg?.auto_fill_type === "month_number" || ["month_number", "month_num", "month", "mm"].includes(ph.toLowerCase())) ? 12 : 31;
-                                  const current = parseInt(valMap[ph] ?? autoVal ?? "1", 10) || 1;
+                                  const current = parseInt(effectiveVal || "1", 10) || 1;
                                   let next = current + 1;
                                   if (next > maxVal) next = 1;
                                   setValues((s) => ({ ...s, [ph]: String(next).padStart(2, "0") }));
@@ -424,7 +415,7 @@ export default function CustomerReply({
                                 type="button"
                                 onClick={() => {
                                   const maxVal = (isMonthNumberField || customCfg?.auto_fill_type === "month_number" || ["month_number", "month_num", "month", "mm"].includes(ph.toLowerCase())) ? 12 : 31;
-                                  const current = parseInt(valMap[ph] ?? autoVal ?? "1", 10) || 1;
+                                  const current = parseInt(effectiveVal || "1", 10) || 1;
                                   let next = current - 1;
                                   if (next < 1) next = maxVal;
                                   setValues((s) => ({ ...s, [ph]: String(next).padStart(2, "0") }));
@@ -441,8 +432,8 @@ export default function CustomerReply({
                             type="number"
                             min={1}
                             max={999999}
-                            value={valMap[ph] ?? autoVal}
-                            onChange={(e) => handleFieldChange(ph, e.target.value, visiblePlaceholders, parsedCfgMap)}
+                            value={effectiveVal}
+                            onChange={(e) => handleFieldChange(ph, e.target.value)}
                             placeholder={`Enter ${ph.replace("_", " ")}`}
                             className="w-full rounded-xl border p-2.5 text-sm font-semibold"
                             style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
@@ -452,12 +443,12 @@ export default function CustomerReply({
                         <div className="flex items-center gap-2">
                           <input
                             type="date"
-                            value={toHTMLDateValue(valMap[ph] ?? autoVal)}
+                            value={toHTMLDateValue(effectiveVal)}
                             onChange={(e) => {
                               const raw = e.target.value;
                               if (raw) {
                                 const [y, m, d] = raw.split("-");
-                                handleFieldChange(ph, `${d}/${m}/${y}`, visiblePlaceholders, parsedCfgMap);
+                                handleFieldChange(ph, `${d}/${m}/${y}`);
                               }
                             }}
                             className="rounded-xl border p-2 text-sm font-medium shrink-0 cursor-pointer"
@@ -465,8 +456,8 @@ export default function CustomerReply({
                           />
                           <input
                             type="text"
-                            value={formatDateTimeString(valMap[ph] ?? autoVal, "date", customCfg?.date_format)}
-                            onChange={(e) => handleFieldChange(ph, e.target.value, visiblePlaceholders, parsedCfgMap)}
+                            value={effectiveVal ? formatDateTimeString(effectiveVal, "date", customCfg?.date_format) : ""}
+                            onChange={(e) => handleFieldChange(ph, e.target.value)}
                             placeholder={customCfg?.date_format || "DD/MM/YYYY"}
                             className="w-full rounded-xl border p-2.5 text-sm font-semibold font-mono tracking-wider"
                             style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
@@ -476,9 +467,10 @@ export default function CustomerReply({
                         <div className="flex items-center gap-2">
                           <input
                             type="time"
+                            value={toHTMLTimeValue(effectiveVal)}
                             onChange={(e) => {
                               const clean = (e.target.value || "").replace(/:/g, "");
-                              handleFieldChange(ph, clean, visiblePlaceholders, parsedCfgMap);
+                              handleFieldChange(ph, clean);
                             }}
                             className="rounded-xl border p-2 text-sm font-medium shrink-0 cursor-pointer"
                             style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
@@ -486,10 +478,10 @@ export default function CustomerReply({
                           <input
                             type="text"
                             maxLength={4}
-                            value={(valMap[ph] ?? autoVal ?? "").toString().replace(/:/g, "")}
+                            value={(effectiveVal ?? "").toString().replace(/:/g, "")}
                             onChange={(e) => {
                               const clean = e.target.value.replace(/:/g, "").replace(/\D/g, "").slice(0, 4);
-                              handleFieldChange(ph, clean, visiblePlaceholders, parsedCfgMap);
+                              handleFieldChange(ph, clean);
                             }}
                             placeholder="HHMM (e.g. 0945)"
                             className="w-full rounded-xl border p-2.5 text-sm font-semibold font-mono tracking-wider"
@@ -499,14 +491,14 @@ export default function CustomerReply({
                       ) : controlType === "datetime" ? (
                         <input
                           type="datetime-local"
-                          value={valMap[ph] ?? autoVal}
-                          onChange={(e) => handleFieldChange(ph, e.target.value, visiblePlaceholders, parsedCfgMap)}
+                          value={effectiveVal}
+                          onChange={(e) => handleFieldChange(ph, e.target.value)}
                           className="w-full rounded-xl border p-2.5 text-sm font-medium"
                           style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
                         />
                       ) : controlType === "time_units_select" ? (
                         <select
-                          value={valMap[ph] ?? "hour(s)"}
+                          value={effectiveVal || "hour(s)"}
                           onChange={(e) => setValues((s) => ({ ...s, [ph]: e.target.value }))}
                           className="w-full rounded-xl border p-2.5 text-sm font-medium"
                           style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
@@ -517,8 +509,8 @@ export default function CustomerReply({
                       ) : controlType === "textarea" ? (
                         <textarea
                           rows={3}
-                          value={valMap[ph] ?? autoVal}
-                          onChange={(e) => handleFieldChange(ph, e.target.value, visiblePlaceholders, parsedCfgMap)}
+                          value={effectiveVal}
+                          onChange={(e) => handleFieldChange(ph, e.target.value)}
                           placeholder={`Enter ${ph.replace("_", " ")}...`}
                           className="w-full rounded-xl border p-2.5 text-sm resize-y font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#4cd34c]"
                           style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
@@ -527,10 +519,10 @@ export default function CustomerReply({
                         <input
                           value={
                             customCfg?.auto_fill_type === "formatted_date"
-                              ? formatDateTimeString(valMap[ph] ?? "", "date", customCfg?.date_format)
-                              : (valMap[ph] ?? autoVal)
+                              ? formatDateTimeString(effectiveVal, "date", customCfg?.date_format)
+                              : effectiveVal
                           }
-                          onChange={(e) => handleFieldChange(ph, e.target.value, visiblePlaceholders, parsedCfgMap)}
+                          onChange={(e) => handleFieldChange(ph, e.target.value)}
                           placeholder={customCfg?.auto_fill_type === "formatted_date" ? (customCfg?.date_format || "DD/MM/YYYY") : `Enter ${ph.replace("_", " ")}`}
                           className="w-full rounded-xl border p-2.5 text-sm placeholder:text-[var(--field-placeholder)] font-mono"
                           style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
