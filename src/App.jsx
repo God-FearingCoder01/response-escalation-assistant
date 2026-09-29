@@ -15,6 +15,7 @@ import PinModal from "./components/PinModal";
 import SuperAdminPinModal from "./components/SuperAdminPinModal";
 import Toast from "./components/Toast";
 import HeaderStatusBar from "./components/HeaderStatusBar";
+import SmartExtractorWidget from "./components/SmartExtractorWidget";
 
 import WelcomeScreen from "./screens/WelcomeScreen";
 import TechEscalation from "./screens/TechEscalation";
@@ -44,6 +45,24 @@ export default function App() {
   const [apiStatus, setApiStatus] = useState("checking");
   const [statusMessage, setStatusMessage] = useState("");
   const [values, setValues] = useState({});
+  const [showSmartExtractor, setShowSmartExtractor] = useState(false);
+
+  const handleAutoFillValues = (updates) => {
+    const sanitizedUpdates = {};
+    if (updates && typeof updates === "object") {
+      Object.entries(updates).forEach(([k, v]) => {
+        if (k === "account_number" || k.toLowerCase().includes("account_number")) {
+          sanitizedUpdates[k] = sanitizeAccountNumber(v);
+        } else {
+          sanitizedUpdates[k] = v;
+        }
+      });
+    }
+    setValues((prev) => ({
+      ...prev,
+      ...sanitizedUpdates,
+    }));
+  };
 
   // Super Admin Authentication State
   const [isSuperAdminAuth, setIsSuperAdminAuth] = useState(false);
@@ -468,6 +487,7 @@ export default function App() {
           activeCompanyId={activeCompanyId}
           switchCompany={handleSwitchCompanyAndEnter}
           handleNavigate={handleNavigate}
+          onOpenSmartExtractor={() => setShowSmartExtractor(true)}
         />
 
         {activeScreen === "monitor" && isSuperAdminAuth && (
@@ -665,6 +685,13 @@ export default function App() {
           />
         )}
       </div>
+
+      <SmartExtractorWidget
+        isOpen={showSmartExtractor}
+        onClose={() => setShowSmartExtractor(false)}
+        onAutoFillValues={handleAutoFillValues}
+        showToast={showToast}
+      />
 
       <Toast toast={toast} onClose={() => setToast?.({ show: false, message: "" })} />
     </div>
