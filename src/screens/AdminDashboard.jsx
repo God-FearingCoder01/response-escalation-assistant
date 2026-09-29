@@ -1,6 +1,5 @@
 import { useRef, useEffect, useState, useMemo } from "react";
 import { getPresetPhrases, savePresetPhrases, DEFAULT_PRESET_PHRASES } from "../services/translationService";
-import { fetchExtractionRules, saveExtractionRulesLocally, resetExtractionRulesToDefault, buildPatternString, autoExtractFieldsFromText } from "../services/smartExtractorService";
 
 export default function AdminDashboard({
   activeScreen,
