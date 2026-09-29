@@ -296,7 +296,12 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
       if (key === "account_number" || keyLower.includes("account_number")) {
         formattedVal = sanitizeAccountNumber(formattedVal);
       }
-      out = out.split(`{${key}}`).join(formattedVal);
+
+      if (cfg?.is_silent) {
+        out = out.split(`{${key}}`).join("");
+      } else {
+        out = out.split(`{${key}}`).join(formattedVal);
+      }
     }
 
     // Tech Escalation rule: Always ends with #{agent_name}

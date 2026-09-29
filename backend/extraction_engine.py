@@ -137,22 +137,30 @@ def transform_extracted_value(
 
         year, month, day = "", "", ""
 
-        if input_fmt == "YYMMDD" and len(str_val) >= 6:
+        if input_fmt == "YYMMDD" and len(str_val) >= 6 and str_val.isdigit():
             year = "20" + str_val[:2]
             month = str_val[2:4]
             day = str_val[4:6]
-        elif input_fmt == "YYYYMMDD" and len(str_val) >= 8:
+        elif input_fmt == "YYYYMMDD" and len(str_val) >= 8 and str_val.isdigit():
             year = str_val[:4]
             month = str_val[4:6]
             day = str_val[6:8]
-        elif input_fmt == "DDMMYY" and len(str_val) >= 6:
+        elif input_fmt == "DDMMYY" and len(str_val) >= 6 and str_val.isdigit():
             day = str_val[:2]
             month = str_val[2:4]
             year = "20" + str_val[4:6]
-        elif input_fmt == "DDMMYYYY" and len(str_val) >= 8:
+        elif input_fmt == "DDMMYYYY" and len(str_val) >= 8 and str_val.isdigit():
             day = str_val[:2]
             month = str_val[2:4]
             year = str_val[4:8]
+        else:
+            m = re.match(r"^(\d{2})[/.\-](\d{2})[/.\-](\d{4})$", str_val)
+            if m:
+                day, month, year = m.group(1), m.group(2), m.group(3)
+            else:
+                m_iso = re.match(r"^(\d{4})[/.\-](\d{2})[/.\-](\d{2})$", str_val)
+                if m_iso:
+                    year, month, day = m_iso.group(1), m_iso.group(2), m_iso.group(3)
 
         if year and month and day:
             if output_fmt == "YYYY-MM-DD":
@@ -172,9 +180,13 @@ def transform_extracted_value(
         output_fmt = config.get("time_output_format", "HH:mm")
 
         hours, minutes = "", ""
-        if input_fmt == "HHmm" and len(str_val) >= 4:
+        if input_fmt == "HHmm" and len(str_val) >= 4 and str_val.isdigit():
             hours = str_val[:2]
             minutes = str_val[2:4]
+        elif ":" in str_val:
+            parts = str_val.split(":")
+            hours = parts[0].zfill(2)
+            minutes = parts[1].zfill(2) if len(parts) > 1 else "00"
 
         if hours and minutes:
             if output_fmt == "HH:mm":

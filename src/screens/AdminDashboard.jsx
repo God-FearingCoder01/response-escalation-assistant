@@ -220,6 +220,8 @@ export default function AdminDashboard({
     setPresetNd("");
   };
 
+  const [newSilentParam, setNewSilentParam] = useState("");
+
   const extractedPlaceholders = useMemo(() => {
     if (!editTplBody) return [];
     const set = new Set();
@@ -228,6 +230,41 @@ export default function AdminDashboard({
     while ((m = re.exec(editTplBody))) set.add(m[1]);
     return Array.from(set);
   }, [editTplBody]);
+
+  const allConfigurablePlaceholders = useMemo(() => {
+    const set = new Set(extractedPlaceholders);
+    if (placeholderConfigs && typeof placeholderConfigs === "object") {
+      Object.keys(placeholderConfigs).forEach((k) => {
+        if (placeholderConfigs[k]) set.add(k);
+      });
+    }
+    return Array.from(set);
+  }, [extractedPlaceholders, placeholderConfigs]);
+
+  const handleAddSilentParameter = (e) => {
+    if (e) e.preventDefault();
+    const cleanKey = newSilentParam.trim().replace(/^\{|\}$/g, "").replace(/\s+/g, "_");
+    if (!cleanKey) return;
+    updatePlaceholderConfig(cleanKey, {
+      control_type: "text",
+      is_silent: true,
+      is_extractable: true,
+      extraction_config: {
+        example_input: "21/09/2026 13:51",
+        pattern: "[21/09/2026] [13:51]",
+        extractions: [],
+      },
+    });
+    setNewSilentParam("");
+  };
+
+  const handleRemoveCustomParameter = (phKey) => {
+    setPlaceholderConfigs?.((prev) => {
+      const next = { ...prev };
+      delete next[phKey];
+      return next;
+    });
+  };
 
   const updatePlaceholderConfig = (phKey, updates) => {
     setPlaceholderConfigs?.((prev) => {
@@ -375,24 +412,57 @@ export default function AdminDashboard({
                 />
               </div>
 
-              {/* Placeholder Configuration Section */}
-              {extractedPlaceholders.length > 0 && (
+              {/* Placeholder & Silent Parameter Configuration Section */}
+              {allConfigurablePlaceholders.length > 0 && (
                 <div className="md:col-span-3 rounded-xl border p-4 space-y-3 mt-1 bg-[#4cd34c]/5 border-[#4cd34c]/30">
-                  <div className="flex items-center justify-between">
-                    <h5 className="text-xs uppercase font-bold text-[#4cd34c] flex items-center gap-1.5">
-                      <span>⚙️ Configure Placeholder Controls & Auto-Fill</span>
-                      <span className="text-[10px] font-medium text-[var(--text-muted)] lowercase font-mono">
-                        ({extractedPlaceholders.length} detected: {extractedPlaceholders.map(p => `{${p}}`).join(", ")})
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
+                    <div>
+                      <h5 className="text-xs uppercase font-bold text-[#4cd34c] flex items-center gap-1.5">
+                        <span>⚙️ Configure Parameter Controls, Auto-Fill & Silent Parameters</span>
+                        <span className="text-[10px] font-medium text-[var(--text-muted)] lowercase font-mono">
+                          ({allConfigurablePlaceholders.length} parameters configured)
+                        </span>
+                      </h5>
+                      <span className="text-[10px] text-[var(--text-muted)]">
+                        Customize UI capture types, extraction rules, and silent required parameters.
                       </span>
-                    </h5>
-                    <span className="text-[10px] text-[var(--text-muted)]">Customize UI capture type & default auto-fill source</span>
+                    </div>
+
+                    {/* Add Custom / Silent Parameter Bar */}
+                    <div className="flex items-center gap-2 bg-[var(--app-bg)] p-1.5 rounded-xl border" style={{ borderColor: "var(--field-border)" }}>
+                      <span className="text-[11px] font-bold text-amber-400">
+                        🤫 Add Silent Required Parameter:
+                      </span>
+                      <input
+                        type="text"
+                        value={newSilentParam}
+                        onChange={(e) => setNewSilentParam(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddSilentParameter();
+                          }
+                        }}
+                        placeholder="e.g. customer_datetime"
+                        className="rounded-lg border p-1 text-xs font-mono w-40"
+                        style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddSilentParameter}
+                        className="px-3 py-1 rounded-lg bg-amber-400 text-black font-extrabold text-xs hover:opacity-90 transition cursor-pointer"
+                      >
+                        + Add
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {extractedPlaceholders.map((ph) => {
+                    {allConfigurablePlaceholders.map((ph) => {
                       const cfg = placeholderConfigs[ph] || { control_type: "text", auto_fill_type: "none" };
                       const isCombobox = cfg.control_type === "combobox";
                       const isCustomAuto = cfg.auto_fill_type === "custom";
+                      const isBodyPlaceholder = extractedPlaceholders.includes(ph);
 
                       return (
                         <div
@@ -400,12 +470,36 @@ export default function AdminDashboard({
                           className="rounded-xl border p-3 space-y-2 backdrop-blur bg-[var(--panel-bg)] border-[var(--field-border)]"
                         >
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-[#4cd34c]">
-                              {`{${ph}}`}
-                            </span>
-                            <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">
-                              Parameter Control
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold text-[#4cd34c]">
+                                {`{${ph}}`}
+                              </span>
+                              {cfg.is_silent && (
+                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                  🤫 Silent
+                                </span>
+                              )}
+                              {!isBodyPlaceholder && (
+                                <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                                  Custom Input
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {!isBodyPlaceholder && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveCustomParameter(ph)}
+                                  className="text-[10px] text-red-400 hover:text-red-300 font-bold underline cursor-pointer"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                              <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">
+                                Parameter Control
+                              </span>
+                            </div>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">

@@ -1295,7 +1295,16 @@ export default function QuickAccess({
               if (cfg?.auto_fill_type && ["agent_name", "agent_initials", "agent_fullname", "agent"].includes(cfg.auto_fill_type)) return true;
               return false;
             };
-            const visiblePlaceholders = (phList || []).filter((ph) => !ph.startsWith(":") && !mappedTargetKeys.has(ph) && !isAgentPh(ph));
+            const combinedPlaceholdersSet = new Set(phList || []);
+            if (parsedCfgMap && typeof parsedCfgMap === "object") {
+              Object.keys(parsedCfgMap).forEach((k) => {
+                if (parsedCfgMap[k]?.is_silent || parsedCfgMap[k]?.is_extractable) {
+                  combinedPlaceholdersSet.add(k);
+                }
+              });
+            }
+            const allPlaceholdersList = Array.from(combinedPlaceholdersSet);
+            const visiblePlaceholders = allPlaceholdersList.filter((ph) => !ph.startsWith(":") && !mappedTargetKeys.has(ph) && !isAgentPh(ph));
 
             const getAutoVal = (ph, customCfg) => {
               const dateAuto = getDateAutoValues();

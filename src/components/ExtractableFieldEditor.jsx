@@ -138,18 +138,38 @@ export default function ExtractableFieldEditor({
     });
   };
 
+  const isSilent = Boolean(cfg?.is_silent);
+
   return (
     <div className="pt-2 border-t mt-2 space-y-3" style={{ borderColor: "var(--field-border)" }}>
-      {/* Extractable Checkbox */}
-      <label className="flex items-center gap-2 text-xs font-bold text-[#4cd34c] cursor-pointer">
-        <input
-          type="checkbox"
-          checked={isExtractable}
-          onChange={(e) => handleToggleExtractable(e.target.checked)}
-          className="accent-[#4cd34c] h-4 w-4 rounded"
-        />
-        <span>☑ Make this field extractable ({`{${ph}}`})</span>
-      </label>
+      {/* Toggles: Silent Parameter & Extractable Field */}
+      <div className="flex flex-wrap items-center gap-4">
+        <label className="flex items-center gap-2 text-xs font-bold text-amber-400 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isSilent}
+            onChange={(e) => updatePlaceholderConfig(ph, { is_silent: e.target.checked })}
+            className="accent-amber-400 h-4 w-4 rounded"
+          />
+          <span>🤫 Silent Parameter ({`{${ph}}`})</span>
+        </label>
+
+        <label className="flex items-center gap-2 text-xs font-bold text-[#4cd34c] cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isExtractable}
+            onChange={(e) => handleToggleExtractable(e.target.checked)}
+            className="accent-[#4cd34c] h-4 w-4 rounded"
+          />
+          <span>☑ Make this field extractable</span>
+        </label>
+      </div>
+
+      {isSilent && (
+        <p className="text-[11px] text-amber-300/90 font-medium bg-amber-500/10 p-2 rounded-xl border border-amber-500/20">
+          ℹ️ <strong>Silent Parameter:</strong> This parameter accepts agent input on forms and can populate other fields via extraction, but will <strong>NOT</strong> appear as a placeholder in the final message.
+        </p>
+      )}
 
       {isExtractable && (
         <div

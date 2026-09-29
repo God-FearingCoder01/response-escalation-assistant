@@ -92,7 +92,6 @@ export function extractValuesFromPattern(pattern, inputValue) {
       if (seg.type === "literal") {
         let esc = escapeRegex(seg.value);
         if (relaxLiteralNumbers) {
-          // Relax digits in literal text (e.g. T7382831 -> T\d+)
           esc = esc.replace(/\d+/g, "\\d+");
         }
         regexStr += esc;
@@ -114,15 +113,12 @@ export function extractValuesFromPattern(pattern, inputValue) {
   try {
     const trimmedInput = inputValue.trim();
 
-    // Attempt 1: Standard match
     let match = trimmedInput.match(buildRegex(false));
 
-    // Attempt 2: Relax literal numbers (allows suffix digits like T7382831 vs T9876543 to vary)
     if (!match) {
       match = trimmedInput.match(buildRegex(true));
     }
 
-    // Attempt 3: Flexible fallback regex
     if (!match) {
       let fallbackRegexStr = "^";
       validation.segments.forEach((seg) => {
@@ -148,7 +144,7 @@ export function extractValuesFromPattern(pattern, inputValue) {
 
 /**
  * Transforms an extracted raw substring value based on transformation config & target control type.
- * Supports Date transformations (YYMMDD, YYYYMMDD, DDMMYY, etc.) and Time transformations (HHmm, HHmmss).
+ * Supports Date transformations (YYMMDD, YYYYMMDD, DDMMYY, DD/MM/YYYY, etc.) and Time transformations (HHmm, HHmmss).
  */
 export function transformExtractedValue(rawValue, config = {}, targetControlType = "text") {
   if (rawValue === undefined || rawValue === null) return "";
@@ -171,38 +167,51 @@ export function transformExtractedValue(rawValue, config = {}, targetControlType
     let month = "";
     let day = "";
 
-    if (inputFmt === "YYMMDD" && str.length >= 6) {
+    if (inputFmt === "YYMMDD" && str.length >= 6 && /^\d+$/.test(str)) {
       year = "20" + str.slice(0, 2);
       month = str.slice(2, 4);
       day = str.slice(4, 6);
-    } else if (inputFmt === "YYYYMMDD" && str.length >= 8) {
+    } else if (inputFmt === "YYYYMMDD" && str.length >= 8 && /^\d+$/.test(str)) {
       year = str.slice(0, 4);
       month = str.slice(4, 6);
       day = str.slice(6, 8);
-    } else if (inputFmt === "DDMMYY" && str.length >= 6) {
+    } else if (inputFmt === "DDMMYY" && str.length >= 6 && /^\d+$/.test(str)) {
       day = str.slice(0, 2);
       month = str.slice(2, 4);
       year = "20" + str.slice(4, 6);
-    } else if (inputFmt === "DDMMYYYY" && str.length >= 8) {
+    } else if (inputFmt === "DDMMYYYY" && str.length >= 8 && /^\d+$/.test(str)) {
       day = str.slice(0, 2);
       month = str.slice(2, 4);
       year = str.slice(4, 8);
-    } else if (inputFmt === "MMDDYY" && str.length >= 6) {
+    } else if (inputFmt === "MMDDYY" && str.length >= 6 && /^\d+$/.test(str)) {
       month = str.slice(0, 2);
       day = str.slice(2, 4);
       year = "20" + str.slice(4, 6);
-    } else if (inputFmt === "MMDDYYYY" && str.length >= 8) {
+    } else if (inputFmt === "MMDDYYYY" && str.length >= 8 && /^\d+$/.test(str)) {
       month = str.slice(0, 2);
       day = str.slice(2, 4);
       year = str.slice(4, 8);
     } else {
-      // Delimited or fallback parsing via toHTMLDateValue
-      const htmlDate = toHTMLDateValue(str);
-      if (htmlDate && htmlDate.includes("-")) {
-        const parts = htmlDate.split("-");
-        year = parts[0];
-        month = parts[1];
-        day = parts[2];
+      const ddmmyyyyMatch = str.match(/^(\d{2})[/.\-](\d{2})[/.\-](\d{4})$/);
+      if (ddmmyyyyMatch) {
+        day = ddmmyyyyMatch[1];
+        month = ddmmyyyyMatch[2];
+        year = ddmmyyyyMatch[3];
+      } else {
+        const isoMatch = str.match(/^(\d{4})[/.\-](\d{2})[/.\-](\d{2})$/);
+        if (isoMatch) {
+          year = isoMatch[1];
+          month = isoMatch[2];
+          day = isoMatch[3];
+        } else {
+          const htmlDate = toHTMLDateValue(str);
+          if (htmlDate && htmlDate.includes("-")) {
+            const parts = htmlDate.split("-");
+            year = parts[0];
+            month = parts[1];
+            day = parts[2];
+          }
+        }
       }
     }
 
@@ -232,10 +241,10 @@ export function transformExtractedValue(rawValue, config = {}, targetControlType
     let minutes = "";
     let seconds = "00";
 
-    if (inputFmt === "HHmm" && str.length >= 4) {
+    if (inputFmt === "HHmm" && str.length >= 4 && /^\d+$/.test(str)) {
       hours = str.slice(0, 2);
       minutes = str.slice(2, 4);
-    } else if (inputFmt === "HHmmss" && str.length >= 6) {
+    } else if (inputFmt === "HHmmss" && str.length >= 6 && /^\d+$/.test(str)) {
       hours = str.slice(0, 2);
       minutes = str.slice(2, 4);
       seconds = str.slice(4, 6);
