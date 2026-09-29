@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString, sanitizeAccountNumber, toHTMLDateValue, toHTMLTimeValue } from "../services/api";
+import { processExtractableFields } from "../services/extractableFieldService";
 import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
 
 export default function TechEscalation({
@@ -25,9 +26,22 @@ export default function TechEscalation({
     if (ph === "account_number" || ph.toLowerCase().includes("account_number")) {
       textToSet = sanitizeAccountNumber(newText);
     }
+
+    let parsedCfgMap = {};
+    if (activeTemplate?.placeholder_config) {
+      try {
+        parsedCfgMap = typeof activeTemplate.placeholder_config === "string"
+          ? JSON.parse(activeTemplate.placeholder_config)
+          : activeTemplate.placeholder_config;
+      } catch (e) {}
+    }
+
+    const updates = processExtractableFields(ph, textToSet, parsedCfgMap);
+
     setValues((prev) => ({
       ...prev,
       [ph]: textToSet,
+      ...updates,
     }));
   };
 

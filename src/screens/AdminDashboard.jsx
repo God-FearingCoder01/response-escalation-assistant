@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from "react";
 import { getPresetPhrases, savePresetPhrases, DEFAULT_PRESET_PHRASES } from "../services/translationService";
+import ExtractableFieldEditor from "../components/ExtractableFieldEditor";
 
 export default function AdminDashboard({
   activeScreen,
@@ -663,6 +664,14 @@ export default function AdminDashboard({
                               />
                             </div>
                           )}
+
+                          {/* Extractable Field & Auto-Fill Configurator */}
+                          <ExtractableFieldEditor
+                            ph={ph}
+                            cfg={cfg}
+                            extractedPlaceholders={extractedPlaceholders}
+                            updatePlaceholderConfig={updatePlaceholderConfig}
+                          />
                         </div>
                       );
                     })}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString, sanitizeAccountNumber, toHTMLDateValue, toHTMLTimeValue } from "../services/api";
+import { processExtractableFields } from "../services/extractableFieldService";
 import { parseNotesFile } from "../hooks/usePrivateNotes";
 import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
 
@@ -92,9 +93,22 @@ export default function QuickAccess({
     if (ph === "account_number" || ph.toLowerCase().includes("account_number")) {
       textToSet = sanitizeAccountNumber(newText);
     }
+
+    let parsedCfgMap = {};
+    if (quickAccessActiveTemplate?.placeholder_config) {
+      try {
+        parsedCfgMap = typeof quickAccessActiveTemplate.placeholder_config === "string"
+          ? JSON.parse(quickAccessActiveTemplate.placeholder_config)
+          : quickAccessActiveTemplate.placeholder_config;
+      } catch (e) {}
+    }
+
+    const updates = processExtractableFields(ph, textToSet, parsedCfgMap);
+
     setValues((prev) => ({
       ...prev,
       [ph]: textToSet,
+      ...updates,
     }));
   };
 
