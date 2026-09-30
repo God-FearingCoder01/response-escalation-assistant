@@ -630,6 +630,18 @@ export async function importTemplatesApi(payload) {
   return await res.json();
 }
 
+export async function deduplicateTemplatesApi() {
+  const res = await fetch(`${API_BASE}/templates/deduplicate`, {
+    method: "POST",
+    headers: { ...getAdminHeaders() },
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Deduplication failed"));
+  }
+  return await res.json();
+}
+
 export async function fetchAgentsApi() {
   return await safeFetchJson(`${API_BASE}/agents`);
 }

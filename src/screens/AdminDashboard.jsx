@@ -66,6 +66,7 @@ export default function AdminDashboard({
   const fileRef = useRef(null);
   const templateFormRef = useRef(null);
   const templateBodyRef = useRef(null);
+  const [adminTemplateSearch, setAdminTemplateSearch] = useState("");
 
   const scrollToTemplateForm = () => {
     if (templateFormRef.current) {
@@ -797,23 +798,84 @@ export default function AdminDashboard({
           </form>
         </div>
 
+        {/* Live Template Search Option in Templates Management Center */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border shadow-sm backdrop-blur" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={adminTemplateSearch}
+              onChange={(e) => setAdminTemplateSearch(e.target.value)}
+              placeholder="🔍 Search all templates by name, category, subcategory, or text..."
+              className="w-full rounded-xl border p-2.5 pr-10 text-xs font-medium outline-none transition focus:ring-2 focus:ring-[#4cd34c]"
+              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
+            />
+            {adminTemplateSearch && (
+              <button
+                type="button"
+                onClick={() => setAdminTemplateSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold hover:text-[#4cd34c] transition"
+                style={{ color: "var(--text-muted)" }}
+                title="Clear template search"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          {adminTemplateSearch.trim() && (
+            <span className="text-xs font-semibold text-[#4cd34c] shrink-0 bg-[#4cd34c]/10 px-3 py-1.5 rounded-xl border border-[#4cd34c]/30">
+              Filtering Templates
+            </span>
+          )}
+        </div>
+
         {/* Category Cards with Accordion Expansion & Horizontal Subcategory Navigation */}
         <div className="space-y-4">
-          {(groupedAdminCategories || []).map((catGroup) => {
-            const isExpanded = Boolean(expandedAdminCats[catGroup.categoryName]);
-            const selectedSub = adminSubcatFilter[catGroup.categoryName] ?? "All";
+          {(() => {
+            const query = adminTemplateSearch.trim().toLowerCase();
+            const isSearching = Boolean(query);
 
-            const filteredTemplates = catGroup.templates.filter((t) => {
-              if (selectedSub === "All") return true;
-              return (t.subcategory ?? "").trim() === selectedSub;
-            });
+            const matchingCategoryGroups = (groupedAdminCategories || []).map((catGroup) => {
+              const selectedSub = adminSubcatFilter[catGroup.categoryName] ?? "All";
 
-            return (
-              <div
-                key={catGroup.categoryName}
-                className="rounded-2xl border shadow-md backdrop-blur transition-all overflow-hidden"
-                style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}
-              >
+              const filteredTemplates = catGroup.templates.filter((t) => {
+                const matchesSub = selectedSub === "All" || (t.subcategory ?? "").trim() === selectedSub;
+                if (!matchesSub) return false;
+                if (!isSearching) return true;
+                return (
+                  (t.name || "").toLowerCase().includes(query) ||
+                  (t.category || "").toLowerCase().includes(query) ||
+                  (t.subcategory || "").toLowerCase().includes(query) ||
+                  (t.body || "").toLowerCase().includes(query)
+                );
+              });
+
+              return {
+                ...catGroup,
+                filteredTemplates,
+                hasMatches: filteredTemplates.length > 0,
+              };
+            }).filter((catGroup) => !isSearching || catGroup.hasMatches);
+
+            if (isSearching && matchingCategoryGroups.length === 0) {
+              return (
+                <div className="p-8 text-center rounded-2xl border" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--text-muted)" }}>
+                  <p className="text-sm font-semibold">No templates found matching "{adminTemplateSearch}"</p>
+                  <p className="text-xs mt-1 opacity-70">Try searching with a different template title, category name, or key phrase.</p>
+                </div>
+              );
+            }
+
+            return matchingCategoryGroups.map((catGroup) => {
+              const isExpanded = isSearching || Boolean(expandedAdminCats[catGroup.categoryName]);
+              const selectedSub = adminSubcatFilter[catGroup.categoryName] ?? "All";
+              const filteredTemplates = catGroup.filteredTemplates;
+
+              return (
+                <div
+                  key={catGroup.categoryName}
+                  className="rounded-2xl border shadow-md backdrop-blur transition-all overflow-hidden"
+                  style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}
+                >
                 {/* Accordion Card Header */}
                 <div
                   onClick={() =>
@@ -953,7 +1015,8 @@ export default function AdminDashboard({
                 ) : null}
               </div>
             );
-          })}
+          });
+        })()}
         </div>
       </div>
 

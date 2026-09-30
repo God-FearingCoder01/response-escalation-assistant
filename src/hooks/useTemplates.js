@@ -6,6 +6,7 @@ import {
   updateTemplateApi,
   deleteTemplateApi,
   importTemplatesApi,
+  deduplicateTemplatesApi,
   getDateAutoValues,
   formatDateTimeString,
   resolveConditionalMappings,
@@ -511,18 +512,27 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
     }
   };
 
-  const handleDeduplicateTemplates = () => {
-    const seen = new Set();
-    const deduplicated = [];
-    templates.forEach((t) => {
-      const key = `${(t.category_type || "").trim()}|${(t.category || "").trim()}|${(t.name || "").trim()}|${(t.body || "").trim()}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        deduplicated.push(t);
-      }
-    });
-    setTemplates(deduplicated);
-    showToast(`Template library deduplicated (${templates.length - deduplicated.length} duplicates removed)! 🧹`);
+  const handleDeduplicateTemplates = async () => {
+    try {
+      const res = await deduplicateTemplatesApi();
+      const count = res?.removed_count ?? 0;
+      await refreshTemplates();
+      showToast(`Template library deduplicated (${count} duplicate(s) removed)! 🧹`);
+    } catch (err) {
+      // Fallback to local memory deduplication if backend API fails or offline
+      const seen = new Set();
+      const deduplicated = [];
+      templates.forEach((t) => {
+        const key = `${(t.category_type || "").trim().toLowerCase()}|${(t.category || "").trim().toLowerCase()}|${(t.name || "").trim().toLowerCase()}|${(t.body || "").trim()}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduplicated.push(t);
+        }
+      });
+      const localRemoved = templates.length - deduplicated.length;
+      setTemplates(deduplicated);
+      showToast(`Template library deduplicated locally (${localRemoved} duplicate(s) removed)! 🧹`);
+    }
   };
 
   return {
