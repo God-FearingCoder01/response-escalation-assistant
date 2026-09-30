@@ -10,6 +10,7 @@ export default function AdminDashboard({
   exportTemplates,
   importTemplatesFile,
   handleDeduplicateTemplates,
+  handleBatchDeleteTemplates,
   editTplId,
   setEditTplId,
   editTplName,
@@ -67,6 +68,7 @@ export default function AdminDashboard({
   const templateFormRef = useRef(null);
   const templateBodyRef = useRef(null);
   const [adminTemplateSearch, setAdminTemplateSearch] = useState("");
+  const [selectedTplIds, setSelectedTplIds] = useState([]);
 
   const scrollToTemplateForm = () => {
     if (templateFormRef.current) {
@@ -828,6 +830,45 @@ export default function AdminDashboard({
           )}
         </div>
 
+        {/* Batch Actions Bar for Template Selection */}
+        {selectedTplIds.length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border bg-[#b83838]/10 border-[#b83838]/30 shadow-md">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold" style={{ color: "var(--app-text)" }}>
+                ✓ {selectedTplIds.length} template{selectedTplIds.length === 1 ? "" : "s"} selected
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const allIds = (templates || []).map((t) => t.id);
+                  if (selectedTplIds.length === allIds.length) {
+                    setSelectedTplIds([]);
+                  } else {
+                    setSelectedTplIds(allIds);
+                  }
+                }}
+                className="px-2.5 py-1 rounded-xl border text-xs font-semibold transition hover:bg-[var(--neutral-bg)]"
+                style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)" }}
+              >
+                {selectedTplIds.length === (templates || []).length ? "Deselect All" : "Select All"}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={async () => {
+                if (window.confirm(`Are you sure you want to delete ${selectedTplIds.length} selected template(s)?`)) {
+                  await handleBatchDeleteTemplates(selectedTplIds);
+                  setSelectedTplIds([]);
+                }
+              }}
+              className="px-4 py-1.5 rounded-xl bg-[#b83838] hover:bg-[#a12f2f] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow"
+            >
+              Delete Selected ({selectedTplIds.length}) 🗑️
+            </button>
+          </div>
+        )}
+
         {/* Category Cards with Accordion Expansion & Horizontal Subcategory Navigation */}
         <div className="space-y-4">
           {(() => {
@@ -910,6 +951,23 @@ export default function AdminDashboard({
                   </div>
 
                   <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const catTemplateIds = catGroup.templates.map((t) => t.id);
+                        const allSelected = catTemplateIds.every((id) => selectedTplIds.includes(id));
+                        if (allSelected) {
+                          setSelectedTplIds((prev) => prev.filter((id) => !catTemplateIds.includes(id)));
+                        } else {
+                          setSelectedTplIds((prev) => Array.from(new Set([...prev, ...catTemplateIds])));
+                        }
+                      }}
+                      className="text-[11px] px-2.5 py-1 rounded-xl border font-semibold hover:bg-[var(--neutral-bg)] transition select-none"
+                      style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)" }}
+                    >
+                      {catGroup.templates.length > 0 && catGroup.templates.every((t) => selectedTplIds.includes(t.id)) ? "Deselect Cat." : "Select Cat."}
+                    </button>
                     <span className="text-xs font-semibold px-2.5 py-1 rounded-full border" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
                       {catGroup.totalCount}
                     </span>
@@ -965,20 +1023,38 @@ export default function AdminDashboard({
                         filteredTemplates.map((t) => (
                           <div
                             key={t.id}
-                            className="rounded-2xl border p-4 flex items-center justify-between transition hover:border-[#4cd34c]/50"
-                            style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}
+                            className={`rounded-2xl border p-4 flex items-center justify-between transition ${
+                              selectedTplIds.includes(t.id)
+                                ? "border-[#4cd34c] bg-[#4cd34c]/5 shadow-sm"
+                                : "hover:border-[#4cd34c]/50"
+                            }`}
+                            style={{ borderColor: selectedTplIds.includes(t.id) ? "#4cd34c" : "var(--panel-border)", backgroundColor: "var(--field-bg)" }}
                           >
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-base">{t.name}</span>
-                                {t.subcategory ? (
-                                  <span className="text-[10px] rounded-full border px-2 py-0.5 font-semibold" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
-                                    {t.subcategory}
-                                  </span>
-                                ) : null}
-                              </div>
-                              <div className="text-xs mt-1 leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text-muted)" }}>
-                                {t.body}
+                            <div className="flex items-start gap-3 min-w-0">
+                              <input
+                                type="checkbox"
+                                checked={selectedTplIds.includes(t.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedTplIds((prev) => [...prev, t.id]);
+                                  } else {
+                                    setSelectedTplIds((prev) => prev.filter((id) => id !== t.id));
+                                  }
+                                }}
+                                className="mt-1 h-4 w-4 rounded border-gray-400 accent-[#4cd34c] cursor-pointer shrink-0"
+                              />
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-base">{t.name}</span>
+                                  {t.subcategory ? (
+                                    <span className="text-[10px] rounded-full border px-2 py-0.5 font-semibold" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                                      {t.subcategory}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <div className="text-xs mt-1 leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text-muted)" }}>
+                                  {t.body}
+                                </div>
                               </div>
                             </div>
 

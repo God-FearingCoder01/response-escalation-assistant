@@ -7,6 +7,7 @@ import {
   deleteTemplateApi,
   importTemplatesApi,
   deduplicateTemplatesApi,
+  batchDeleteTemplatesApi,
   getDateAutoValues,
   formatDateTimeString,
   resolveConditionalMappings,
@@ -535,6 +536,24 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
     }
   };
 
+  const handleBatchDeleteTemplates = async (idsToDelete) => {
+    if (!idsToDelete || idsToDelete.length === 0) return;
+    try {
+      await batchDeleteTemplatesApi(idsToDelete);
+      await refreshTemplates();
+      showToast(`Batch deleted ${idsToDelete.length} template(s) 🗑️`);
+    } catch (err) {
+      try {
+        await Promise.all(idsToDelete.map((id) => deleteTemplateApi(id)));
+        await refreshTemplates();
+        showToast(`Batch deleted ${idsToDelete.length} template(s) 🗑️`);
+      } catch (innerErr) {
+        setTemplates((prev) => prev.filter((t) => !idsToDelete.includes(t.id)));
+        showToast(`Batch deleted ${idsToDelete.length} template(s) locally 🗑️`);
+      }
+    }
+  };
+
   return {
     templates,
     setTemplates,
@@ -580,6 +599,7 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
     handleExportTemplates,
     handleImportTemplatesFile,
     handleDeduplicateTemplates,
+    handleBatchDeleteTemplates,
     // Computed template lists
     techTemplates,
     customerTemplates,

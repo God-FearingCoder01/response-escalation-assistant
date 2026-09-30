@@ -252,6 +252,7 @@ export default function App() {
     handleExportTemplates,
     handleImportTemplatesFile,
     handleDeduplicateTemplates,
+    handleBatchDeleteTemplates,
     techTemplates = [],
     customerCategories = [],
     customerSubcategories = [],
@@ -545,6 +546,7 @@ export default function App() {
           exportTemplates={handleExportTemplates}
           importTemplatesFile={handleImportTemplatesFile}
           handleDeduplicateTemplates={handleDeduplicateTemplates}
+          handleBatchDeleteTemplates={handleBatchDeleteTemplates}
           editTplId={editTplId}
           setEditTplId={setEditTplId}
           editTplName={editTplName}

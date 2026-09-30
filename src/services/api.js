@@ -642,6 +642,19 @@ export async function deduplicateTemplatesApi() {
   return await res.json();
 }
 
+export async function batchDeleteTemplatesApi(templateIds) {
+  const res = await fetch(`${API_BASE}/templates/batch-delete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAdminHeaders() },
+    body: JSON.stringify({ template_ids: templateIds }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Batch deletion failed"));
+  }
+  return await res.json();
+}
+
 export async function fetchAgentsApi() {
   return await safeFetchJson(`${API_BASE}/agents`);
 }

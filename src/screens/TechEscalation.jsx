@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString, sanitizeAccountNumber, toHTMLDateValue, toHTMLTimeValue } from "../services/api";
 import { processExtractableFields } from "../services/extractableFieldService";
 import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
@@ -20,33 +20,6 @@ export default function TechEscalation({
   privateNotesHook,
 }) {
   const [showHiddenFields, setShowHiddenFields] = useState(false);
-  const [comboboxSearch, setComboboxSearch] = useState("");
-  const [comboboxOpen, setComboboxOpen] = useState(false);
-  const comboboxRef = useRef(null);
-
-  // Close combobox dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (comboboxRef.current && !comboboxRef.current.contains(e.target)) {
-        setComboboxOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const currentSelectedTech = (techTemplates || []).find((t) => t.id === selectedTechId);
-
-  const filteredTechTemplates = (techTemplates || []).filter((t) => {
-    if (!comboboxSearch.trim()) return true;
-    const q = comboboxSearch.toLowerCase();
-    return (
-      (t.name || "").toLowerCase().includes(q) ||
-      (t.category || "").toLowerCase().includes(q) ||
-      (t.subcategory || "").toLowerCase().includes(q) ||
-      (t.body || "").toLowerCase().includes(q)
-    );
-  });
 
   const handleFieldChange = (ph, newText) => {
     let textToSet = newText;
@@ -98,117 +71,21 @@ export default function TechEscalation({
           </span>
         </div>
 
-        {/* Template Select Combobox (Live Searchable) */}
-        <div className="space-y-2 relative" ref={comboboxRef}>
-          <div className="flex items-center justify-between">
-            <label className="text-xs uppercase tracking-wider font-semibold opacity-75">
-              Select Escalation Template
-            </label>
-            {currentSelectedTech && (
-              <span className="text-[11px] font-medium opacity-60">
-                {currentSelectedTech.category} {currentSelectedTech.subcategory ? `• ${currentSelectedTech.subcategory}` : ""}
-              </span>
-            )}
-          </div>
-
-          <div className="relative">
-            <input
-              type="text"
-              value={comboboxOpen ? comboboxSearch : (currentSelectedTech?.name || comboboxSearch)}
-              onFocus={() => {
-                setComboboxOpen(true);
-                setComboboxSearch("");
-              }}
-              onChange={(e) => {
-                setComboboxSearch(e.target.value);
-                if (!comboboxOpen) setComboboxOpen(true);
-              }}
-              placeholder={currentSelectedTech ? currentSelectedTech.name : "🔍 Search escalation templates..."}
-              className="w-full rounded-2xl border p-3 pr-10 font-medium outline-none transition focus:ring-2 focus:ring-[#4cd34c]"
-              style={{
-                borderColor: "var(--field-border)",
-                backgroundColor: "var(--field-bg)",
-                color: "var(--app-text)",
-              }}
-            />
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-              {comboboxSearch && comboboxOpen ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setComboboxSearch("");
-                  }}
-                  className="p-1 hover:text-[#4cd34c] transition font-bold"
-                  title="Clear search"
-                >
-                  ✕
-                </button>
-              ) : null}
-              <span
-                onClick={() => setComboboxOpen((prev) => !prev)}
-                className="cursor-pointer select-none text-xs transform transition-transform duration-200 p-1"
-                style={{ transform: comboboxOpen ? "rotate(180deg)" : "rotate(0deg)" }}
-              >
-                ▼
-              </span>
-            </div>
-          </div>
-
-          {/* Combobox Dropdown List */}
-          {comboboxOpen && (
-            <div
-              className="absolute left-0 right-0 top-full mt-1 z-50 max-h-64 overflow-y-auto rounded-2xl border shadow-xl backdrop-blur p-2 space-y-1 scrollbar-thin"
-              style={{
-                borderColor: "var(--panel-border)",
-                backgroundColor: "var(--panel-bg)",
-              }}
-            >
-              {filteredTechTemplates.length > 0 ? (
-                filteredTechTemplates.map((t) => {
-                  const isSelected = t.id === selectedTechId;
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedTechId(Number(t.id));
-                        setComboboxOpen(false);
-                        setComboboxSearch("");
-                      }}
-                      className={`w-full text-left p-2.5 rounded-xl transition flex flex-col gap-0.5 ${
-                        isSelected
-                          ? "bg-[#4cd34c]/15 text-[#4cd34c] font-bold border border-[#4cd34c]/30"
-                          : "hover:bg-[var(--field-bg)]"
-                      }`}
-                      style={{ color: isSelected ? "#4cd34c" : "var(--app-text)" }}
-                    >
-                      <div className="flex items-center justify-between text-xs font-semibold">
-                        <span>{t.name}</span>
-                        {t.subcategory && (
-                          <span
-                            className="text-[10px] px-2 py-0.5 rounded-full border opacity-75 shrink-0 font-normal"
-                            style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}
-                          >
-                            {t.subcategory}
-                          </span>
-                        )}
-                      </div>
-                      {t.category && (
-                        <span className="text-[10px] opacity-60 font-normal">
-                          {t.category}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })
-              ) : (
-                <div className="p-3 text-center text-xs italic opacity-60">
-                  No escalation templates match "{comboboxSearch}"
-                </div>
-              )}
-            </div>
-          )}
+        {/* Template Select */}
+        <div className="space-y-2">
+          <label className="text-xs uppercase tracking-wider font-semibold opacity-75">Select Escalation Template</label>
+          <select
+            value={selectedTechId || ""}
+            onChange={(e) => setSelectedTechId(Number(e.target.value))}
+            className="w-full rounded-2xl border p-3 font-medium outline-none transition focus:ring-2 focus:ring-[#4cd34c]"
+            style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+          >
+            {(techTemplates || []).map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Dynamic Inputs */}

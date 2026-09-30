@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import List
 from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
 from sqlmodel import Session, select, col
 
 from backend.database import engine
@@ -14,6 +15,10 @@ from backend.models import (
 from backend.security import get_current_company, require_admin
 
 router = APIRouter(tags=["Templates"])
+
+
+class BatchDeletePayload(BaseModel):
+    template_ids: List[int]
 
 
 @router.get("/templates", response_model=List[TemplateRead])
@@ -108,6 +113,22 @@ def delete_template(template_id: int, company: Company = Depends(get_current_com
         session.delete(existing)
         session.commit()
     return {"ok": True, "message": "Template deleted"}
+
+
+@router.post("/templates/batch-delete", dependencies=[Depends(require_admin)])
+def batch_delete_templates(payload: BatchDeletePayload, company: Company = Depends(get_current_company)):
+    cid = company.id if company and company.id else 1
+    with Session(engine) as session:
+        templates_to_delete = session.exec(
+            select(Template)
+            .where(Template.company_id == cid)
+            .where(col(Template.id).in_(payload.template_ids))
+        ).all()
+        count = len(templates_to_delete)
+        for t in templates_to_delete:
+            session.delete(t)
+        session.commit()
+        return {"ok": True, "count": count, "message": f"Deleted {count} template(s)"}
 
 
 @router.get("/export", response_model=List[TemplateRead])

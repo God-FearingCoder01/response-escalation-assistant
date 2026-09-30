@@ -217,6 +217,37 @@ def test_template_import_and_deduplicate():
     assert dedup_res.json()["status"] == "success"
 
 
+def test_batch_delete_templates():
+    token = generate_admin_token("SA", hash_pin("0000"))
+    headers = {"X-Admin-Token": token, "X-Admin-Initials": "SA"}
+
+    items_to_import = [
+        {
+            "name": "Batch Delete Tpl 1",
+            "body": "Body text B1",
+            "category_type": "customer_reply",
+            "category": "Batch Test"
+        },
+        {
+            "name": "Batch Delete Tpl 2",
+            "body": "Body text B2",
+            "category_type": "customer_reply",
+            "category": "Batch Test"
+        }
+    ]
+    import_res = client.post("/import", headers=headers, json=items_to_import)
+    assert import_res.status_code == 200
+
+    all_tpls = client.get("/templates", headers=headers).json()
+    batch_ids = [t["id"] for t in all_tpls if t.get("category") == "Batch Test"]
+    assert len(batch_ids) == 2
+
+    batch_del_res = client.post("/templates/batch-delete", headers=headers, json={"template_ids": batch_ids})
+    assert batch_del_res.status_code == 200
+    assert batch_del_res.json()["ok"] is True
+    assert batch_del_res.json()["count"] == 2
+
+
 def test_sys_admin_protection():
     token = generate_admin_token("SA", hash_pin("0000"))
     headers = {"X-Admin-Token": token, "X-Admin-Initials": "SA"}
