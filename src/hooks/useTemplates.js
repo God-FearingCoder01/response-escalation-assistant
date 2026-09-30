@@ -276,7 +276,7 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
     }
 
     // Resolve conditional mappings (e.g. {animal?} -> {:game})
-    const { resolvedValues } = resolveConditionalMappings(placeholders, parsedConfig, values);
+    const { resolvedValues, silencedTargetKeys } = resolveConditionalMappings(placeholders, parsedConfig, values);
 
     const allKeys = new Set([...Object.keys(autoMap), ...Object.keys(customConfigAutoMap), ...Object.keys(resolvedValues)]);
     for (const key of allKeys) {
@@ -299,12 +299,17 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
         formattedVal = sanitizeAccountNumber(formattedVal);
       }
 
-      if (cfg?.is_silent) {
+      const isSilencedKey = cfg?.is_silent || (silencedTargetKeys && (silencedTargetKeys.has(key) || silencedTargetKeys.has(`:${key}`)));
+
+      if (isSilencedKey) {
         out = out.split(`{${key}}`).join("");
       } else {
         out = out.split(`{${key}}`).join(formattedVal);
       }
     }
+
+    // Collapse any double spaces created by empty string / silenced placeholder replacements
+    out = out.replace(/ {2,}/g, " ");
 
     // Tech Escalation rule: Always ends with #{agent_name}
     if (activeScreen === "tech_escalation") {

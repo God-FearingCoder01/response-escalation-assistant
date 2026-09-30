@@ -660,19 +660,19 @@ export default function AdminDashboard({
                                 />
                               </div>
 
-                              {ph.endsWith("?") || (Boolean(cfg.mapped_target) && cfg.mapped_target.trim() !== "") ? (
+                                {ph.endsWith("?") || (Boolean(cfg.mapped_target) && cfg.mapped_target.trim() !== "") ? (
                                 <div>
                                   <label className="text-[10px] block mb-1 font-bold text-[#4cd34c] flex justify-between">
-                                    <span>1-to-1 Conditional Value Pairings (Trigger ➔ Mapped Target) *</span>
-                                    <span className="text-[9px] opacity-80 text-[var(--text-muted)] font-normal">Format: Trigger Option {"=>"} Mapped Target Value</span>
+                                    <span>1-to-M Conditional Value Pairings (Trigger ➔ Mapped Target) *</span>
+                                    <span className="text-[9px] opacity-80 text-[var(--text-muted)] font-normal">Format: Trigger {"=>"} Value OR Options List OR '' (Silenced)</span>
                                   </label>
                                   <textarea
-                                    rows={4}
+                                    rows={5}
                                     value={
                                       cfg.mapping_raw !== undefined
                                         ? cfg.mapping_raw
                                         : (cfg.mapping
-                                          ? Object.entries(cfg.mapping).map(([k, v]) => `${k} => ${v}`).join("\n")
+                                          ? Object.entries(cfg.mapping).map(([k, v]) => `${k} => ${Array.isArray(v) ? v.join(", ") : (v === "" ? "''" : v)}`).join("\n")
                                           : (Array.isArray(cfg.options) ? cfg.options.join(", ") : ""))
                                     }
                                     onChange={(e) => {
@@ -685,10 +685,13 @@ export default function AdminDashboard({
                                         if (line.includes("=>") || line.includes(":") || line.includes("->")) {
                                           const parts = line.split(/=>|:|-/);
                                           const k = parts[0]?.trim();
-                                          const v = parts.slice(1).join("=>").replace(/^>/, "").trim();
+                                          let v = parts.slice(1).join("=>").replace(/^>/, "").trim();
+                                          if ((v.startsWith("'") && v.endsWith("'")) || (v.startsWith('"') && v.endsWith('"'))) {
+                                            v = v.slice(1, -1).trim();
+                                          }
                                           if (k) {
                                             options.push(k);
-                                            if (v) mapping[k] = v;
+                                            mapping[k] = v;
                                           }
                                         } else if (line.includes(",")) {
                                           line.split(",").forEach((item) => {
@@ -707,7 +710,7 @@ export default function AdminDashboard({
                                         mapping,
                                       });
                                     }}
-                                    placeholder={"e.g.\nElephant => Big Game Slot\nRhino => Stampede Slot\nLion => King Jungle Slot\nBuffalo => Buffalo Gold\nLeopard => Leopard Riches"}
+                                    placeholder={"e.g. 1-to-M & Silenced Mappings:\nProcessing => ''\nPending => Ecocash, Innbucks, Omari\nElephant => Big Game Slot"}
                                     className="w-full rounded-lg border p-2 text-xs font-mono leading-relaxed focus:outline-none focus:border-[#4cd34c]"
                                     style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
                                   />

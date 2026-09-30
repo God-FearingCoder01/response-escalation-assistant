@@ -69,10 +69,21 @@ export const DEFAULT_TEMPLATES = [
   {
     id: 4,
     name: "Processing Withdrawal",
-    body: "Processing withdrawal of ${amount} from account number {account_number}; on {day}.{month}.2026 time {time}hrs.",
+    body: "{withdrawal_type} {payment_method} withdrawal of ${amount} from account number {account_number}; on {date} time {time}hrs.",
     category_type: "tech_escalation",
     category: "Payment Escalations",
     subcategory: "Withdrawal",
+    placeholder_config: JSON.stringify({
+      "withdrawal_type": {
+        control_type: "combobox",
+        mapped_target: "payment_method",
+        options: ["Processing", "Pending"],
+        mapping: {
+          "Processing": "",
+          "Pending": ["Ecocash", "Innbucks", "Omari"],
+        },
+      },
+    }),
   },
   {
     id: 5,
@@ -402,8 +413,10 @@ export function splitIntoSentences(text) {
 export function resolveConditionalMappings(placeholders = [], parsedConfig = {}, values = {}) {
   const resolvedValues = { ...values };
   const mappedTargetKeys = new Set();
+  const dynamicOptionsMap = {};
+  const silencedTargetKeys = new Set();
 
-  // Automatically classify any target placeholders starting with ':' as mapped targets (hidden from manual input)
+  // Automatically classify any target placeholders starting with ':' as mapped targets
   (placeholders || []).forEach((p) => {
     if (p.startsWith(":")) {
       mappedTargetKeys.add(p);
@@ -419,33 +432,63 @@ export function resolveConditionalMappings(placeholders = [], parsedConfig = {},
       if (!targetKey && ph.endsWith("?")) {
         const baseName = ph.replace(/\?$/, "");
         const exactMatch = (placeholders || []).find(
-          (p) => p === `:${baseName}` || (p.startsWith(":") && p.slice(1) === baseName)
+          (p) => p === `:${baseName}` || (p.startsWith(":") && p.slice(1) === baseName) || p === baseName
         );
         const firstColonTarget = (placeholders || []).find((p) => p.startsWith(":"));
         targetKey = exactMatch || firstColonTarget || `:${baseName}`;
       }
 
       if (targetKey && targetKey.trim() !== "") {
-        mappedTargetKeys.add(targetKey);
+        const cleanTarget = targetKey.trim();
+        mappedTargetKeys.add(cleanTarget);
         const triggerVal = resolvedValues[ph] ?? cfg?.options?.[0] ?? "";
-        let mappedVal = "";
+        let mappingResult = undefined;
 
         if (cfg?.mapping && typeof cfg.mapping === "object" && triggerVal) {
-          mappedVal = cfg.mapping[triggerVal] || "";
+          mappingResult = cfg.mapping[triggerVal];
         } else if (Array.isArray(cfg?.options) && Array.isArray(cfg?.mapped_options) && triggerVal) {
           const idx = cfg.options?.indexOf ? cfg.options.indexOf(triggerVal) : -1;
-          if (idx !== -1 && cfg.mapped_options[idx]) {
-            mappedVal = cfg.mapped_options[idx];
+          if (idx !== -1 && cfg.mapped_options[idx] !== undefined) {
+            mappingResult = cfg.mapped_options[idx];
           }
         }
 
-        // Strictly resolve from CA-predefined mapping (no hardcoded defaults)
-        resolvedValues[targetKey] = mappedVal || "";
+        if (mappingResult !== undefined && mappingResult !== null) {
+          if (Array.isArray(mappingResult) && mappingResult.length > 0) {
+            dynamicOptionsMap[cleanTarget] = mappingResult;
+            if (!values[cleanTarget] || !mappingResult.includes(values[cleanTarget])) {
+              resolvedValues[cleanTarget] = mappingResult[0];
+            } else {
+              resolvedValues[cleanTarget] = values[cleanTarget];
+            }
+          } else if (typeof mappingResult === "string" && mappingResult.includes(",")) {
+            const opts = mappingResult.split(",").map((s) => s.trim()).filter(Boolean);
+            if (opts.length > 1) {
+              dynamicOptionsMap[cleanTarget] = opts;
+              if (!values[cleanTarget] || !opts.includes(values[cleanTarget])) {
+                resolvedValues[cleanTarget] = opts[0];
+              } else {
+                resolvedValues[cleanTarget] = values[cleanTarget];
+              }
+            } else {
+              resolvedValues[cleanTarget] = mappingResult;
+            }
+          } else if (
+            mappingResult === "" ||
+            mappingResult === "''" ||
+            mappingResult === '""'
+          ) {
+            resolvedValues[cleanTarget] = "";
+            silencedTargetKeys.add(cleanTarget);
+          } else {
+            resolvedValues[cleanTarget] = mappingResult;
+          }
+        }
       }
     }
   });
 
-  return { resolvedValues, mappedTargetKeys };
+  return { resolvedValues, mappedTargetKeys, dynamicOptionsMap, silencedTargetKeys };
 }
 
 // Helper fetch wrapper checking json content-type safely

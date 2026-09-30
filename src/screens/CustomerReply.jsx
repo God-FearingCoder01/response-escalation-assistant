@@ -257,7 +257,7 @@ export default function CustomerReply({
                   : activeTemplate.placeholder_config;
               } catch (e) {}
             }
-            const { resolvedValues, mappedTargetKeys } = resolveConditionalMappings(placeholderList, parsedCfgMap, values);
+            const { resolvedValues, mappedTargetKeys, dynamicOptionsMap, silencedTargetKeys } = resolveConditionalMappings(placeholderList, parsedCfgMap, values);
             const isAgentPh = (ph) => {
               if (!ph) return false;
               const clean = ph.trim().toLowerCase().replace(/\?$/, "");
@@ -275,7 +275,20 @@ export default function CustomerReply({
               });
             }
             const allPlaceholdersList = Array.from(combinedPlaceholdersSet);
-            const visiblePlaceholders = allPlaceholdersList.filter((ph) => !ph.startsWith(":") && !mappedTargetKeys.has(ph) && !isAgentPh(ph));
+            const visiblePlaceholders = allPlaceholdersList.filter((ph) => {
+              if (isAgentPh(ph)) return false;
+              const cleanKey = ph.startsWith(":") ? ph.slice(1) : ph;
+              const colonKey = ph.startsWith(":") ? ph : `:${ph}`;
+              const isMappedTarget = mappedTargetKeys.has(ph) || mappedTargetKeys.has(cleanKey) || mappedTargetKeys.has(colonKey) || ph.startsWith(":");
+
+              if (isMappedTarget) {
+                const hasDynamicOpts = (dynamicOptionsMap[ph] && dynamicOptionsMap[ph].length > 0) ||
+                                       (dynamicOptionsMap[cleanKey] && dynamicOptionsMap[cleanKey].length > 0) ||
+                                       (dynamicOptionsMap[colonKey] && dynamicOptionsMap[colonKey].length > 0);
+                return Boolean(hasDynamicOpts);
+              }
+              return true;
+            });
 
             const getAutoVal = (ph, customCfg) => {
               const dateAuto = getDateAutoValues();
@@ -341,7 +354,11 @@ export default function CustomerReply({
                     const isDayField = ph === "day" || ph === "day_number" || ph === "day_num" || ph === "dd";
                     const isMonthNumberField = ph === "month_number" || ph === "month_num" || ph === "month" || ph === "mm";
 
-                    let controlType = customCfg?.control_type || (
+                    const cleanKey = ph.startsWith(":") ? ph.slice(1) : ph;
+                    const colonKey = ph.startsWith(":") ? ph : `:${ph}`;
+                    const dynamicOpts = dynamicOptionsMap[ph] || dynamicOptionsMap[cleanKey] || dynamicOptionsMap[colonKey];
+
+                    let controlType = dynamicOpts ? "combobox" : customCfg?.control_type || (
                       ph.endsWith("?") ? "combobox" :
                       isReasonField ? "textarea" :
                       isTimeUnitField ? "time_units_select" :
@@ -363,7 +380,7 @@ export default function CustomerReply({
                       if (visMode === "hide_if_autofilled" && hasVal) return null;
                     }
 
-                    let options = Array.isArray(customCfg?.options) ? customCfg.options : [];
+                    let options = dynamicOpts || (Array.isArray(customCfg?.options) ? customCfg.options : []);
                     if (options.length === 0 && ph.endsWith("?")) {
                       options = ["Elephant", "Rhino", "Lion", "Buffalo", "Leopard"];
                     }
