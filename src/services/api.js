@@ -420,6 +420,7 @@ export function resolveConditionalMappings(placeholders = [], parsedConfig = {},
   (placeholders || []).forEach((p) => {
     if (p.startsWith(":")) {
       mappedTargetKeys.add(p);
+      mappedTargetKeys.add(p.slice(1));
     }
   });
 
@@ -439,9 +440,15 @@ export function resolveConditionalMappings(placeholders = [], parsedConfig = {},
       }
 
       if (targetKey && targetKey.trim() !== "") {
-        const cleanTarget = targetKey.trim();
-        mappedTargetKeys.add(cleanTarget);
-        const triggerVal = resolvedValues[ph] ?? cfg?.options?.[0] ?? "";
+        const rawTarget = targetKey.trim();
+        const cleanName = rawTarget.replace(/^:/, "");
+        const colonName = ":" + cleanName;
+
+        mappedTargetKeys.add(rawTarget);
+        mappedTargetKeys.add(cleanName);
+        mappedTargetKeys.add(colonName);
+
+        const triggerVal = values[ph] ?? resolvedValues[ph] ?? cfg?.options?.[0] ?? "";
         let mappingResult = undefined;
 
         if (cfg?.mapping && typeof cfg.mapping === "object" && triggerVal) {
@@ -455,33 +462,49 @@ export function resolveConditionalMappings(placeholders = [], parsedConfig = {},
 
         if (mappingResult !== undefined && mappingResult !== null) {
           if (Array.isArray(mappingResult) && mappingResult.length > 0) {
-            dynamicOptionsMap[cleanTarget] = mappingResult;
-            if (!values[cleanTarget] || !mappingResult.includes(values[cleanTarget])) {
-              resolvedValues[cleanTarget] = mappingResult[0];
-            } else {
-              resolvedValues[cleanTarget] = values[cleanTarget];
-            }
-          } else if (typeof mappingResult === "string" && mappingResult.includes(",")) {
-            const opts = mappingResult.split(",").map((s) => s.trim()).filter(Boolean);
-            if (opts.length > 1) {
-              dynamicOptionsMap[cleanTarget] = opts;
-              if (!values[cleanTarget] || !opts.includes(values[cleanTarget])) {
-                resolvedValues[cleanTarget] = opts[0];
+            dynamicOptionsMap[rawTarget] = mappingResult;
+            dynamicOptionsMap[cleanName] = mappingResult;
+            dynamicOptionsMap[colonName] = mappingResult;
+
+            const selectedVal = values[cleanName] || values[rawTarget] || values[colonName];
+            const activeVal = (selectedVal && mappingResult.includes(selectedVal)) ? selectedVal : mappingResult[0];
+
+            resolvedValues[rawTarget] = activeVal;
+            resolvedValues[cleanName] = activeVal;
+            resolvedValues[colonName] = activeVal;
+          } else if (typeof mappingResult === "string") {
+            const trimmedVal = mappingResult.trim();
+            if (trimmedVal.includes(",")) {
+              const opts = trimmedVal.split(",").map((s) => s.trim()).filter(Boolean);
+              if (opts.length > 1) {
+                dynamicOptionsMap[rawTarget] = opts;
+                dynamicOptionsMap[cleanName] = opts;
+                dynamicOptionsMap[colonName] = opts;
+
+                const selectedVal = values[cleanName] || values[rawTarget] || values[colonName];
+                const activeVal = (selectedVal && opts.includes(selectedVal)) ? selectedVal : opts[0];
+
+                resolvedValues[rawTarget] = activeVal;
+                resolvedValues[cleanName] = activeVal;
+                resolvedValues[colonName] = activeVal;
               } else {
-                resolvedValues[cleanTarget] = values[cleanTarget];
+                resolvedValues[rawTarget] = trimmedVal;
+                resolvedValues[cleanName] = trimmedVal;
+                resolvedValues[colonName] = trimmedVal;
               }
+            } else if (trimmedVal === "" || trimmedVal === "''" || trimmedVal === '""') {
+              resolvedValues[rawTarget] = "";
+              resolvedValues[cleanName] = "";
+              resolvedValues[colonName] = "";
+
+              silencedTargetKeys.add(rawTarget);
+              silencedTargetKeys.add(cleanName);
+              silencedTargetKeys.add(colonName);
             } else {
-              resolvedValues[cleanTarget] = mappingResult;
+              resolvedValues[rawTarget] = trimmedVal;
+              resolvedValues[cleanName] = trimmedVal;
+              resolvedValues[colonName] = trimmedVal;
             }
-          } else if (
-            mappingResult === "" ||
-            mappingResult === "''" ||
-            mappingResult === '""'
-          ) {
-            resolvedValues[cleanTarget] = "";
-            silencedTargetKeys.add(cleanTarget);
-          } else {
-            resolvedValues[cleanTarget] = mappingResult;
           }
         }
       }

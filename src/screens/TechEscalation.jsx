@@ -136,14 +136,27 @@ export default function TechEscalation({
             const allPlaceholdersList = Array.from(combinedPlaceholdersSet);
             const visiblePlaceholders = allPlaceholdersList.filter((ph) => {
               if (isAgentPh(ph)) return false;
-              const cleanKey = ph.startsWith(":") ? ph.slice(1) : ph;
-              const colonKey = ph.startsWith(":") ? ph : `:${ph}`;
-              const isMappedTarget = mappedTargetKeys.has(ph) || mappedTargetKeys.has(cleanKey) || mappedTargetKeys.has(colonKey) || ph.startsWith(":");
+              const cleanKey = ph.replace(/^:/, "");
+              const colonKey = ":" + cleanKey;
+
+              const isSilenced =
+                silencedTargetKeys.has(ph) ||
+                silencedTargetKeys.has(cleanKey) ||
+                silencedTargetKeys.has(colonKey);
+
+              if (isSilenced) return false;
+
+              const isMappedTarget =
+                mappedTargetKeys.has(ph) ||
+                mappedTargetKeys.has(cleanKey) ||
+                mappedTargetKeys.has(colonKey) ||
+                ph.startsWith(":");
 
               if (isMappedTarget) {
-                const hasDynamicOpts = (dynamicOptionsMap[ph] && dynamicOptionsMap[ph].length > 0) ||
-                                       (dynamicOptionsMap[cleanKey] && dynamicOptionsMap[cleanKey].length > 0) ||
-                                       (dynamicOptionsMap[colonKey] && dynamicOptionsMap[colonKey].length > 0);
+                const hasDynamicOpts =
+                  (dynamicOptionsMap[ph] && dynamicOptionsMap[ph].length > 0) ||
+                  (dynamicOptionsMap[cleanKey] && dynamicOptionsMap[cleanKey].length > 0) ||
+                  (dynamicOptionsMap[colonKey] && dynamicOptionsMap[colonKey].length > 0);
                 return Boolean(hasDynamicOpts);
               }
               return true;
