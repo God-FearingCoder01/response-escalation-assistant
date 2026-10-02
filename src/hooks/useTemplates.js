@@ -14,6 +14,7 @@ import {
   sanitizeAccountNumber,
 } from "../services/api";
 import { resolveGlobalVariablesInText } from "../services/globalVariableService";
+import { sortTemplatesBySearchRelevance } from "../utils/searchUtils";
 
 
 export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteIds, usageCounts, recentlyUsed, showToast, privateNotes = [], globalVariables = [] }) {
@@ -140,7 +141,7 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
 
   // Filtered customer templates
   const filteredCustomerTemplates = useMemo(() => {
-    return customerTemplates.filter((t) => {
+    const matched = customerTemplates.filter((t) => {
       const matchCat = selectedCategory === "All" || t.category === selectedCategory;
       const matchSub = selectedSubcategory === "All" || t.subcategory === selectedSubcategory;
       const matchSearch =
@@ -149,6 +150,7 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
         t.body.toLowerCase().includes(searchQuery.toLowerCase());
       return matchCat && matchSub && matchSearch;
     });
+    return sortTemplatesBySearchRelevance(matched, searchQuery);
   }, [customerTemplates, selectedCategory, selectedSubcategory, searchQuery]);
 
   // Favorites templates list (system templates + starred private notes)
@@ -542,12 +544,25 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
       showToast(`Template library deduplicated (${count} duplicate(s) removed)! 🧹`);
     } catch (err) {
       // Fallback to local memory deduplication if backend API fails or offline
-      const seen = new Set();
+      const seenBodies = new Set();
+      const seenNameEmptyBodies = new Set();
       const deduplicated = [];
+
       templates.forEach((t) => {
-        const key = `${(t.category_type || "").trim().toLowerCase()}|${(t.category || "").trim().toLowerCase()}|${(t.name || "").trim().toLowerCase()}|${(t.body || "").trim()}`;
-        if (!seen.has(key)) {
-          seen.add(key);
+        const bodyKey = (t.body || "").replace(/\r\n/g, "\n").trim();
+        const nameKey = (t.name || "").trim().toLowerCase();
+
+        if (bodyKey) {
+          if (!seenBodies.has(bodyKey)) {
+            seenBodies.add(bodyKey);
+            deduplicated.push(t);
+          }
+        } else if (nameKey) {
+          if (!seenNameEmptyBodies.has(nameKey)) {
+            seenNameEmptyBodies.add(nameKey);
+            deduplicated.push(t);
+          }
+        } else {
           deduplicated.push(t);
         }
       });

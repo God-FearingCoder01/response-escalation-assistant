@@ -3,6 +3,7 @@ import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString, sa
 import { processExtractableFields } from "../services/extractableFieldService";
 import { parseNotesFile } from "../hooks/usePrivateNotes";
 import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
+import { sortTemplatesBySearchRelevance } from "../utils/searchUtils";
 
 export default function QuickAccess({
   activeScreen,
@@ -337,21 +338,24 @@ export default function QuickAccess({
           ? privList
           : recList;
 
-  const filteredTabTemplates = currentTabTemplates.filter((t) => {
-    if (quickTab === "private_notes" && selectedNoteCategory !== "All") {
-      const noteCat = (t.category || "Personal Notes").trim();
-      if (noteCat !== selectedNoteCategory) return false;
-    }
+  const filteredTabTemplates = useMemo(() => {
+    const matched = currentTabTemplates.filter((t) => {
+      if (quickTab === "private_notes" && selectedNoteCategory !== "All") {
+        const noteCat = (t.category || "Personal Notes").trim();
+        if (noteCat !== selectedNoteCategory) return false;
+      }
 
-    if (!noteSearchQuery.trim()) return true;
-    const q = noteSearchQuery.toLowerCase().trim();
-    return (
-      (t.name && t.name.toLowerCase().includes(q)) ||
-      (t.body && t.body.toLowerCase().includes(q)) ||
-      (t.category && t.category.toLowerCase().includes(q)) ||
-      (t.category_type && t.category_type.toLowerCase().includes(q))
-    );
-  });
+      if (!noteSearchQuery.trim()) return true;
+      const q = noteSearchQuery.toLowerCase().trim();
+      return (
+        (t.name && t.name.toLowerCase().includes(q)) ||
+        (t.body && t.body.toLowerCase().includes(q)) ||
+        (t.category && t.category.toLowerCase().includes(q)) ||
+        (t.category_type && t.category_type.toLowerCase().includes(q))
+      );
+    });
+    return sortTemplatesBySearchRelevance(matched, noteSearchQuery);
+  }, [currentTabTemplates, quickTab, selectedNoteCategory, noteSearchQuery]);
 
   const allSameCategory = useMemo(() => {
     if (!filteredTabTemplates || filteredTabTemplates.length === 0) return false;

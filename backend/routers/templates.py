@@ -149,29 +149,33 @@ def import_templates(items: List[TemplateCreate], company: Company = Depends(get
         existing_templates = session.exec(
             select(Template).where(Template.company_id == cid)
         ).all()
-        seen = set(
-            (
-                (t.category_type or "").strip().lower(),
-                (t.category or "").strip().lower(),
-                (t.name or "").strip().lower(),
-                (t.body or "").strip(),
-            )
-            for t in existing_templates
-        )
+
+        seen_bodies = set((t.body or "").replace("\r\n", "\n").strip() for t in existing_templates if (t.body or "").strip())
+        seen_name_empty_bodies = set((t.name or "").strip().lower() for t in existing_templates if not (t.body or "").strip() and (t.name or "").strip())
+
         count = 0
         skipped = 0
         now = datetime.now(timezone.utc)
         for item in items:
-            key = (
-                (item.category_type or "").strip().lower(),
-                (item.category or "").strip().lower(),
-                (item.name or "").strip().lower(),
-                (item.body or "").strip(),
-            )
-            if key in seen:
+            body_key = (item.body or "").replace("\r\n", "\n").strip()
+            name_key = (item.name or "").strip().lower()
+
+            is_duplicate = False
+            if body_key:
+                if body_key in seen_bodies:
+                    is_duplicate = True
+                else:
+                    seen_bodies.add(body_key)
+            elif name_key:
+                if name_key in seen_name_empty_bodies:
+                    is_duplicate = True
+                else:
+                    seen_name_empty_bodies.add(name_key)
+
+            if is_duplicate:
                 skipped += 1
                 continue
-            seen.add(key)
+
             session.add(
                 Template(
                     name=item.name,
@@ -202,27 +206,36 @@ def deduplicate_templates(company: Company = Depends(get_current_company)):
             .where(Template.company_id == cid)
             .order_by(col(Template.id).asc())
         ).all()
-        seen = set()
+
+        seen_bodies = set()
+        seen_name_empty_bodies = set()
         to_delete = []
+
         for t in all_templates:
-            key = (
-                (t.category_type or "").strip().lower(),
-                (t.category or "").strip().lower(),
-                (t.name or "").strip().lower(),
-                (t.body or "").strip(),
-            )
-            if key in seen:
-                to_delete.append(t)
-            else:
-                seen.add(key)
+            body_key = (t.body or "").replace("\r\n", "\n").strip()
+            name_key = (t.name or "").strip().lower()
+
+            if body_key:
+                # Deduplicate by template body content (regardless of template name differences)
+                if body_key in seen_bodies:
+                    to_delete.append(t)
+                else:
+                    seen_bodies.add(body_key)
+            elif name_key:
+                # If body is empty, deduplicate by template name
+                if name_key in seen_name_empty_bodies:
+                    to_delete.append(t)
+                else:
+                    seen_name_empty_bodies.add(name_key)
 
         for dup in to_delete:
             session.delete(dup)
         session.commit()
 
+        remaining_count = len(seen_bodies) + len(seen_name_empty_bodies)
         return {
             "status": "success",
             "removed_count": len(to_delete),
-            "remaining_count": len(seen),
+            "remaining_count": remaining_count,
             "message": f"Cleaned duplicates: Removed {len(to_delete)} duplicate template(s)",
         }

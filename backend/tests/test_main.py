@@ -217,6 +217,33 @@ def test_template_import_and_deduplicate():
     assert dedup_res.json()["status"] == "success"
 
 
+def test_deduplicate_templates_differing_names():
+    token = generate_admin_token("SA", hash_pin("0000"))
+    headers = {"X-Admin-Token": token, "X-Admin-Initials": "SA"}
+
+    # Create two templates with different names but exact same body content
+    same_body = "Identical body content for deduplication test"
+    t1 = client.post("/templates", headers=headers, json={
+        "name": "Template Title Alpha",
+        "body": same_body,
+        "category_type": "customer_reply",
+        "category": "Dedup Test 1"
+    })
+    t2 = client.post("/templates", headers=headers, json={
+        "name": "Template Title Beta",
+        "body": same_body,
+        "category_type": "customer_reply",
+        "category": "Dedup Test 2"
+    })
+    assert t1.status_code == 200
+    assert t2.status_code == 200
+
+    dedup_res = client.post("/templates/deduplicate", headers=headers)
+    assert dedup_res.status_code == 200
+    assert dedup_res.json()["status"] == "success"
+    assert dedup_res.json()["removed_count"] >= 1
+
+
 def test_batch_delete_templates():
     token = generate_admin_token("SA", hash_pin("0000"))
     headers = {"X-Admin-Token": token, "X-Admin-Initials": "SA"}
