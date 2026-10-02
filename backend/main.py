@@ -73,6 +73,7 @@ from backend.routers.favorites_history import router as favorites_history_router
 from backend.routers.translator import router as translator_router
 from backend.routers.sir import router as sir_router
 from backend.routers.agent_data import router as agent_data_router
+from backend.routers.global_variables import router as global_variables_router
 
 
 @asynccontextmanager
@@ -103,3 +104,5 @@ app.include_router(favorites_history_router)
 app.include_router(translator_router)
 app.include_router(sir_router)
 app.include_router(agent_data_router)
+app.include_router(global_variables_router)
+

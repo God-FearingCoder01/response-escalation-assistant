@@ -13,8 +13,10 @@ import {
   resolveConditionalMappings,
   sanitizeAccountNumber,
 } from "../services/api";
+import { resolveGlobalVariablesInText } from "../services/globalVariableService";
 
-export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteIds, usageCounts, recentlyUsed, showToast, privateNotes = [] }) {
+
+export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteIds, usageCounts, recentlyUsed, showToast, privateNotes = [], globalVariables = [] }) {
   const [templates, setTemplates] = useState(DEFAULT_TEMPLATES);
 
   // Combined list of system templates and agent private notes
@@ -213,15 +215,25 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
     return null;
   }, [activeScreen, selectedTechId, selectedCustId, techTemplates, templates, filteredCustomerTemplates, customerTemplates, quickAccessActiveTemplate]);
 
+  const globalKeysSet = useMemo(() => {
+    return new Set((globalVariables || []).map((v) => v.key?.toLowerCase()).filter(Boolean));
+  }, [globalVariables]);
+
   // Placeholders calculation
   const placeholders = useMemo(() => {
     if (!activeTemplate) return [];
     const set = new Set();
     const re = /\{([^}]+)\}/g;
     let m;
-    while ((m = re.exec(activeTemplate.body))) set.add(m[1]);
+    while ((m = re.exec(activeTemplate.body))) {
+      const varName = m[1];
+      if (!globalKeysSet.has(varName.toLowerCase())) {
+        set.add(varName);
+      }
+    }
     return Array.from(set);
-  }, [activeTemplate]);
+  }, [activeTemplate, globalKeysSet]);
+
 
   // Message generation logic
   function generateMessage(values = {}) {
@@ -329,6 +341,10 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
         }
       }
     }
+
+    // Resolve central global template variables ({live_chat}, {support_email}, etc.)
+    const resolvedGlobal = resolveGlobalVariablesInText(out, globalVariables);
+    out = resolvedGlobal.text;
 
     return out;
   }

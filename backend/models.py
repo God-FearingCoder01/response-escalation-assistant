@@ -401,9 +401,39 @@ class PrivateNoteCategoryRead(PrivateNoteCategoryBase):
     created_at: datetime
 
 
+class GlobalVariableBase(SQLModel):
+    name: str = Field(index=True)  # e.g., "Live Chat"
+    key: str = Field(index=True)  # e.g., "live_chat"
+    value: str  # e.g., "Live Chat"
+    category: str = Field(default="Contact Information")  # e.g. "Contact Information", "Company Information"
+    description: Optional[str] = None
+    value_type: str = Field(default="text")  # "text", "phone", "email", "url"
+    is_active: bool = Field(default=True, nullable=False)
+    company_id: int = Field(default=1, foreign_key="company.id", index=True)
 
 
+class GlobalVariable(GlobalVariableBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
 
 
+class GlobalVariableCreate(GlobalVariableBase):
+    company_id: int = 1
 
 
+class GlobalVariableUpdate(SQLModel):
+    name: Optional[str] = None
+    key: Optional[str] = None
+    value: Optional[str] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    value_type: Optional[str] = None
+    is_active: Optional[bool] = None
+    company_id: Optional[int] = None
+
+
+class GlobalVariableRead(GlobalVariableBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime

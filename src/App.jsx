@@ -9,6 +9,8 @@ import { useSuggestions } from "./hooks/useSuggestions";
 import { useTranslator } from "./hooks/useTranslator";
 import { useShiftRegister } from "./hooks/useShiftRegister";
 import { usePrivateNotes } from "./hooks/usePrivateNotes";
+import { useGlobalVariables } from "./hooks/useGlobalVariables";
+
 
 import Sidebar from "./components/Sidebar";
 import PinModal from "./components/PinModal";
@@ -196,6 +198,9 @@ export default function App() {
     refreshSuggestions: () => suggestionState?.refreshSuggestions?.(),
   });
 
+  // 3.5 Global Variables hook
+  const globalVarState = useGlobalVariables(activeCompanyId || 1);
+
   // 4. Templates hook
   const templateState = useTemplates({
     apiStatus,
@@ -206,6 +211,7 @@ export default function App() {
     recentlyUsed,
     showToast,
     privateNotes: privateNotesHook.privateNotes,
+    globalVariables: globalVarState.globalVariables,
   });
 
   const {
@@ -308,27 +314,44 @@ export default function App() {
     showToast,
   });
 
-  // Check health status on app initialization
-  useEffect(() => {
-    async function checkHealth() {
-      try {
-        const data = await fetchHealthApi();
-        if (data && data.status === "ok") {
-          setApiStatus("online");
-          setStatusMessage(data.message || "Backend connected");
-        } else {
-          setApiStatus("offline");
-          setStatusMessage("Backend server offline. Running in local fallback mode.");
-        }
-      } catch {
+  // Check health status with fast timeout & auto-retry polling
+  const checkHealth = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await fetchHealthApi(4000);
+      if (data && data.status === "ok") {
+        setApiStatus("online");
+        setStatusMessage(data.message || "Backend connected");
+      } else {
         setApiStatus("offline");
         setStatusMessage("Backend server offline. Running in local fallback mode.");
-      } finally {
-        setLoading(false);
       }
+    } catch {
+      setApiStatus("offline");
+      setStatusMessage("Backend server offline. Running in local fallback mode.");
+    } finally {
+      setLoading(false);
     }
-    checkHealth();
   }, []);
+
+  useEffect(() => {
+    checkHealth();
+    const interval = setInterval(() => {
+      fetchHealthApi(3000)
+        .then((data) => {
+          if (data && data.status === "ok") {
+            setApiStatus("online");
+            setStatusMessage(data.message || "Backend connected");
+          } else {
+            setApiStatus("offline");
+          }
+        })
+        .catch(() => {
+          setApiStatus("offline");
+        });
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [checkHealth]);
 
   const handleLogout = () => {
     setCurrentAgent(null);
@@ -469,6 +492,7 @@ export default function App() {
           activeCompanyId={activeCompanyId}
           switchCompany={handleSwitchCompanyAndEnter}
           handleNavigate={handleNavigate}
+          checkHealth={checkHealth}
         />
 
         {activeScreen === "monitor" && isSuperAdminAuth && (
@@ -539,14 +563,17 @@ export default function App() {
         />
 
         <AdminDashboard
+          companyId={activeCompanyId || 1}
           activeScreen={activeScreen}
           currentAgent={currentAgent}
           saving={saving}
           templates={templates}
+          refreshTemplates={refreshTemplates}
           exportTemplates={handleExportTemplates}
           importTemplatesFile={handleImportTemplatesFile}
           handleDeduplicateTemplates={handleDeduplicateTemplates}
           handleBatchDeleteTemplates={handleBatchDeleteTemplates}
+          onGlobalVariablesChanged={globalVarState.reloadGlobalVariables}
           editTplId={editTplId}
           setEditTplId={setEditTplId}
           editTplName={editTplName}

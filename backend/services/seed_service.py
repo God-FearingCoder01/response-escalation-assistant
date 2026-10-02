@@ -10,6 +10,7 @@ from backend.models import (
     ShiftConfig,
     EscalationTarget,
     SuperAdmin,
+    GlobalVariable,
 )
 from backend.security import hash_pin
 
@@ -215,3 +216,71 @@ def sync_default_data_if_needed(session: Session) -> None:
             superadmin.email = "gfc.dev@proton.me"
             session.add(superadmin)
             session.commit()
+
+    # 6. Seed default Global Variables for default company if none exist
+    local_vars = session.exec(select(GlobalVariable).where(GlobalVariable.company_id == default_company.id)).all()
+    if not local_vars:
+        default_vars = [
+            {
+                "name": "Live Chat",
+                "key": "live_chat",
+                "value": "Live Chat",
+                "category": "Contact Information",
+                "description": "Centralized customer support channel used across templates.",
+                "value_type": "text",
+                "is_active": True,
+            },
+            {
+                "name": "Support Email",
+                "key": "support_email",
+                "value": "support@example.com",
+                "category": "Contact Information",
+                "description": "Official support email address for customer inquiries.",
+                "value_type": "email",
+                "is_active": True,
+            },
+            {
+                "name": "Support Phone",
+                "key": "support_phone",
+                "value": "+263 77 000 0000",
+                "category": "Contact Information",
+                "description": "Official support helpline phone number.",
+                "value_type": "phone",
+                "is_active": True,
+            },
+            {
+                "name": "Company Name",
+                "key": "company_name",
+                "value": "Default Organization",
+                "category": "Company Information",
+                "description": "Official organization brand name.",
+                "value_type": "text",
+                "is_active": True,
+            },
+            {
+                "name": "Website URL",
+                "key": "website_url",
+                "value": "https://example.com",
+                "category": "Company Information",
+                "description": "Official website URL address.",
+                "value_type": "url",
+                "is_active": True,
+            },
+        ]
+        for v in default_vars:
+            session.add(
+                GlobalVariable(
+                    name=v["name"],
+                    key=v["key"],
+                    value=v["value"],
+                    category=v["category"],
+                    description=v["description"],
+                    value_type=v["value_type"],
+                    is_active=v["is_active"],
+                    company_id=default_company.id,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+        session.commit()
+

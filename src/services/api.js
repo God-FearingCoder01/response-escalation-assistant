@@ -514,21 +514,35 @@ export function resolveConditionalMappings(placeholders = [], parsedConfig = {},
   return { resolvedValues, mappedTargetKeys, dynamicOptionsMap, silencedTargetKeys };
 }
 
-// Helper fetch wrapper checking json content-type safely
+// Helper fetch wrapper checking json content-type safely with timeout
 async function safeFetchJson(url, options = {}) {
   const headers = { ...getCompanyHeaders(), ...(options.headers || {}) };
-  const res = await fetch(url, { ...options, headers });
-  if (res.ok) {
-    const ct = res.headers.get("content-type");
-    if (ct && ct.includes("application/json")) {
-      return await res.json();
+  const timeoutMs = options.timeoutMs || 4000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      headers,
+      signal: options.signal || controller.signal,
+    });
+    clearTimeout(timer);
+    if (res.ok) {
+      const ct = res.headers.get("content-type");
+      if (ct && ct.includes("application/json")) {
+        return await res.json();
+      }
     }
+    return null;
+  } catch (err) {
+    clearTimeout(timer);
+    return null;
   }
-  return null;
 }
 
-export async function fetchHealthApi() {
-  return await safeFetchJson(`${API_BASE}/health`);
+export async function fetchHealthApi(timeoutMs = 4000) {
+  return await safeFetchJson(`${API_BASE}/health`, { timeoutMs });
 }
 
 export async function fetchCompaniesApi() {

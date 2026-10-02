@@ -43,6 +43,8 @@ def get_database_url() -> tuple[str, bool]:
 DATABASE_URL, IS_POSTGRES = get_database_url()
 IS_VERCEL = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
 
+from sqlalchemy import event
+
 if IS_POSTGRES:
     engine = create_engine(
         DATABASE_URL,
@@ -52,12 +54,22 @@ if IS_POSTGRES:
         pool_pre_ping=True,
     )
 else:
-    connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+    connect_args = {"check_same_thread": False, "timeout": 30} if DATABASE_URL.startswith("sqlite") else {}
     engine = create_engine(
         DATABASE_URL,
         connect_args=connect_args,
         pool_pre_ping=True,
     )
+    if DATABASE_URL.startswith("sqlite"):
+        @event.listens_for(engine, "connect")
+        def set_sqlite_pragma(dbapi_connection, connection_record):
+            try:
+                cursor = dbapi_connection.cursor()
+                cursor.execute("PRAGMA journal_mode=WAL;")
+                cursor.execute("PRAGMA busy_timeout=10000;")
+                cursor.close()
+            except Exception:
+                pass
 
 
 def create_db_and_tables():

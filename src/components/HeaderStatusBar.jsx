@@ -10,6 +10,7 @@ export default function HeaderStatusBar({
   activeCompanyId = 1,
   switchCompany = () => {},
   handleNavigate = () => {},
+  checkHealth = () => {},
 }) {
   return (
     <>
@@ -70,24 +71,29 @@ export default function HeaderStatusBar({
             </div>
           ) : null}
 
-          <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => checkHealth()}
+            title="Click to re-check backend database connection"
+            className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all hover:opacity-80 cursor-pointer"
+            style={{ borderColor: "var(--badge-border)", backgroundColor: "var(--badge-bg)" }}
+          >
             <span
               className={`h-2.5 w-2.5 shrink-0 rounded-full ${
-                apiStatus === "checking"
-                  ? "bg-[#f1c84b]"
+                loading || apiStatus === "checking"
+                  ? "bg-[#f1c84b] animate-pulse"
                   : apiStatus === "offline"
                     ? "bg-[#b83838]"
                     : "bg-[#4cd34c]"
               }`}
             />
-            <span className="whitespace-nowrap">
+            <span className="whitespace-nowrap font-medium" style={{ color: "var(--header-text)" }}>
               {loading
                 ? "Connecting..."
                 : apiStatus === "offline"
-                  ? "Offline Mode"
+                  ? "Offline Mode (Click to retry)"
                   : "Backend Connected"}
             </span>
-          </div>
+          </button>
 
           {currentAgent ? (
             <div className="flex items-center gap-2">
