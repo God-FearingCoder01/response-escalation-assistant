@@ -1,5 +1,6 @@
 import os
 import logging
+import re
 from pathlib import Path
 from sqlmodel import create_engine, SQLModel, Session
 from sqlalchemy import inspect, text
@@ -112,6 +113,7 @@ def create_db_and_tables():
             # already been created. create_all() creates missing tables but
             # does not add columns to an existing table, so keep this table's
             # evolving schema in sync on PostgreSQL deployments as well.
+            ("extractionrule", "result_field", "VARCHAR DEFAULT ''"),
             ("extractionrule", "extraction_method", "VARCHAR DEFAULT 'regex'"),
             ("extractionrule", "description", "TEXT"),
             ("extractionrule", "is_enabled", "BOOLEAN DEFAULT TRUE"),
@@ -127,6 +129,21 @@ def create_db_and_tables():
                         conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"))
                     except Exception:
                         pass
+
+            # Older rule rows have a name but no result_field. Backfill a
+            # stable key from the rule name so those rows remain usable and
+            # can be edited after upgrading the schema.
+            if "extractionrule" in existing_tables and column_exists("extractionrule", "result_field"):
+                rows = conn.execute(
+                    text("SELECT id, name, result_field FROM extractionrule WHERE result_field IS NULL OR result_field = ''")
+                ).mappings().all()
+                for row in rows:
+                    base_key = re.sub(r"[^a-z0-9]+", "_", (row["name"] or "extracted_value").strip().lower()).strip("_")
+                    result_field = f"{base_key or 'extracted_value'}_{row['id']}"
+                    conn.execute(
+                        text("UPDATE extractionrule SET result_field = :result_field WHERE id = :id"),
+                        {"result_field": result_field, "id": row["id"]},
+                    )
     except Exception:
         pass
 
