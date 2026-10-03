@@ -14,6 +14,12 @@ export default function SmartExtractorWidget({
 }) {
   const extractor = useSmartExtractor(companyId);
 
+  // The widget stays mounted while hidden; refresh rules each time it opens
+  // so changes made in Admin Dashboard take effect without a page reload.
+  useEffect(() => {
+    if (isOpen) extractor.reloadRules();
+  }, [isOpen, extractor.reloadRules]);
+
   const [showRawText, setShowRawText] = useState(false);
   const [selectedTargetTemplateId, setSelectedTargetTemplateId] = useState("");
   const [insertModal, setInsertModal] = useState({
@@ -268,6 +274,20 @@ export default function SmartExtractorWidget({
 
         {/* MODAL BODY */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
+          <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-xs text-gray-400">
+            <span>
+              {extractor.loadingRules
+                ? "Loading current organization rules..."
+                : extractor.rulesError
+                  ? `Could not load rules: ${extractor.rulesError}`
+                  : `${extractor.rules.length} enabled rule${extractor.rules.length === 1 ? "" : "s"} loaded`}
+            </span>
+            {extractor.rulesError && (
+              <button onClick={extractor.reloadRules} className="text-[#4cd34c] hover:underline">
+                Retry
+              </button>
+            )}
+          </div>
           {/* TAB SWITCHER */}
           <div className="flex rounded-xl bg-black/30 p-1 border border-white/10">
             <button
@@ -330,7 +350,7 @@ export default function SmartExtractorWidget({
                       <div className="flex flex-wrap gap-2 justify-center sm:justify-start pt-2">
                         <button
                           onClick={extractor.processImageExtraction}
-                          disabled={extractor.isProcessing}
+                          disabled={extractor.isProcessing || extractor.loadingRules}
                           className="inline-flex items-center gap-2 rounded-xl bg-[#4cd34c] px-4 py-2 text-xs font-bold text-black shadow-lg hover:bg-[#42be42] disabled:opacity-50 transition cursor-pointer"
                         >
                           {extractor.isProcessing ? "Extracting..." : "🔍 Extract Information"}
@@ -368,7 +388,7 @@ export default function SmartExtractorWidget({
               <div className="flex justify-end">
                 <button
                   onClick={extractor.processTextExtraction}
-                  disabled={extractor.isProcessing || !extractor.pastedText.trim()}
+                  disabled={extractor.isProcessing || extractor.loadingRules || !extractor.pastedText.trim()}
                   className="inline-flex items-center gap-2 rounded-xl bg-[#4cd34c] px-5 py-2.5 text-xs font-bold text-black shadow-lg hover:bg-[#42be42] disabled:opacity-50 transition cursor-pointer"
                 >
                   {extractor.isProcessing ? "Processing..." : "🔍 Extract Information"}

@@ -220,7 +220,8 @@ function normalizeExtractedValue(val, fieldKey = "", pattern = "") {
 export function extractValuesLocally(text = "", rules = []) {
   if (!text || typeof text !== "string" || !text.trim()) return [];
 
-  const activeRules = Array.isArray(rules) && rules.length > 0 ? rules : getDefaultClientExtractionRules();
+  const activeRules = Array.isArray(rules) ? rules : [];
+  if (activeRules.length === 0) return [];
   const results = [];
   const seenFields = new Set();
   const cleanText = text.replace(/\r\n/g, "\n");

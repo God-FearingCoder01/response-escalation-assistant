@@ -3,12 +3,12 @@ import {
   fetchExtractionRules,
   performOcrFromImage,
   extractValuesLocally,
-  getDefaultClientExtractionRules,
 } from "../services/smartExtractorService";
 
 export function useSmartExtractor(companyId = 1) {
   const [rules, setRules] = useState([]);
   const [loadingRules, setLoadingRules] = useState(false);
+  const [rulesError, setRulesError] = useState(null);
 
   const [inputMode, setInputMode] = useState("image"); // "image" | "text"
   const [imageFile, setImageFile] = useState(null);
@@ -24,12 +24,14 @@ export function useSmartExtractor(companyId = 1) {
   // Load rules for the active company
   const reloadRules = useCallback(async () => {
     setLoadingRules(true);
+    setRulesError(null);
     try {
       const data = await fetchExtractionRules(companyId, true);
-      setRules(Array.isArray(data) ? data : getDefaultClientExtractionRules(companyId));
+      setRules(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Error loading extraction rules:", err);
-      setRules(getDefaultClientExtractionRules(companyId));
+      setRules([]);
+      setRulesError(err.message || "Failed to load extraction rules.");
     } finally {
       setLoadingRules(false);
     }
@@ -126,8 +128,9 @@ export function useSmartExtractor(companyId = 1) {
       }
 
       // Run extraction rules locally
-      const activeRules = rules.length > 0 ? rules : getDefaultClientExtractionRules(companyId);
-      const results = extractValuesLocally(text, activeRules);
+      if (rulesError) throw new Error(`Could not load the current extraction rules: ${rulesError}`);
+      if (rules.length === 0) throw new Error("No enabled extraction rules are configured for this organization.");
+      const results = extractValuesLocally(text, rules);
 
       setExtractedResults(results);
 
@@ -141,7 +144,7 @@ export function useSmartExtractor(companyId = 1) {
       setIsProcessing(false);
       setProcessingStatus(null);
     }
-  }, [imagePreview, rules, companyId]);
+  }, [imagePreview, rules, rulesError]);
 
   // Process Extraction from Pasted Text
   const processTextExtraction = useCallback(() => {
@@ -157,8 +160,9 @@ export function useSmartExtractor(companyId = 1) {
     try {
       setProcessingStatus({ step: 1, message: "✓ Pasted text received", details: "Applying extraction rules..." });
 
-      const activeRules = rules.length > 0 ? rules : getDefaultClientExtractionRules(companyId);
-      const results = extractValuesLocally(pastedText, activeRules);
+      if (rulesError) throw new Error(`Could not load the current extraction rules: ${rulesError}`);
+      if (rules.length === 0) throw new Error("No enabled extraction rules are configured for this organization.");
+      const results = extractValuesLocally(pastedText, rules);
 
       setExtractedResults(results);
       setRawOcrText(pastedText);
@@ -172,7 +176,7 @@ export function useSmartExtractor(companyId = 1) {
       setIsProcessing(false);
       setProcessingStatus(null);
     }
-  }, [pastedText, rules, companyId]);
+  }, [pastedText, rules, rulesError]);
 
   // Update Extracted Value (e.g. agent corrects OCR typo)
   const updateExtractedValue = useCallback((index, newValue) => {
@@ -205,6 +209,7 @@ export function useSmartExtractor(companyId = 1) {
   return {
     rules,
     loadingRules,
+    rulesError,
     reloadRules,
 
     inputMode,
