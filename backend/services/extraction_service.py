@@ -37,6 +37,9 @@ def clean_extracted_value(val: str, field_key: str = "") -> str:
         cleaned = re.sub(r'^(?:USD|\$|US\$|\s)+', '', cleaned, flags=re.IGNORECASE)
         # Strip trailing currency symbols/words ($ / USD / US$)
         cleaned = re.sub(r'(?:USD|\$|US\$|\s)+$', '', cleaned, flags=re.IGNORECASE)
+        # Strip trailing decimal zeros (e.g. 4.00 -> 4, 1.60 -> 1.6)
+        if re.match(r'^\d+\.\d+$', cleaned):
+            cleaned = cleaned.rstrip('0').rstrip('.')
 
     return cleaned.strip()
 

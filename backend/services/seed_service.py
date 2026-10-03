@@ -93,6 +93,69 @@ DEFAULT_TEMPLATES = [
 ]
 
 
+def get_default_extraction_rules_seed(company_id: int) -> List[ExtractionRule]:
+    now = datetime.now(timezone.utc)
+    default_rules = [
+        {
+            "name": "Transaction Reference",
+            "result_field": "reference_number",
+            "extraction_method": "regex",
+            "pattern": r"(?:MP[\s\n\.\d]{8,25}T\d{7})|(?:\b(?:ref(?:erence)?|tx(?:id)?|approval|code|no\.\?)\b\s*[:=]?\s*(?:is\s+)?([A-Z0-9\.\-_]{6,35}))",
+            "description": "Standard EcoCash or general transaction reference / approval code format (e.g. MP260831.1923.T7382831 or REF123456)",
+            "is_enabled": True,
+        },
+        {
+            "name": "Amount",
+            "result_field": "amount",
+            "extraction_method": "regex",
+            "pattern": r"(?:\$|USD\s*)(\d+(?:\.\d{2})?)|\b(\d+\.\d{2})\b",
+            "description": "Currency amount numeral format excluding New Balance (e.g. 25.00)",
+            "is_enabled": True,
+        },
+        {
+            "name": "Date",
+            "result_field": "date",
+            "extraction_method": "regex",
+            "pattern": r"\b\d{2}/\d{2}/\d{4}\b",
+            "description": "Standard date format DD/MM/YYYY",
+            "is_enabled": True,
+        },
+        {
+            "name": "Time",
+            "result_field": "time",
+            "extraction_method": "regex",
+            "pattern": r"\b\d{2}:\d{2}\b",
+            "description": "Time format HH:MM (24-hour)",
+            "is_enabled": True,
+        },
+        {
+            "name": "Phone Number",
+            "result_field": "phone_number",
+            "extraction_method": "regex",
+            "pattern": r"\+2637\d{8}|07\d{8}",
+            "description": "Customer phone number format (+263779431682 or 0779431682)",
+            "is_enabled": True,
+        },
+        {
+            "name": "Account Number",
+            "result_field": "account_number",
+            "extraction_method": "regex",
+            "pattern": r"\+2637\d{8}|07\d{8}|\b\d{8,16}\b",
+            "description": "Customer account or international phone number (+263779431682)",
+            "is_enabled": True,
+        },
+    ]
+    return [
+        ExtractionRule(
+            **r,
+            company_id=company_id,
+            created_at=now,
+            updated_at=now,
+        )
+        for r in default_rules
+    ]
+
+
 def sync_default_data_if_needed(session: Session) -> None:
     now = datetime.now(timezone.utc)
     # 1. Default Company
@@ -169,9 +232,7 @@ def sync_default_data_if_needed(session: Session) -> None:
         for s in default_shifts:
             session.add(
                 ShiftConfig(
-                    name=s["name"],
-                    start_time=s["start_time"],
-                    end_time=s["end_time"],
+                    **s,
                     is_active=True,
                     company_id=default_company.id,
                     created_at=now,
@@ -282,70 +343,8 @@ def sync_default_data_if_needed(session: Session) -> None:
     # Sync default ExtractionRules if needed
     existing_rules = session.exec(select(ExtractionRule).where(ExtractionRule.company_id == default_company.id)).all()
     if not existing_rules:
-        default_rules = [
-            {
-                "name": "Transaction Reference",
-                "result_field": "reference_number",
-                "extraction_method": "regex",
-                "pattern": r"(?:MP[\s\n\.\d]{8,25}T\d{7})|(?:\b(?:ref(?:erence)?|tx(?:id)?|approval|code|no\.\?)\b\s*[:=]?\s*(?:is\s+)?([A-Z0-9\.\-_]{6,35}))",
-                "description": "Standard EcoCash or general transaction reference / approval code format (e.g. MP260831.1923.T7382831 or REF123456)",
-                "is_enabled": True,
-            },
-            {
-                "name": "Amount",
-                "result_field": "amount",
-                "extraction_method": "regex",
-                "pattern": r"(?:\$|USD\s*)(\d+(?:\.\d{2})?)|\b(\d+\.\d{2})\b",
-                "description": "Currency amount numeral format excluding New Balance (e.g. 25.00)",
-                "is_enabled": True,
-            },
-            {
-                "name": "Date",
-                "result_field": "date",
-                "extraction_method": "regex",
-                "pattern": r"\b\d{2}/\d{2}/\d{4}\b",
-                "description": "Standard date format DD/MM/YYYY",
-                "is_enabled": True,
-            },
-            {
-                "name": "Time",
-                "result_field": "time",
-                "extraction_method": "regex",
-                "pattern": r"\b\d{2}:\d{2}\b",
-                "description": "Time format HH:MM (24-hour)",
-                "is_enabled": True,
-            },
-            {
-                "name": "Phone Number",
-                "result_field": "phone_number",
-                "extraction_method": "regex",
-                "pattern": r"\+2637\d{8}|07\d{8}",
-                "description": "Customer phone number format (+263779431682 or 0779431682)",
-                "is_enabled": True,
-            },
-            {
-                "name": "Account Number",
-                "result_field": "account_number",
-                "extraction_method": "regex",
-                "pattern": r"\+2637\d{8}|07\d{8}|\b\d{8,16}\b",
-                "description": "Customer account or international phone number (+263779431682)",
-                "is_enabled": True,
-            },
-        ]
-        for r in default_rules:
-            session.add(
-                ExtractionRule(
-                    name=r["name"],
-                    result_field=r["result_field"],
-                    extraction_method=r["extraction_method"],
-                    pattern=r["pattern"],
-                    description=r["description"],
-                    is_enabled=r["is_enabled"],
-                    company_id=default_company.id,
-                    created_at=now,
-                    updated_at=now,
-                )
-            )
+        for rule in get_default_extraction_rules_seed(default_company.id):
+            session.add(rule)
         session.commit()
 
 

@@ -8,7 +8,7 @@ import {
   getDefaultClientExtractionRules,
 } from "../services/smartExtractorService";
 
-export default function SmartExtractorRuleManager({ companyId = 1, showToast = () => {} }) {
+export default function SmartExtractorRuleManager({ companyId = 1, showToast = () => { } }) {
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -35,7 +35,7 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
     setLoading(true);
     try {
       const data = await fetchExtractionRules(companyId, false);
-      setRules(data && data.length > 0 ? data : getDefaultClientExtractionRules(companyId));
+      setRules(Array.isArray(data) ? data : getDefaultClientExtractionRules(companyId));
     } catch (err) {
       console.error("Failed to load extraction rules:", err);
       setRules(getDefaultClientExtractionRules(companyId));
@@ -197,9 +197,8 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
           {filteredRules.map((rule) => (
             <div
               key={rule.id}
-              className={`rounded-2xl border p-5 transition space-y-3 bg-black/30 border-white/10 hover:border-white/20 ${
-                !rule.is_enabled ? "opacity-60" : ""
-              }`}
+              className={`rounded-2xl border p-5 transition space-y-3 bg-black/30 border-white/10 hover:border-white/20 ${!rule.is_enabled ? "opacity-60" : ""
+                }`}
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -209,11 +208,10 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleToggleRuleStatus(rule)}
-                    className={`text-[10px] uppercase font-bold px-2.5 py-1 rounded-full border transition ${
-                      rule.is_enabled
+                    className={`text-[10px] uppercase font-bold px-2.5 py-1 rounded-full border transition ${rule.is_enabled
                         ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
                         : "border-gray-500/30 bg-gray-500/10 text-gray-400"
-                    }`}
+                      }`}
                   >
                     {rule.is_enabled ? "Enabled ✓" : "Disabled"}
                   </button>
@@ -298,11 +296,10 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
 
         {testResult && (
           <div
-            className={`rounded-xl border p-4 text-xs space-y-1 ${
-              testResult.matched
+            className={`rounded-xl border p-4 text-xs space-y-1 ${testResult.matched
                 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
                 : "border-amber-500/30 bg-amber-500/10 text-amber-300"
-            }`}
+              }`}
           >
             <p className="font-bold">{testResult.matched ? "✓ Pattern Matched Successfully!" : "❌ No Match Found"}</p>
             {testResult.matched && (

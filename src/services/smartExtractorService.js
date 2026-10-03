@@ -190,9 +190,15 @@ function normalizeExtractedValue(val, fieldKey = "", pattern = "") {
   let str = val.trim();
   const fk = fieldKey.toLowerCase();
 
-  // Strip preceding/trailing $, USD, US$ for amount fields so only numerals remain
+  // Strip preceding/trailing $, USD, US$ for amount fields so only numerals remain & strip trailing decimal zeros
   if (fk.includes("amount") || fk.includes("price") || fk.includes("cost") || fk.includes("sum")) {
     str = str.replace(/^(?:USD|\$|US\$|\s)+/gi, "").replace(/(?:USD|\$|US\$|\s)+$/gi, "");
+    if (/^\d+(?:\.\d+)?$/.test(str)) {
+      const num = parseFloat(str);
+      if (!isNaN(num)) {
+        str = String(num);
+      }
+    }
   }
 
   // Fix OCR misrecognition of '+' as '4', '1', 'f', or 't' at start of international +263 numbers

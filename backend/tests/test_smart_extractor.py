@@ -150,7 +150,7 @@ def test_process_text_extraction_single_and_multiple_matches():
 
         # Verify Amount
         amt_item = next(r for r in results if r["result_field"] == "amount")
-        assert amt_item["value"] == "45.50"
+        assert amt_item["value"] == "45.5"
         assert amt_item["is_valid"] is True
 
         # Verify Date
@@ -178,7 +178,7 @@ def test_pasted_text_bypasses_ocr_and_processes_successfully():
     
     values = [r["value"] for r in data["results"]]
     assert "MP998877.1234.T1122334" in values
-    assert "100.00" in values
+    assert "100" in values
 
 
 def test_no_match_scenarios_handled_cleanly():
@@ -270,8 +270,8 @@ def test_amount_extraction_excludes_new_balance_and_strips_currency_symbols():
     assert len(results) == 1
     amt_item = results[0]
     assert amt_item["result_field"] == "amount"
-    # Must be 75.00 (numerals only, excluding New Balance $250.00 and excluding USD symbol)
-    assert amt_item["value"] == "75.00"
+    # Must be 75 (numerals only, excluding New Balance $250.00 and excluding USD symbol)
+    assert amt_item["value"] == "75"
     assert "250.00" not in amt_item["all_values"]
 
 
@@ -293,9 +293,9 @@ def test_multiple_reference_numbers_align_with_corresponding_amounts():
 
     # Verify order alignment: Ref #1 pairs with Amount #1, Ref #2 pairs with Amount #2
     assert ref_item["all_values"] == ["MP260831.1111.T1111111", "MP260831.2222.T2222222"]
-    assert amt_item["all_values"] == ["50.00", "125.00"]
+    assert amt_item["all_values"] == ["50", "125"]
     assert ref_item["value"] == "MP260831.1111.T1111111"
-    assert amt_item["value"] == "50.00"
+    assert amt_item["value"] == "50"
 
 
 def test_ecocash_payment_confirmation_block_extraction_with_ocr_linebreaks():
@@ -343,9 +343,9 @@ def test_ecocash_payment_confirmation_block_extraction_with_ocr_linebreaks():
     assert "MP260831.1249.T4567667" in ref_item["all_values"][0]
     assert "MP260831.1250.T4571985" in ref_item["all_values"][1]
 
-    # Verify paired amounts (10.00 for Message 1, 1.60 for Message 2)
-    assert amt_item["all_values"] == ["10.00", "1.60"]
-    assert amt_item["value"] == "10.00"
+    # Verify paired amounts (10 for Message 1, 1.6 for Message 2)
+    assert amt_item["all_values"] == ["10", "1.6"]
+    assert amt_item["value"] == "10"
 
 
 
