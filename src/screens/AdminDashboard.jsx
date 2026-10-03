@@ -1,6 +1,9 @@
 import { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import { getPresetPhrases, savePresetPhrases, DEFAULT_PRESET_PHRASES } from "../services/translationService";
 import ExtractableFieldEditor from "../components/ExtractableFieldEditor";
+import SmartExtractorRuleManager from "../components/SmartExtractorRuleManager";
+import { sortTemplatesBySearchRelevance } from "../utils/searchUtils";
+
 import {
   fetchGlobalVariables,
   createGlobalVariable,
@@ -74,6 +77,7 @@ export default function AdminDashboard({
   setPinErrorMsg,
   handleChangeAdminPin,
   sirState,
+  showToast = () => {},
 }) {
   const fileRef = useRef(null);
   const templateFormRef = useRef(null);
@@ -1141,10 +1145,14 @@ export default function AdminDashboard({
                 );
               });
 
+              const sortedFilteredTemplates = isSearching
+                ? sortTemplatesBySearchRelevance(filteredTemplates, query)
+                : filteredTemplates;
+
               return {
                 ...catGroup,
-                filteredTemplates,
-                hasMatches: filteredTemplates.length > 0,
+                filteredTemplates: sortedFilteredTemplates,
+                hasMatches: sortedFilteredTemplates.length > 0,
               };
             }).filter((catGroup) => !isSearching || catGroup.hasMatches);
 
@@ -2317,6 +2325,14 @@ export default function AdminDashboard({
               </div>
             )}
           </div>
+        </div>
+
+        {/* SECTION 9: SMART EXTRACTOR RULES */}
+        <div
+          className="rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur transition-all"
+          style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}
+        >
+          <SmartExtractorRuleManager companyId={companyId} showToast={showToast} />
         </div>
 
         {/* MODAL 1: ADD / EDIT GLOBAL VARIABLE */}

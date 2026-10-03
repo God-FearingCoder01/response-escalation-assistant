@@ -11,6 +11,7 @@ from backend.models import (
     EscalationTarget,
     SuperAdmin,
     GlobalVariable,
+    ExtractionRule,
 )
 from backend.security import hash_pin
 
@@ -283,4 +284,74 @@ def sync_default_data_if_needed(session: Session) -> None:
                 )
             )
         session.commit()
+
+    # Sync default ExtractionRules if needed
+    existing_rules = session.exec(select(ExtractionRule).where(ExtractionRule.company_id == default_company.id)).all()
+    if not existing_rules:
+        default_rules = [
+            {
+                "name": "Transaction Reference",
+                "result_field": "reference_number",
+                "extraction_method": "regex",
+                "pattern": r"MP\d{6}[\.\s]*\d{4}[\.\s]*T\d{7}",
+                "description": "Standard EcoCash transaction reference format (e.g. MP260831.1923.T7382831)",
+                "is_enabled": True,
+            },
+            {
+                "name": "Amount",
+                "result_field": "amount",
+                "extraction_method": "regex",
+                "pattern": r"\$\d+(?:\.\d{2})?|\b\d+\.\d{2}\b",
+                "description": "Currency amount format (e.g. $25.00)",
+                "is_enabled": True,
+            },
+            {
+                "name": "Date",
+                "result_field": "date",
+                "extraction_method": "regex",
+                "pattern": r"\b\d{2}/\d{2}/\d{4}\b",
+                "description": "Standard date format DD/MM/YYYY",
+                "is_enabled": True,
+            },
+            {
+                "name": "Time",
+                "result_field": "time",
+                "extraction_method": "regex",
+                "pattern": r"\b\d{2}:\d{2}\b",
+                "description": "Time format HH:MM (24-hour)",
+                "is_enabled": True,
+            },
+            {
+                "name": "Phone Number",
+                "result_field": "phone_number",
+                "extraction_method": "regex",
+                "pattern": r"\+2637\d{8}|07\d{8}",
+                "description": "Customer phone number format (+263779431682 or 0779431682)",
+                "is_enabled": True,
+            },
+            {
+                "name": "Account Number",
+                "result_field": "account_number",
+                "extraction_method": "regex",
+                "pattern": r"\+2637\d{8}|07\d{8}|\b\d{8,16}\b",
+                "description": "Customer account or international phone number (+263779431682)",
+                "is_enabled": True,
+            },
+        ]
+        for r in default_rules:
+            session.add(
+                ExtractionRule(
+                    name=r["name"],
+                    result_field=r["result_field"],
+                    extraction_method=r["extraction_method"],
+                    pattern=r["pattern"],
+                    description=r["description"],
+                    is_enabled=r["is_enabled"],
+                    company_id=default_company.id,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+        session.commit()
+
 

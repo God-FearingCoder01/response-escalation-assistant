@@ -17,6 +17,8 @@ import PinModal from "./components/PinModal";
 import SuperAdminPinModal from "./components/SuperAdminPinModal";
 import Toast from "./components/Toast";
 import HeaderStatusBar from "./components/HeaderStatusBar";
+import SmartExtractorWidget from "./components/SmartExtractorWidget";
+
 
 import WelcomeScreen from "./screens/WelcomeScreen";
 import TechEscalation from "./screens/TechEscalation";
@@ -46,6 +48,7 @@ export default function App() {
   const [apiStatus, setApiStatus] = useState("checking");
   const [statusMessage, setStatusMessage] = useState("");
   const [values, setValues] = useState({});
+  const [showSmartExtractor, setShowSmartExtractor] = useState(false);
 
   // Super Admin Authentication State
   const [isSuperAdminAuth, setIsSuperAdminAuth] = useState(false);
@@ -437,6 +440,28 @@ export default function App() {
     );
   }
 
+  const handleApplySmartExtractorToTemplate = (targetTemplate, extractedMap = {}) => {
+    if (!targetTemplate) return;
+
+    if (targetTemplate.category_type === "tech_escalation") {
+      setSelectedTechId(targetTemplate.id);
+      setActiveScreen("tech_escalation");
+    } else {
+      setSelectedCustId(targetTemplate.id);
+      setActiveScreen("customer_reply");
+    }
+
+    if (extractedMap && Object.keys(extractedMap).length > 0) {
+      setValues((prev) => ({
+        ...prev,
+        ...extractedMap,
+      }));
+    }
+
+    setShowSmartExtractor(false);
+    showToast(`Applied extracted values to "${targetTemplate.name}"! 🎯`);
+  };
+
   return (
     <div
       className="min-h-screen transition-colors duration-300 font-sans relative flex"
@@ -453,6 +478,7 @@ export default function App() {
         themeMode={themeMode}
         setThemeMode={setThemeMode}
         handleLogout={handleLogout}
+        onOpenSmartExtractor={() => setShowSmartExtractor(true)}
       />
 
       <PinModal
@@ -493,6 +519,7 @@ export default function App() {
           switchCompany={handleSwitchCompanyAndEnter}
           handleNavigate={handleNavigate}
           checkHealth={checkHealth}
+          onOpenSmartExtractor={() => setShowSmartExtractor(true)}
         />
 
         {activeScreen === "monitor" && isSuperAdminAuth && (
@@ -564,6 +591,7 @@ export default function App() {
 
         <AdminDashboard
           companyId={activeCompanyId || 1}
+          showToast={showToast}
           activeScreen={activeScreen}
           currentAgent={currentAgent}
           saving={saving}
@@ -696,6 +724,22 @@ export default function App() {
       </div>
 
       <Toast toast={toast} onClose={() => setToast?.({ show: false, message: "" })} />
+
+      {/* Smart Extractor Modal Widget */}
+      <SmartExtractorWidget
+        isOpen={showSmartExtractor}
+        onClose={() => setShowSmartExtractor(false)}
+        companyId={activeCompanyId || 1}
+        availableFields={placeholders || []}
+        templates={templates || []}
+        activeTemplate={activeTemplate}
+        showToast={showToast}
+        onInsertIntoTemplate={(fieldKey, val) => {
+          if (!fieldKey) return;
+          setValues((prev) => ({ ...prev, [fieldKey]: val }));
+        }}
+        onApplyToTemplate={handleApplySmartExtractorToTemplate}
+      />
     </div>
   );
 }

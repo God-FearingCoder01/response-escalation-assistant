@@ -437,3 +437,40 @@ class GlobalVariableRead(GlobalVariableBase):
     id: int
     created_at: datetime
     updated_at: datetime
+
+
+class ExtractionRuleBase(SQLModel):
+    name: str = Field(index=True)  # e.g., "Transaction Reference"
+    result_field: str = Field(index=True)  # e.g., "reference_number"
+    extraction_method: str = Field(default="regex")  # "regex", "pattern", "keyword"
+    pattern: str  # e.g., "MP\d{6}\.\d{4}\.T\d{7}"
+    description: Optional[str] = None
+    is_enabled: bool = Field(default=True, nullable=False)
+    company_id: int = Field(default=1, foreign_key="company.id", index=True)
+
+
+class ExtractionRule(ExtractionRuleBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+
+
+class ExtractionRuleCreate(ExtractionRuleBase):
+    company_id: int = 1
+
+
+class ExtractionRuleUpdate(SQLModel):
+    name: Optional[str] = None
+    result_field: Optional[str] = None
+    extraction_method: Optional[str] = None
+    pattern: Optional[str] = None
+    description: Optional[str] = None
+    is_enabled: Optional[bool] = None
+    company_id: Optional[int] = None
+
+
+class ExtractionRuleRead(ExtractionRuleBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+

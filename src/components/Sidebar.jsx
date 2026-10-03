@@ -7,6 +7,7 @@ export default function Sidebar({
   themeMode,
   setThemeMode,
   handleLogout,
+  onOpenSmartExtractor = () => {},
 }) {
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
 
@@ -102,6 +103,24 @@ export default function Sidebar({
             {isSidebarHovered ? (
               <span className="ml-3 font-semibold text-sm whitespace-nowrap">
                 Favorites & Recents
+              </span>
+            ) : null}
+          </button>
+
+          <button
+            onClick={() => {
+              onOpenSmartExtractor();
+              setIsSidebarHovered(false);
+            }}
+            className="flex w-full items-center justify-start rounded-2xl p-2.5 font-medium transition-all hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+            title="Smart Extractor (OCR & Text Pattern Identification)"
+          >
+            <span className="flex h-6 w-6 items-center justify-center shrink-0 text-base">
+              🔍
+            </span>
+            {isSidebarHovered ? (
+              <span className="ml-3 font-semibold text-sm whitespace-nowrap">
+                Smart Extractor
               </span>
             ) : null}
           </button>
