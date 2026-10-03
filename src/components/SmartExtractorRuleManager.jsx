@@ -85,7 +85,7 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
     try {
       const payload = {
         name: ruleName.trim(),
-        result_field: resultField.trim().toLowerCase(),
+        result_field: resultField.replace(/[{}]/g, "").trim().toLowerCase(),
         extraction_method: extractionMethod,
         pattern: pattern.trim(),
         description: description.trim() || null,

@@ -406,7 +406,7 @@ def sync_default_data_if_needed(session: Session) -> None:
         ]
         for tbl in tables:
             try:
-                session.exec(text(f"SELECT setval(pg_get_serial_sequence('{tbl}', 'id'), COALESCE((SELECT MAX(id) FROM {tbl}), 1));"))
+                session.execute(text(f"SELECT setval(pg_get_serial_sequence('{tbl}', 'id'), COALESCE((SELECT MAX(id) FROM {tbl}), 1));"))
                 session.commit()
             except Exception:
                 session.rollback()

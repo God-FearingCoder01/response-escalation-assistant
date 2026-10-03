@@ -1,5 +1,5 @@
 import re
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Sequence
 from backend.models import ExtractionRule
 
 
@@ -217,7 +217,7 @@ def align_reference_number_and_amount_results(results: List[Dict[str, Any]], tex
 
 def process_text_extraction(
     text: str,
-    rules: List[ExtractionRule]
+    rules: Sequence[ExtractionRule]
 ) -> List[Dict[str, Any]]:
     """
     Extracts structured values from raw text using company-scoped extraction rules.

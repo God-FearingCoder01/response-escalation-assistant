@@ -80,33 +80,48 @@ def create_extraction_rule(
     if not rule_in.name or not rule_in.result_field or not rule_in.pattern:
         raise HTTPException(status_code=400, detail="Rule name, result field, and pattern are required.")
 
+    clean_result_field = rule_in.result_field.strip().replace("{", "").replace("}", "").lower()
+    if not clean_result_field:
+        raise HTTPException(status_code=400, detail="Result field key cannot be empty.")
+
+    clean_pattern = rule_in.pattern.strip()
+    try:
+        import re
+        re.compile(clean_pattern)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid regular expression pattern: {str(e)}")
+
     comp = session.get(Company, rule_in.company_id)
     if not comp:
         comp = session.get(Company, 1)
         if comp and comp.id:
             rule_in.company_id = comp.id
         else:
-            raise HTTPException(status_code=400, detail=f"Organization ID {rule_in.company_id} does not exist.")
+            comp = session.exec(select(Company)).first()
+            if comp and comp.id:
+                rule_in.company_id = comp.id
+            else:
+                raise HTTPException(status_code=400, detail=f"Organization ID {rule_in.company_id} does not exist.")
 
-    # Check for duplicate name/field within same company
+    # Check for duplicate result_field within same company
     existing = session.exec(
         select(ExtractionRule)
         .where(ExtractionRule.company_id == rule_in.company_id)
-        .where(ExtractionRule.result_field == rule_in.result_field.lower())
+        .where(ExtractionRule.result_field == clean_result_field)
     ).first()
 
     if existing:
         raise HTTPException(
             status_code=400,
-            detail=f"An extraction rule for result field '{rule_in.result_field}' already exists for this organization."
+            detail=f"An extraction rule for result field '{clean_result_field}' already exists for this organization. You can edit the existing rule instead."
         )
 
     db_rule = ExtractionRule(
         name=rule_in.name.strip(),
-        result_field=rule_in.result_field.strip().lower(),
+        result_field=clean_result_field,
         extraction_method=rule_in.extraction_method or "regex",
-        pattern=rule_in.pattern.strip(),
-        description=rule_in.description,
+        pattern=clean_pattern,
+        description=rule_in.description.strip() if rule_in.description else None,
         is_enabled=rule_in.is_enabled,
         company_id=rule_in.company_id,
         created_at=get_utc_now(),
@@ -154,11 +169,18 @@ def update_extraction_rule(
     update_data = rule_in.model_dump(exclude_unset=True) if hasattr(rule_in, "model_dump") else rule_in.dict(exclude_unset=True)
     for field, value in update_data.items():
         if field == "result_field" and value:
-            setattr(db_rule, field, str(value).strip().lower())
+            clean_field = str(value).strip().replace("{", "").replace("}", "").lower()
+            setattr(db_rule, field, clean_field)
         elif field == "name" and value:
             setattr(db_rule, field, str(value).strip())
         elif field == "pattern" and value:
-            setattr(db_rule, field, str(value).strip())
+            clean_pat = str(value).strip()
+            try:
+                import re
+                re.compile(clean_pat)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Invalid regular expression pattern: {str(e)}")
+            setattr(db_rule, field, clean_pat)
         elif value is not None:
             setattr(db_rule, field, value)
 
