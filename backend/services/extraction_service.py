@@ -6,10 +6,14 @@ from backend.models import ExtractionRule
 def is_new_balance_context(text: str, start_pos: int) -> bool:
     """
     Checks if the text preceding start_pos (up to 60 characters) contains 'New Balance' or 'New Bal'.
+    Truncates preceding text at confirmation header boundaries to avoid false positives across message blocks.
     """
     if start_pos <= 0 or not text:
         return False
     preceding = text[max(0, start_pos - 60):start_pos]
+    header_matches = list(re.finditer(r'payment\s*confirmation:?|confirmation:?', preceding, re.IGNORECASE))
+    if header_matches:
+        preceding = preceding[header_matches[-1].end():]
     return bool(re.search(r'new\s*bal(?:ance)?\b', preceding, re.IGNORECASE))
 
 
@@ -17,11 +21,16 @@ def clean_extracted_value(val: str, field_key: str = "") -> str:
     """
     Cleans and normalizes extracted values.
     For amount fields, strips currency symbols and labels (e.g. $, USD, US$) to leave strictly numerals.
+    For reference numbers, collapses OCR line breaks and whitespace.
     """
     if not val:
         return val
     cleaned = str(val).strip()
     fk = field_key.lower().strip()
+
+    if "ref" in fk or "tx" in fk or "code" in fk or "number" in fk or re.match(r'^MP[\s\n\.\d]+T\d{7}$', cleaned, re.IGNORECASE):
+        if cleaned.upper().startswith("MP") or "T" in cleaned:
+            cleaned = re.sub(r'[\r\n\s]+', '', cleaned)
 
     if "amount" in fk or "price" in fk or "cost" in fk or "sum" in fk:
         # Strip leading currency symbols/words ($ / USD / US$)
@@ -89,9 +98,22 @@ def evaluate_rule_pattern(pattern: str, test_input: str) -> Dict[str, Any]:
         }
 
 
+def split_text_into_confirmation_blocks(text: str) -> List[str]:
+    """
+    Splits text into separate blocks using 'Payment Confirmation' or message boundaries.
+    """
+    if not text:
+        return []
+    raw_blocks = re.split(r'payment\s*confirmation:?|confirmation:?', text, flags=re.IGNORECASE)
+    blocks = [b.strip() for b in raw_blocks if b.strip()]
+    if len(blocks) <= 1:
+        blocks = [b.strip() for b in re.split(r'\n\s*\n', text) if b.strip()]
+    return blocks if blocks else [text]
+
+
 def align_reference_number_and_amount_results(results: List[Dict[str, Any]], text: str) -> List[Dict[str, Any]]:
     """
-    Ensures that for every reference_number extracted, there is a corresponding amount aligned by position in text.
+    Ensures that for every reference_number extracted, there is a corresponding amount aligned by Payment Confirmation block or position in text.
     Filters out pseudo-amount matches that are actually substrings of reference numbers (e.g. '260831.11' inside 'MP260831.1111.T1111111').
     """
     if not results or not text:
@@ -114,15 +136,50 @@ def align_reference_number_and_amount_results(results: List[Dict[str, Any]], tex
     if not clean_amt_vals:
         clean_amt_vals = amt_vals
 
-    # Positional tracking in text
+    blocks = split_text_into_confirmation_blocks(text)
+
+    if len(blocks) > 1:
+        paired_refs = []
+        paired_amts = []
+
+        for block in blocks:
+            block_clean = re.sub(r'[\r\n\s\.]+', '', block)
+            block_ref = next(
+                (r for r in ref_vals if re.sub(r'[\r\n\s\.]+', '', r) in block_clean or r in block),
+                None
+            )
+
+            block_amt = None
+            for a in clean_amt_vals:
+                a_idx = block.find(a)
+                if a_idx != -1 and not is_new_balance_context(block, a_idx):
+                    block_amt = a
+                    break
+
+            if block_ref:
+                paired_refs.append(block_ref)
+                paired_amts.append(block_amt if block_amt else clean_amt_vals[0])
+
+        if paired_refs and paired_amts:
+            ref_result["all_values"] = paired_refs
+            ref_result["value"] = paired_refs[0]
+            amt_result["all_values"] = paired_amts
+            amt_result["value"] = paired_amts[0]
+            return results
+
+    # Positional tracking fallback if no explicit blocks
+    clean_text = re.sub(r'[\r\n\s\.]+', '', text)
+
     ref_pos = []
     for r_val in ref_vals:
-        idx = text.find(r_val)
+        clean_r = re.sub(r'[\r\n\s\.]+', '', r_val)
+        idx = clean_text.find(clean_r)
         ref_pos.append({"val": r_val, "idx": idx if idx != -1 else 0})
 
     amt_pos = []
     for a_val in clean_amt_vals:
-        idx = text.find(a_val)
+        clean_a = re.sub(r'[\r\n\s\.]+', '', a_val)
+        idx = clean_text.find(clean_a)
         amt_pos.append({"val": a_val, "idx": idx if idx != -1 else 0})
 
     ref_pos.sort(key=lambda x: x["idx"])
@@ -135,9 +192,7 @@ def align_reference_number_and_amount_results(results: List[Dict[str, Any]], tex
         best_idx = -1
 
         for a_idx, a_item in enumerate(amt_pos):
-            dist = a_item["idx"] - r_item["idx"]
-            if dist < 0:
-                dist = abs(dist) + 500  # Penalty for amount appearing before reference number
+            dist = abs(a_item["idx"] - r_item["idx"])
             if dist < best_dist and a_idx not in used_amt_indices:
                 best_dist = dist
                 best_idx = a_idx
@@ -186,7 +241,12 @@ def process_text_extraction(
             for match in regex.finditer(text):
                 if is_amount and is_new_balance_context(text, match.start()):
                     continue
-                raw_match = match.group(1) if match.groups() and match.group(1) else match.group(0)
+                if match.groups():
+                    first_cap = next((g for g in match.groups() if g is not None), None)
+                    raw_match = first_cap if first_cap is not None else match.group(0)
+                else:
+                    raw_match = match.group(0)
+
                 cleaned = clean_extracted_value(raw_match, field_key)
                 if cleaned and cleaned not in valid_values:
                     valid_values.append(cleaned)

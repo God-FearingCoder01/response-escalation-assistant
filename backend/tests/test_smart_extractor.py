@@ -298,3 +298,54 @@ def test_multiple_reference_numbers_align_with_corresponding_amounts():
     assert amt_item["value"] == "50.00"
 
 
+def test_ecocash_payment_confirmation_block_extraction_with_ocr_linebreaks():
+    rules = [
+        ExtractionRule(
+            id=501,
+            company_id=1,
+            name="Transaction Reference",
+            result_field="reference_number",
+            pattern=r"MP[\s\n\.\d]{8,25}T\d{7}",
+            is_enabled=True,
+        ),
+        ExtractionRule(
+            id=502,
+            company_id=1,
+            name="Amount",
+            result_field="amount",
+            pattern=r"(?:\$|USD\s*)(\d+(?:\.\d{2})?)|\b(\d+\.\d{2})\b",
+            is_enabled=True,
+        ),
+    ]
+
+    # Sample text matching the exact screenshot layout provided by the user
+    text = (
+        "Payment Confirmation:\n"
+        "USD 10.00 paid to 61126 - SOFTWAREHOUSE PVT LTD TA PAYNOW.\n"
+        "Approval Code: MP26\n"
+        "0831.1249.T4567667.\n"
+        "New balance: USD 1.64. 12:49 PM\n\n"
+        "Payment Confirmation:\n"
+        "USD 1.60 paid to 050618 - GETSOL PVT LTD.\n"
+        "Approval Code: MP\n"
+        "260831.1250.T4571985.\n"
+        "New balance: USD 0.04. 12:50 PM\n"
+    )
+
+    results = process_text_extraction(text, rules)
+
+    assert len(results) == 2
+    ref_item = next(r for r in results if r["result_field"] == "reference_number")
+    amt_item = next(r for r in results if r["result_field"] == "amount")
+
+    # Verify extracted reference numbers
+    assert len(ref_item["all_values"]) == 2
+    assert "MP260831.1249.T4567667" in ref_item["all_values"][0]
+    assert "MP260831.1250.T4571985" in ref_item["all_values"][1]
+
+    # Verify paired amounts (10.00 for Message 1, 1.60 for Message 2)
+    assert amt_item["all_values"] == ["10.00", "1.60"]
+    assert amt_item["value"] == "10.00"
+
+
+

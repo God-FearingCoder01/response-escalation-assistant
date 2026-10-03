@@ -173,7 +173,12 @@ const BLACKLISTED_REF_WORDS = new Set([
 
 function isNewBalanceContext(fullText, matchIndex) {
   if (matchIndex <= 0 || !fullText) return false;
-  const preceding = fullText.slice(Math.max(0, matchIndex - 60), matchIndex);
+  let preceding = fullText.slice(Math.max(0, matchIndex - 60), matchIndex);
+  const headerMatches = Array.from(preceding.matchAll(/payment\s*confirmation:?|confirmation:?/gi));
+  if (headerMatches.length > 0) {
+    const lastHeader = headerMatches[headerMatches.length - 1];
+    preceding = preceding.slice(lastHeader.index + lastHeader[0].length);
+  }
   return /new\s*bal(?:ance)?\b/i.test(preceding);
 }
 
@@ -285,6 +290,15 @@ export function extractValuesLocally(text = "", rules = []) {
   return alignReferenceNumberAndAmountResults(results, cleanText);
 }
 
+function splitTextIntoConfirmationBlocks(text = "") {
+  if (!text) return [];
+  let blocks = text.split(/payment\s*confirmation:?|confirmation:?/gi).map((b) => b.trim()).filter(Boolean);
+  if (blocks.length <= 1) {
+    blocks = text.split(/\n\s*\n/g).map((b) => b.trim()).filter(Boolean);
+  }
+  return blocks;
+}
+
 /**
  * Aligns reference numbers and amounts positionally in text so index N of reference_number pairs with index N of amount.
  */
@@ -308,6 +322,42 @@ function alignReferenceNumberAndAmountResults(results = [], cleanText = "") {
   const cleanAmtVals = amtVals.filter((a) => !refVals.some((r) => r.includes(a)));
   const effectiveAmtVals = cleanAmtVals.length > 0 ? cleanAmtVals : amtVals;
 
+  const blocks = splitTextIntoConfirmationBlocks(cleanText);
+
+  if (blocks.length > 1) {
+    const pairedRefs = [];
+    const pairedAmts = [];
+
+    blocks.forEach((block) => {
+      const blockClean = block.replace(/[\r\n\s\.]+/g, "");
+      const blockRef = refVals.find(
+        (r) => blockClean.includes(r.replace(/[\r\n\s\.]+/g, "")) || block.includes(r)
+      );
+
+      let blockAmt = null;
+      for (const a of effectiveAmtVals) {
+        const aIdx = block.indexOf(a);
+        if (aIdx !== -1 && !isNewBalanceContext(block, aIdx)) {
+          blockAmt = a;
+          break;
+        }
+      }
+
+      if (blockRef) {
+        pairedRefs.push(blockRef);
+        pairedAmts.push(blockAmt || effectiveAmtVals[0]);
+      }
+    });
+
+    if (pairedRefs.length > 0 && pairedAmts.length > 0) {
+      refResult.all_values = pairedRefs;
+      refResult.value = pairedRefs[0];
+      amtResult.all_values = pairedAmts;
+      amtResult.value = pairedAmts[0];
+      return results;
+    }
+  }
+
   const refPos = refVals.map((val) => {
     const idx = cleanText.indexOf(val);
     return { val, idx: idx !== -1 ? idx : 0 };
@@ -328,8 +378,7 @@ function alignReferenceNumberAndAmountResults(results = [], cleanText = "") {
     let bestIdx = -1;
 
     amtPos.forEach((aObj, aIdx) => {
-      let dist = aObj.idx - rObj.idx;
-      if (dist < 0) dist = Math.abs(dist) + 500;
+      let dist = Math.abs(aObj.idx - rObj.idx);
       if (dist < bestDist && !usedAmtIndices.has(aIdx)) {
         bestDist = dist;
         bestIdx = aIdx;
@@ -370,21 +419,21 @@ function runSmartFallbackExtractionAll(cleanText, collapsedText, fieldKey, ruleN
 
   // Transaction Reference / Reference Number (EcoCash MP260831.1249.T4567667 or general codes)
   if (fk.includes("ref") || fk.includes("tx") || fk.includes("transaction")) {
-    const ecoMatchesClean = Array.from(cleanText.matchAll(/\b(MP\d{6}[\.\s\n]*\d{4}[\.\s\n]*T\d{7})\b/gi));
+    const ecoMatchesClean = Array.from(cleanText.matchAll(/\b(MP[\s\n\.\d]{8,25}T\d{7})\b/gi));
     ecoMatchesClean.forEach((m) => addVal((m[1] || m[0]).replace(/[\s\r\n]+/g, "")));
 
     const ecoMatchesCollapsed = Array.from(collapsedText.matchAll(/\b(MP\d{6}\.\d{4}\.T\d{7})\b/gi));
     ecoMatchesCollapsed.forEach((m) => addVal(m[1] || m[0]));
 
-    const labelMatches = Array.from(cleanText.matchAll(/(?:ref(?:erence)?|tx(?:id)?|code|no\.?|id|approval)[:=\s\n]+([A-Z0-9.\-_]{6,35})/gi));
+    const labelMatches = Array.from(cleanText.matchAll(/(?:ref(?:erence)?|tx(?:id)?|code|no\.?|id|approval)[:=\s\n]+([A-Z0-9.\-_\s\n]{6,35})/gi));
     labelMatches.forEach((m) => {
-      const val = (m[1] || "").trim();
+      const val = (m[1] || "").replace(/[\s\r\n]+/g, "").trim();
       const isPhoneLike = /^([+41ft]?2637|07)\d{8}$/i.test(val) || (/^\d{10,12}$/.test(val) && val.startsWith("263"));
-      if (!isPhoneLike) addVal(val);
+      if (!isPhoneLike && val.length >= 6) addVal(val);
     });
 
-    const genMatches = Array.from(cleanText.matchAll(/\b([A-Z]{2}\d{6}\.\d{4}\.[A-Z0-9]{7,10})\b/gi));
-    genMatches.forEach((m) => addVal(m[1] || m[0]));
+    const genMatches = Array.from(cleanText.matchAll(/\b([A-Z]{2}[\s\n\.\d]{8,25}[A-Z0-9]{7,10})\b/gi));
+    genMatches.forEach((m) => addVal((m[1] || m[0]).replace(/[\s\r\n]+/g, "")));
   }
 
   // Amount / Price / Cost
@@ -439,8 +488,8 @@ export function getDefaultClientExtractionRules(companyId = 1) {
       name: "Transaction Reference",
       result_field: "reference_number",
       extraction_method: "regex",
-      pattern: "MP\\d{6}[\\.\\s\\n]*\\d{4}[\\.\\s\\n]*T\\d{7}",
-      description: "Standard EcoCash transaction reference format (e.g. MP260831.1923.T7382831)",
+      pattern: "MP[\\s\\n\\.\\d]{8,25}T\\d{7}",
+      description: "Standard EcoCash transaction reference / approval code format (e.g. MP260831.1923.T7382831)",
       is_enabled: true,
     },
     {
@@ -449,7 +498,7 @@ export function getDefaultClientExtractionRules(companyId = 1) {
       name: "Amount",
       result_field: "amount",
       extraction_method: "regex",
-      pattern: "(?:\\$|USD\\s*)?(\\d+(?:\\.\\d{2})?)",
+      pattern: "(?:\\$|USD\\s*)(\\d+(?:\\.\\d{2})?)|\\b(\\d+\\.\\d{2})\\b",
       description: "Currency amount numeral format excluding New Balance (e.g. 25.00)",
       is_enabled: true,
     },
