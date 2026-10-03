@@ -271,13 +271,7 @@ def sync_default_data_if_needed(session: Session) -> None:
         for v in default_vars:
             session.add(
                 GlobalVariable(
-                    name=v["name"],
-                    key=v["key"],
-                    value=v["value"],
-                    category=v["category"],
-                    description=v["description"],
-                    value_type=v["value_type"],
-                    is_active=v["is_active"],
+                    **v,
                     company_id=default_company.id,
                     created_at=now,
                     updated_at=now,
@@ -293,8 +287,8 @@ def sync_default_data_if_needed(session: Session) -> None:
                 "name": "Transaction Reference",
                 "result_field": "reference_number",
                 "extraction_method": "regex",
-                "pattern": r"MP[\s\n\.\d]{8,25}T\d{7}",
-                "description": "Standard EcoCash transaction reference / approval code format (e.g. MP260831.1923.T7382831)",
+                "pattern": r"(?:MP[\s\n\.\d]{8,25}T\d{7})|(?:\b(?:ref(?:erence)?|tx(?:id)?|approval|code|no\.\?)\b\s*[:=]?\s*(?:is\s+)?([A-Z0-9\.\-_]{6,35}))",
+                "description": "Standard EcoCash or general transaction reference / approval code format (e.g. MP260831.1923.T7382831 or REF123456)",
                 "is_enabled": True,
             },
             {

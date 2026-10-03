@@ -425,11 +425,11 @@ function runSmartFallbackExtractionAll(cleanText, collapsedText, fieldKey, ruleN
     const ecoMatchesCollapsed = Array.from(collapsedText.matchAll(/\b(MP\d{6}\.\d{4}\.T\d{7})\b/gi));
     ecoMatchesCollapsed.forEach((m) => addVal(m[1] || m[0]));
 
-    const labelMatches = Array.from(cleanText.matchAll(/(?:ref(?:erence)?|tx(?:id)?|code|no\.?|id|approval)[:=\s\n]+([A-Z0-9.\-_\s\n]{6,35})/gi));
+    const labelMatches = Array.from(cleanText.matchAll(/(?:ref(?:erence)?|tx(?:id)?|code|no\.?|id|approval)[:=\s]+([A-Z0-9.\-_]{4,35})/gi));
     labelMatches.forEach((m) => {
-      const val = (m[1] || "").replace(/[\s\r\n]+/g, "").trim();
+      const val = (m[1] || "").trim();
       const isPhoneLike = /^([+41ft]?2637|07)\d{8}$/i.test(val) || (/^\d{10,12}$/.test(val) && val.startsWith("263"));
-      if (!isPhoneLike && val.length >= 6) addVal(val);
+      if (!isPhoneLike && val.length >= 4) addVal(val);
     });
 
     const genMatches = Array.from(cleanText.matchAll(/\b([A-Z]{2}[\s\n\.\d]{8,25}[A-Z0-9]{7,10})\b/gi));
@@ -488,8 +488,8 @@ export function getDefaultClientExtractionRules(companyId = 1) {
       name: "Transaction Reference",
       result_field: "reference_number",
       extraction_method: "regex",
-      pattern: "MP[\\s\\n\\.\\d]{8,25}T\\d{7}",
-      description: "Standard EcoCash transaction reference / approval code format (e.g. MP260831.1923.T7382831)",
+      pattern: "(?:MP[\\s\\n\\.\\d]{8,25}T\\d{7})|(?:\\b(?:ref(?:erence)?|tx(?:id)?|approval|code|no\\.?)\\b\\s*[:=]?\\s*(?:is\\s+)?([A-Z0-9.\\-_]{6,35}))",
+      description: "Standard EcoCash or general transaction reference / approval code format (e.g. MP260831.1923.T7382831 or REF123456)",
       is_enabled: true,
     },
     {

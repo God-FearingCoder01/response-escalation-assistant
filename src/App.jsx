@@ -18,6 +18,7 @@ import SuperAdminPinModal from "./components/SuperAdminPinModal";
 import Toast from "./components/Toast";
 import HeaderStatusBar from "./components/HeaderStatusBar";
 import SmartExtractorWidget from "./components/SmartExtractorWidget";
+import { processExtractableFields } from "./services/extractableFieldService";
 
 
 import WelcomeScreen from "./screens/WelcomeScreen";
@@ -452,9 +453,25 @@ export default function App() {
     }
 
     if (extractedMap && Object.keys(extractedMap).length > 0) {
+      let parsedCfgMap = {};
+      if (targetTemplate?.placeholder_config) {
+        try {
+          parsedCfgMap = typeof targetTemplate.placeholder_config === "string"
+            ? JSON.parse(targetTemplate.placeholder_config)
+            : targetTemplate.placeholder_config;
+        } catch (e) {}
+      }
+
+      let extraUpdates = {};
+      Object.entries(extractedMap).forEach(([fieldKey, val]) => {
+        const updates = processExtractableFields(fieldKey, val, parsedCfgMap);
+        extraUpdates = { ...extraUpdates, ...updates };
+      });
+
       setValues((prev) => ({
         ...prev,
         ...extractedMap,
+        ...extraUpdates,
       }));
     }
 
@@ -736,7 +753,16 @@ export default function App() {
         showToast={showToast}
         onInsertIntoTemplate={(fieldKey, val) => {
           if (!fieldKey) return;
-          setValues((prev) => ({ ...prev, [fieldKey]: val }));
+          let parsedCfgMap = {};
+          if (activeTemplate?.placeholder_config) {
+            try {
+              parsedCfgMap = typeof activeTemplate.placeholder_config === "string"
+                ? JSON.parse(activeTemplate.placeholder_config)
+                : activeTemplate.placeholder_config;
+            } catch (e) {}
+          }
+          const updates = processExtractableFields(fieldKey, val, parsedCfgMap);
+          setValues((prev) => ({ ...prev, [fieldKey]: val, ...updates }));
         }}
         onApplyToTemplate={handleApplySmartExtractorToTemplate}
       />

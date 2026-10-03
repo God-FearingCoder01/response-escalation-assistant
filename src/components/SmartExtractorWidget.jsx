@@ -211,11 +211,22 @@ export default function SmartExtractorWidget({
   const handleApplyAllToTargetTemplate = () => {
     if (!targetTemplate || extractor.extractedResults.length === 0) return;
 
+    const tplPlaceholders = getTemplatePlaceholders(targetTemplate.body || "");
     const map = {};
     extractor.extractedResults.forEach((res) => {
-      const fieldKey = res.result_field || res.rule_name;
+      let fieldKey = res.result_field || res.rule_name;
       const chosen = selectedFieldValues[fieldKey] || res.value;
+
       if (fieldKey && chosen) {
+        // Map exact or fuzzy placeholder name in the target template
+        if (tplPlaceholders.length > 0 && !tplPlaceholders.includes(fieldKey)) {
+          const fuzzyMatch = tplPlaceholders.find((p) => {
+            const pLower = p.toLowerCase();
+            const fkLower = fieldKey.toLowerCase();
+            return pLower === fkLower || pLower.includes(fkLower) || fkLower.includes(pLower);
+          });
+          if (fuzzyMatch) fieldKey = fuzzyMatch;
+        }
         map[fieldKey] = chosen;
       }
     });
