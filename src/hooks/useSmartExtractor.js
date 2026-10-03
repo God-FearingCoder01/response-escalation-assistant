@@ -26,7 +26,7 @@ export function useSmartExtractor(companyId = 1) {
     setLoadingRules(true);
     try {
       const data = await fetchExtractionRules(companyId, true);
-      setRules(data && data.length > 0 ? data : getDefaultClientExtractionRules(companyId));
+      setRules(Array.isArray(data) ? data : getDefaultClientExtractionRules(companyId));
     } catch (err) {
       console.error("Error loading extraction rules:", err);
       setRules(getDefaultClientExtractionRules(companyId));

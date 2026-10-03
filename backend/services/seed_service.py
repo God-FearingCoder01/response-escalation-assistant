@@ -159,6 +159,56 @@ def get_default_extraction_rules_seed(company_id: int) -> List[ExtractionRule]:
     ]
 
 
+def seed_company_extraction_rules_if_needed(session: Session, company_id: int) -> None:
+    """
+    Seeds default starter ExtractionRule records for a company if they haven't been seeded yet.
+    Uses a GlobalVariable marker ('extraction_rules_seeded') to ensure starter rules are
+    only seeded ONCE per company and never re-seeded or resurrected if edited/deleted by an admin.
+    """
+    now = datetime.now(timezone.utc)
+    marker = session.exec(
+        select(GlobalVariable)
+        .where(GlobalVariable.company_id == company_id)
+        .where(GlobalVariable.key == "extraction_rules_seeded")
+    ).first()
+
+    if marker:
+        return  # Already seeded for this company tenant, do not overwrite admin edits/deletions
+
+    existing_rules = session.exec(select(ExtractionRule).where(ExtractionRule.company_id == company_id)).all()
+    if not existing_rules:
+        for r in get_default_extraction_rules_seed(company_id):
+            session.add(
+                ExtractionRule(
+                    name=r.name,
+                    result_field=r.result_field,
+                    extraction_method=r.extraction_method,
+                    pattern=r.pattern,
+                    description=r.description,
+                    is_enabled=r.is_enabled,
+                    company_id=r.company_id,
+                    created_at=r.created_at,
+                    updated_at=r.updated_at,
+                )
+            )
+        session.commit()
+
+    marker_var = GlobalVariable(
+        name="Extraction Rules Seeded Marker",
+        key="extraction_rules_seeded",
+        value="true",
+        category="System",
+        description="Internal marker indicating starter extraction rules have been initialized for this organization.",
+        value_type="boolean",
+        is_active=True,
+        company_id=company_id,
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(marker_var)
+    session.commit()
+
+
 def sync_default_data_if_needed(session: Session) -> None:
     now = datetime.now(timezone.utc)
     # 1. Default Company
@@ -343,24 +393,8 @@ def sync_default_data_if_needed(session: Session) -> None:
             )
         session.commit()
 
-    # Sync default ExtractionRules if needed
-    existing_rules = session.exec(select(ExtractionRule).where(ExtractionRule.company_id == default_company.id)).all()
-    if not existing_rules:
-        for r in get_default_extraction_rules_seed(default_company.id):
-            session.add(
-                ExtractionRule(
-                    name=r.name,
-                    result_field=r.result_field,
-                    extraction_method=r.extraction_method,
-                    pattern=r.pattern,
-                    description=r.description,
-                    is_enabled=r.is_enabled,
-                    company_id=r.company_id,
-                    created_at=r.created_at,
-                    updated_at=r.updated_at,
-                )
-            )
-        session.commit()
+    # Sync default ExtractionRules for default_company if needed
+    seed_company_extraction_rules_if_needed(session, default_company.id)
 
     # Reset PostgreSQL auto-increment sequences if running on PostgreSQL to prevent primary key collision errors
     if IS_POSTGRES:

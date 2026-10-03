@@ -25,6 +25,7 @@ from backend.services.seed_service import (
     DEFAULT_AGENTS,
     DEFAULT_TEMPLATES,
     sync_default_data_if_needed,
+    seed_company_extraction_rules_if_needed,
 )
 
 router = APIRouter(tags=["SuperAdmin & Organizations"])
@@ -286,6 +287,7 @@ def create_company(payload: CompanyCreate):
                 )
             )
         session.commit()
+        seed_company_extraction_rules_if_needed(session, comp_id_val)
         session.refresh(comp)
         return CompanyRead.model_validate(comp)
 

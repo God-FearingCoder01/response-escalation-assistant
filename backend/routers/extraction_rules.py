@@ -45,45 +45,27 @@ def get_extraction_rules(
         statement = select(ExtractionRule).where(ExtractionRule.company_id == company_id)
         rules = session.exec(statement).all()
 
-        # If this company tenant has zero extraction rules in DB, seed defaults into DB if company exists
+        # If this company tenant has zero extraction rules in DB, seed defaults ONCE if company exists & not yet seeded
         if not rules and not enabled_only:
-            from backend.services.seed_service import get_default_extraction_rules_seed
+            from backend.services.seed_service import seed_company_extraction_rules_if_needed
             company_exists = session.get(Company, company_id)
             if company_exists:
-                try:
-                    seeded = get_default_extraction_rules_seed(company_id)
-                    for r in seeded:
-                        session.add(
-                            ExtractionRule(
-                                name=r.name,
-                                result_field=r.result_field,
-                                extraction_method=r.extraction_method,
-                                pattern=r.pattern,
-                                description=r.description,
-                                is_enabled=r.is_enabled,
-                                company_id=r.company_id,
-                                created_at=r.created_at,
-                                updated_at=r.updated_at,
-                            )
-                        )
-                    session.commit()
-                    rules = session.exec(statement).all()
-                except Exception:
-                    session.rollback()
-                    rules = get_default_extraction_rules_seed(company_id)
-            else:
-                rules = get_default_extraction_rules_seed(company_id)
+                seed_company_extraction_rules_if_needed(session, company_id)
+                rules = session.exec(statement).all()
 
         if enabled_only:
             rules = [r for r in rules if r.is_enabled]
 
         return sorted(rules, key=lambda x: x.name or "")
     except Exception:
-        from backend.services.seed_service import get_default_extraction_rules_seed
-        fallback_rules = get_default_extraction_rules_seed(company_id)
-        if enabled_only:
-            fallback_rules = [r for r in fallback_rules if r.is_enabled]
-        return sorted(fallback_rules, key=lambda x: x.name or "")
+        try:
+            statement = select(ExtractionRule).where(ExtractionRule.company_id == company_id)
+            rules = session.exec(statement).all()
+            if enabled_only:
+                rules = [r for r in rules if r.is_enabled]
+            return sorted(rules, key=lambda x: x.name or "")
+        except Exception:
+            return []
 
 
 @router.post("", response_model=ExtractionRuleRead)
