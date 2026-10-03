@@ -53,7 +53,19 @@ def get_extraction_rules(
                 try:
                     seeded = get_default_extraction_rules_seed(company_id)
                     for r in seeded:
-                        session.add(r)
+                        session.add(
+                            ExtractionRule(
+                                name=r.name,
+                                result_field=r.result_field,
+                                extraction_method=r.extraction_method,
+                                pattern=r.pattern,
+                                description=r.description,
+                                is_enabled=r.is_enabled,
+                                company_id=r.company_id,
+                                created_at=r.created_at,
+                                updated_at=r.updated_at,
+                            )
+                        )
                     session.commit()
                     rules = session.exec(statement).all()
                 except Exception:

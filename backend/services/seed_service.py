@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from typing import List, TypedDict
 from sqlmodel import Session, select
 
+from sqlalchemy import text
+from backend.database import IS_POSTGRES
 from backend.models import (
     Company,
     Agent,
@@ -97,11 +99,11 @@ def get_default_extraction_rules_seed(company_id: int) -> List[ExtractionRule]:
     now = datetime.now(timezone.utc)
     default_rules = [
         {
-            "name": "Transaction Reference",
+            "name": "Ecocash Transaction ID",
             "result_field": "reference_number",
             "extraction_method": "regex",
             "pattern": r"(?:MP[\s\n\.\d]{8,25}T\d{7})|(?:\b(?:ref(?:erence)?|tx(?:id)?|approval|code|no\.\?)\b\s*[:=]?\s*(?:is\s+)?([A-Z0-9\.\-_]{6,35}))",
-            "description": "Standard EcoCash or general transaction reference / approval code format (e.g. MP260831.1923.T7382831 or REF123456)",
+            "description": "Standard EcoCash transaction ID / approval code format (e.g. MP260831.1923.T7382831 or REF123456)",
             "is_enabled": True,
         },
         {
@@ -140,19 +142,20 @@ def get_default_extraction_rules_seed(company_id: int) -> List[ExtractionRule]:
             "name": "Account Number",
             "result_field": "account_number",
             "extraction_method": "regex",
-            "pattern": r"\+2637\d{8}|07\d{8}|\b\d{8,16}\b",
+            "pattern": r"\+2637\d{8}|07\d{8}",
             "description": "Customer account or international phone number (+263779431682)",
             "is_enabled": True,
         },
     ]
     return [
         ExtractionRule(
+            id=idx + 1,
             **r,
             company_id=company_id,
             created_at=now,
             updated_at=now,
         )
-        for r in default_rules
+        for idx, r in enumerate(default_rules)
     ]
 
 
@@ -343,8 +346,35 @@ def sync_default_data_if_needed(session: Session) -> None:
     # Sync default ExtractionRules if needed
     existing_rules = session.exec(select(ExtractionRule).where(ExtractionRule.company_id == default_company.id)).all()
     if not existing_rules:
-        for rule in get_default_extraction_rules_seed(default_company.id):
-            session.add(rule)
+        for r in get_default_extraction_rules_seed(default_company.id):
+            session.add(
+                ExtractionRule(
+                    name=r.name,
+                    result_field=r.result_field,
+                    extraction_method=r.extraction_method,
+                    pattern=r.pattern,
+                    description=r.description,
+                    is_enabled=r.is_enabled,
+                    company_id=r.company_id,
+                    created_at=r.created_at,
+                    updated_at=r.updated_at,
+                )
+            )
         session.commit()
+
+    # Reset PostgreSQL auto-increment sequences if running on PostgreSQL to prevent primary key collision errors
+    if IS_POSTGRES:
+        tables = [
+            "company", "agent", "template", "globalvariable",
+            "extractionrule", "suggestion", "supportrequest",
+            "shiftconfig", "escalationtarget", "shiftissue", "privatenote",
+            "agentuserdata"
+        ]
+        for tbl in tables:
+            try:
+                session.exec(text(f"SELECT setval(pg_get_serial_sequence('{tbl}', 'id'), COALESCE((SELECT MAX(id) FROM {tbl}), 1));"))
+                session.commit()
+            except Exception:
+                session.rollback()
 
 
