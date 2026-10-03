@@ -89,6 +89,74 @@ def evaluate_rule_pattern(pattern: str, test_input: str) -> Dict[str, Any]:
         }
 
 
+def align_reference_number_and_amount_results(results: List[Dict[str, Any]], text: str) -> List[Dict[str, Any]]:
+    """
+    Ensures that for every reference_number extracted, there is a corresponding amount aligned by position in text.
+    Filters out pseudo-amount matches that are actually substrings of reference numbers (e.g. '260831.11' inside 'MP260831.1111.T1111111').
+    """
+    if not results or not text:
+        return results
+
+    ref_result = next((r for r in results if "reference" in r.get("result_field", "").lower() or "tx" in r.get("result_field", "").lower()), None)
+    amt_result = next((r for r in results if "amount" in r.get("result_field", "").lower() or "price" in r.get("result_field", "").lower()), None)
+
+    if not ref_result or not amt_result:
+        return results
+
+    ref_vals = ref_result.get("all_values") or [ref_result["value"]]
+    amt_vals = amt_result.get("all_values") or [amt_result["value"]]
+
+    if not ref_vals or not amt_vals:
+        return results
+
+    # Filter out amount matches that are substrings of any reference number
+    clean_amt_vals = [a for a in amt_vals if not any(a in r for r in ref_vals)]
+    if not clean_amt_vals:
+        clean_amt_vals = amt_vals
+
+    # Positional tracking in text
+    ref_pos = []
+    for r_val in ref_vals:
+        idx = text.find(r_val)
+        ref_pos.append({"val": r_val, "idx": idx if idx != -1 else 0})
+
+    amt_pos = []
+    for a_val in clean_amt_vals:
+        idx = text.find(a_val)
+        amt_pos.append({"val": a_val, "idx": idx if idx != -1 else 0})
+
+    ref_pos.sort(key=lambda x: x["idx"])
+
+    aligned_amounts = []
+    used_amt_indices = set()
+
+    for r_item in ref_pos:
+        best_dist = float('inf')
+        best_idx = -1
+
+        for a_idx, a_item in enumerate(amt_pos):
+            dist = a_item["idx"] - r_item["idx"]
+            if dist < 0:
+                dist = abs(dist) + 500  # Penalty for amount appearing before reference number
+            if dist < best_dist and a_idx not in used_amt_indices:
+                best_dist = dist
+                best_idx = a_idx
+
+        if best_idx != -1:
+            used_amt_indices.add(best_idx)
+            aligned_amounts.append(amt_pos[best_idx]["val"])
+        else:
+            aligned_amounts.append(clean_amt_vals[0])
+
+    ref_result["all_values"] = [r["val"] for r in ref_pos]
+    ref_result["value"] = ref_result["all_values"][0]
+
+    amt_result["all_values"] = aligned_amounts
+    amt_result["value"] = amt_result["all_values"][0]
+
+    return results
+
+
 def process_text_extraction(
     text: str,
     rules: List[ExtractionRule]
@@ -96,6 +164,7 @@ def process_text_extraction(
     """
     Extracts structured values from raw text using company-scoped extraction rules.
     Excludes amount values preceded by 'New Balance:' and strips currency symbols ($/USD) from amounts.
+    Aligns every reference_number with its corresponding amount.
     """
     if not text or not rules:
         return []
@@ -146,5 +215,6 @@ def process_text_extraction(
         except Exception:
             continue
 
+    results = align_reference_number_and_amount_results(results, text)
     return results
 

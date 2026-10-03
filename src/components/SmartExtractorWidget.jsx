@@ -26,6 +26,39 @@ export default function SmartExtractorWidget({
 
   const [selectedFieldValues, setSelectedFieldValues] = useState({});
 
+  const handleSelectFieldValue = (fieldKey, val, vIdx) => {
+    const fk = (fieldKey || "").toLowerCase();
+
+    setSelectedFieldValues((prev) => {
+      const nextMap = { ...prev, [fieldKey]: val };
+
+      // Synchronize reference_number <-> amount by index vIdx
+      if (fk.includes("reference") || fk.includes("ref") || fk.includes("tx")) {
+        const amtResult = extractor.extractedResults.find(
+          (r) => (r.result_field || "").toLowerCase().includes("amount") || (r.result_field || "").toLowerCase().includes("price")
+        );
+        if (amtResult) {
+          const amtVals = amtResult.all_values && amtResult.all_values.length > 0 ? amtResult.all_values : [amtResult.value];
+          if (amtVals[vIdx]) {
+            nextMap[amtResult.result_field || "amount"] = amtVals[vIdx];
+          }
+        }
+      } else if (fk.includes("amount") || fk.includes("price")) {
+        const refResult = extractor.extractedResults.find(
+          (r) => (r.result_field || "").toLowerCase().includes("reference") || (r.result_field || "").toLowerCase().includes("tx")
+        );
+        if (refResult) {
+          const refVals = refResult.all_values && refResult.all_values.length > 0 ? refResult.all_values : [refResult.value];
+          if (refVals[vIdx]) {
+            nextMap[refResult.result_field || "reference_number"] = refVals[vIdx];
+          }
+        }
+      }
+
+      return nextMap;
+    });
+  };
+
   // Sync default selected field values whenever extracted results change
   useEffect(() => {
     if (extractor.extractedResults && extractor.extractedResults.length > 0) {
@@ -456,25 +489,55 @@ export default function SmartExtractorWidget({
                           <div className="space-y-1.5 rounded-xl border bg-black/40 p-2.5 border-white/10">
                             {allVals.map((val, vIdx) => {
                               const isChecked = currentSelected === val;
+
+                              let pairedBadge = null;
+                              const fkLower = fieldKey.toLowerCase();
+                              if (fkLower.includes("reference") || fkLower.includes("ref") || fkLower.includes("tx")) {
+                                const amtResult = extractor.extractedResults.find(
+                                  (r) => (r.result_field || "").toLowerCase().includes("amount") || (r.result_field || "").toLowerCase().includes("price")
+                                );
+                                if (amtResult) {
+                                  const amtVals = amtResult.all_values && amtResult.all_values.length > 0 ? amtResult.all_values : [amtResult.value];
+                                  if (amtVals[vIdx]) {
+                                    pairedBadge = `Amount: ${amtVals[vIdx]}`;
+                                  }
+                                }
+                              } else if (fkLower.includes("amount") || fkLower.includes("price")) {
+                                const refResult = extractor.extractedResults.find(
+                                  (r) => (r.result_field || "").toLowerCase().includes("reference") || (r.result_field || "").toLowerCase().includes("tx")
+                                );
+                                if (refResult) {
+                                  const refVals = refResult.all_values && refResult.all_values.length > 0 ? refResult.all_values : [refResult.value];
+                                  if (refVals[vIdx]) {
+                                    pairedBadge = `Ref: ${refVals[vIdx]}`;
+                                  }
+                                }
+                              }
+
                               return (
                                 <div
                                   key={vIdx}
-                                  onClick={() => setSelectedFieldValues((prev) => ({ ...prev, [fieldKey]: val }))}
+                                  onClick={() => handleSelectFieldValue(fieldKey, val, vIdx)}
                                   className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition border text-xs font-mono ${
                                     isChecked
                                       ? "bg-[#4cd34c]/20 border-[#4cd34c] text-white font-bold"
                                       : "bg-black/20 border-transparent text-gray-300 hover:bg-white/5"
                                   }`}
                                 >
-                                  <div className="flex items-center gap-2.5">
+                                  <div className="flex items-center gap-2.5 flex-wrap">
                                     <input
                                       type="radio"
                                       name={`field_group_${fieldKey}`}
                                       checked={isChecked}
-                                      onChange={() => setSelectedFieldValues((prev) => ({ ...prev, [fieldKey]: val }))}
+                                      onChange={() => handleSelectFieldValue(fieldKey, val, vIdx)}
                                       className="accent-[#4cd34c] h-4 w-4 cursor-pointer"
                                     />
                                     <span>{val}</span>
+                                    {pairedBadge && (
+                                      <span className="text-[10px] text-amber-300 font-mono bg-amber-400/10 border border-amber-400/30 px-2 py-0.5 rounded-md">
+                                        🔗 {pairedBadge}
+                                      </span>
+                                    )}
                                   </div>
                                   <button
                                     type="button"

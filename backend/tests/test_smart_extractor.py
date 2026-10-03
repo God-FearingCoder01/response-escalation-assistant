@@ -274,3 +274,27 @@ def test_amount_extraction_excludes_new_balance_and_strips_currency_symbols():
     assert amt_item["value"] == "75.00"
     assert "250.00" not in amt_item["all_values"]
 
+
+def test_multiple_reference_numbers_align_with_corresponding_amounts():
+    rules = [
+        ExtractionRule(id=401, company_id=1, name="Transaction Ref", result_field="reference_number", pattern=r"MP\d{6}\.\d{4}\.T\d{7}", is_enabled=True),
+        ExtractionRule(id=402, company_id=1, name="Amount", result_field="amount", pattern=r"(?:\$|USD\s*)?(\d+(?:\.\d{2})?)", is_enabled=True),
+    ]
+
+    text = (
+        "Tx 1: Ref MP260831.1111.T1111111 Amount: $50.00. "
+        "Tx 2: Ref MP260831.2222.T2222222 Amount: $125.00. "
+    )
+    results = process_text_extraction(text, rules)
+
+    assert len(results) == 2
+    ref_item = next(r for r in results if r["result_field"] == "reference_number")
+    amt_item = next(r for r in results if r["result_field"] == "amount")
+
+    # Verify order alignment: Ref #1 pairs with Amount #1, Ref #2 pairs with Amount #2
+    assert ref_item["all_values"] == ["MP260831.1111.T1111111", "MP260831.2222.T2222222"]
+    assert amt_item["all_values"] == ["50.00", "125.00"]
+    assert ref_item["value"] == "MP260831.1111.T1111111"
+    assert amt_item["value"] == "50.00"
+
+

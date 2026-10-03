@@ -282,6 +282,74 @@ export function extractValuesLocally(text = "", rules = []) {
     }
   });
 
+  return alignReferenceNumberAndAmountResults(results, cleanText);
+}
+
+/**
+ * Aligns reference numbers and amounts positionally in text so index N of reference_number pairs with index N of amount.
+ */
+function alignReferenceNumberAndAmountResults(results = [], cleanText = "") {
+  if (!Array.isArray(results) || results.length === 0 || !cleanText) return results;
+
+  const refResult = results.find(
+    (r) => (r.result_field || "").toLowerCase().includes("reference") || (r.result_field || "").toLowerCase().includes("tx")
+  );
+  const amtResult = results.find(
+    (r) => (r.result_field || "").toLowerCase().includes("amount") || (r.result_field || "").toLowerCase().includes("price")
+  );
+
+  if (!refResult || !amtResult) return results;
+
+  const refVals = refResult.all_values && refResult.all_values.length > 0 ? refResult.all_values : [refResult.value];
+  const amtVals = amtResult.all_values && amtResult.all_values.length > 0 ? amtResult.all_values : [amtResult.value];
+
+  if (refVals.length === 0 || amtVals.length === 0) return results;
+
+  const cleanAmtVals = amtVals.filter((a) => !refVals.some((r) => r.includes(a)));
+  const effectiveAmtVals = cleanAmtVals.length > 0 ? cleanAmtVals : amtVals;
+
+  const refPos = refVals.map((val) => {
+    const idx = cleanText.indexOf(val);
+    return { val, idx: idx !== -1 ? idx : 0 };
+  });
+
+  const amtPos = effectiveAmtVals.map((val) => {
+    const idx = cleanText.indexOf(val);
+    return { val, idx: idx !== -1 ? idx : 0 };
+  });
+
+  refPos.sort((a, b) => a.idx - b.idx);
+
+  const pairedAmounts = [];
+  const usedAmtIndices = new Set();
+
+  refPos.forEach((rObj) => {
+    let bestDist = Infinity;
+    let bestIdx = -1;
+
+    amtPos.forEach((aObj, aIdx) => {
+      let dist = aObj.idx - rObj.idx;
+      if (dist < 0) dist = Math.abs(dist) + 500;
+      if (dist < bestDist && !usedAmtIndices.has(aIdx)) {
+        bestDist = dist;
+        bestIdx = aIdx;
+      }
+    });
+
+    if (bestIdx !== -1) {
+      usedAmtIndices.add(bestIdx);
+      pairedAmounts.push(amtPos[bestIdx].val);
+    } else {
+      pairedAmounts.push(effectiveAmtVals[0]);
+    }
+  });
+
+  refResult.all_values = refPos.map((r) => r.val);
+  refResult.value = refResult.all_values[0];
+
+  amtResult.all_values = pairedAmounts;
+  amtResult.value = amtResult.all_values[0];
+
   return results;
 }
 
