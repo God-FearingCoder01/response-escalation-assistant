@@ -1,3 +1,4 @@
+import logging
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -19,6 +20,7 @@ from backend.services.extraction_service import (
 )
 
 router = APIRouter(prefix="/api/extraction-rules", tags=["Smart Extractor Rules"])
+logger = logging.getLogger("rea_extraction_rules")
 
 
 class RuleTestRequest(BaseModel):
@@ -58,14 +60,8 @@ def get_extraction_rules(
 
         return sorted(rules, key=lambda x: x.name or "")
     except Exception:
-        try:
-            statement = select(ExtractionRule).where(ExtractionRule.company_id == company_id)
-            rules = session.exec(statement).all()
-            if enabled_only:
-                rules = [r for r in rules if r.is_enabled]
-            return sorted(rules, key=lambda x: x.name or "")
-        except Exception:
-            return []
+        logger.exception("Failed to load extraction rules for company_id=%s", company_id)
+        raise HTTPException(status_code=500, detail="Failed to load extraction rules.")
 
 
 @router.post("", response_model=ExtractionRuleRead)

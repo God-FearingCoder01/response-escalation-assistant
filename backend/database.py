@@ -108,6 +108,16 @@ def create_db_and_tables():
             ("suggestion", "created_at", "TIMESTAMP"),
             ("suggestion", "updated_at", "TIMESTAMP"),
             ("agentuserdata", "custom_categories_json", "TEXT DEFAULT '[]'"),
+            # Extraction rules were added after some production databases had
+            # already been created. create_all() creates missing tables but
+            # does not add columns to an existing table, so keep this table's
+            # evolving schema in sync on PostgreSQL deployments as well.
+            ("extractionrule", "extraction_method", "VARCHAR DEFAULT 'regex'"),
+            ("extractionrule", "description", "TEXT"),
+            ("extractionrule", "is_enabled", "BOOLEAN DEFAULT TRUE"),
+            ("extractionrule", "company_id", "INTEGER DEFAULT 1"),
+            ("extractionrule", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+            ("extractionrule", "updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
         ]
 
         with engine.begin() as conn:

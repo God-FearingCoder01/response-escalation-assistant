@@ -5,12 +5,12 @@ import {
   updateExtractionRule,
   deleteExtractionRule,
   testExtractionRuleApi,
-  getDefaultClientExtractionRules,
 } from "../services/smartExtractorService";
 
 export default function SmartExtractorRuleManager({ companyId = 1, showToast = () => { } }) {
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Rule Form State
@@ -33,12 +33,14 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
 
   const loadRules = useCallback(async () => {
     setLoading(true);
+    setLoadError("");
     try {
       const data = await fetchExtractionRules(companyId, false);
-      setRules(Array.isArray(data) ? data : getDefaultClientExtractionRules(companyId));
+      setRules(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to load extraction rules:", err);
-      setRules(getDefaultClientExtractionRules(companyId));
+      setLoadError(err.message || "Failed to load extraction rules.");
+      setRules([]);
     } finally {
       setLoading(false);
     }
@@ -188,6 +190,10 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
       {/* RULES LIST */}
       {loading ? (
         <div className="p-8 text-center text-xs text-gray-400">Loading extraction rules...</div>
+      ) : loadError ? (
+        <div className="rounded-2xl border p-8 text-center bg-black/20 border-red-500/20 text-red-300 text-xs">
+          {loadError}. Check the production database connection and try again.
+        </div>
       ) : filteredRules.length === 0 ? (
         <div className="rounded-2xl border p-8 text-center bg-black/20 border-white/10 text-gray-400 text-xs">
           No extraction rules found matching your filter.

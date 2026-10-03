@@ -5,18 +5,13 @@ import { createWorker } from "tesseract.js";
  * Fetch all extraction rules for a company tenant.
  */
 export async function fetchExtractionRules(companyId = 1, enabledOnly = false) {
-  try {
-    const res = await fetch(`${API_BASE}/api/extraction-rules?company_id=${companyId}&enabled_only=${enabledOnly}`, {
-      headers: {
-        ...getCompanyHeaders(),
-      },
-    });
-    if (!res.ok) throw new Error(`Failed to fetch extraction rules (${res.status})`);
-    return await res.json();
-  } catch (err) {
-    console.warn("fetchExtractionRules failed, returning default rules fallback:", err);
-    return getDefaultClientExtractionRules(companyId);
-  }
+  const res = await fetch(`${API_BASE}/api/extraction-rules?company_id=${companyId}&enabled_only=${enabledOnly}`, {
+    headers: {
+      ...getCompanyHeaders(),
+    },
+  });
+  if (!res.ok) throw new Error(`Failed to fetch extraction rules (${res.status})`);
+  return await res.json();
 }
 
 /**
