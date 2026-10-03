@@ -171,19 +171,31 @@ const BLACKLISTED_REF_WORDS = new Set([
   "receipt",
 ]);
 
+function isNewBalanceContext(fullText, matchIndex) {
+  if (matchIndex <= 0 || !fullText) return false;
+  const preceding = fullText.slice(Math.max(0, matchIndex - 60), matchIndex);
+  return /new\s*bal(?:ance)?\b/i.test(preceding);
+}
+
 /**
  * Normalizes extracted values, fixing common OCR character misrecognitions.
  */
 function normalizeExtractedValue(val, fieldKey = "", pattern = "") {
   if (!val || typeof val !== "string") return val;
   let str = val.trim();
+  const fk = fieldKey.toLowerCase();
+
+  // Strip preceding/trailing $, USD, US$ for amount fields so only numerals remain
+  if (fk.includes("amount") || fk.includes("price") || fk.includes("cost") || fk.includes("sum")) {
+    str = str.replace(/^(?:USD|\$|US\$|\s)+/gi, "").replace(/(?:USD|\$|US\$|\s)+$/gi, "");
+  }
 
   // Fix OCR misrecognition of '+' as '4', '1', 'f', or 't' at start of international +263 numbers
   if (/^[41ft]2637\d{8}$/i.test(str)) {
     str = "+2637" + str.slice(5);
   } else if (/^2637\d{8}$/.test(str)) {
     str = "+" + str;
-  } else if ((pattern && pattern.includes("263")) || fieldKey.includes("phone") || fieldKey.includes("account")) {
+  } else if ((pattern && pattern.includes("263")) || fk.includes("phone") || fk.includes("account")) {
     if (/^[41ft]263/i.test(str)) {
       str = "+" + str.slice(1);
     }
@@ -194,10 +206,6 @@ function normalizeExtractedValue(val, fieldKey = "", pattern = "") {
   return str;
 }
 
-/**
- * Runs client-side structured value extraction against enabled rules.
- * Uses configured rule patterns first, then falls back to smart label & entity matchers.
- */
 /**
  * Runs client-side structured value extraction against enabled rules.
  * Uses configured rule patterns first, then falls back to smart label & entity matchers.
@@ -233,6 +241,9 @@ export function extractValuesLocally(text = "", rules = []) {
         const globalRegex = new RegExp(rule.pattern, "gi");
         const cleanMatches = Array.from(cleanText.matchAll(globalRegex));
         cleanMatches.forEach((match) => {
+          if (fieldKey.includes("amount") && isNewBalanceContext(cleanText, match.index)) {
+            return;
+          }
           const rawVal = (match[1] || match[0]).trim();
           addVal(rawVal);
         });
@@ -240,6 +251,9 @@ export function extractValuesLocally(text = "", rules = []) {
         // Also check collapsed text for line-wrapped matches
         const collapsedMatches = Array.from(collapsedText.matchAll(globalRegex));
         collapsedMatches.forEach((match) => {
+          if (fieldKey.includes("amount") && isNewBalanceContext(collapsedText, match.index)) {
+            return;
+          }
           const rawVal = (match[1] || match[0]).trim();
           addVal(rawVal);
         });
@@ -308,13 +322,19 @@ function runSmartFallbackExtractionAll(cleanText, collapsedText, fieldKey, ruleN
   // Amount / Price / Cost
   if (fk.includes("amount") || fk.includes("price") || fk.includes("cost") || fk.includes("sum")) {
     const usdMatches = Array.from(cleanText.matchAll(/(?:\bUSD\s*|\$)\s*(\d+(?:\.\d{2})?)/gi));
-    usdMatches.forEach((m) => addVal(m[0].trim()));
+    usdMatches.forEach((m) => {
+      if (!isNewBalanceContext(cleanText, m.index)) {
+        addVal(m[1] || m[0]);
+      }
+    });
 
     const decimalMatches = Array.from(cleanText.matchAll(/\b(\d+\.\d{2})\b/g));
     decimalMatches.forEach((m) => {
-      const v = m[1].trim();
-      if (!values.some((existing) => existing.includes(v))) {
-        addVal(v);
+      if (!isNewBalanceContext(cleanText, m.index)) {
+        const v = m[1].trim();
+        if (!values.some((existing) => existing.includes(v))) {
+          addVal(v);
+        }
       }
     });
   }
@@ -361,8 +381,8 @@ export function getDefaultClientExtractionRules(companyId = 1) {
       name: "Amount",
       result_field: "amount",
       extraction_method: "regex",
-      pattern: "\\$?\\d+(?:\\.\\d{2})?",
-      description: "Currency amount format (e.g. $25.00)",
+      pattern: "(?:\\$|USD\\s*)?(\\d+(?:\\.\\d{2})?)",
+      description: "Currency amount numeral format excluding New Balance (e.g. 25.00)",
       is_enabled: true,
     },
     {
@@ -407,3 +427,4 @@ export function getDefaultClientExtractionRules(companyId = 1) {
     },
   ];
 }
+

@@ -150,7 +150,7 @@ def test_process_text_extraction_single_and_multiple_matches():
 
         # Verify Amount
         amt_item = next(r for r in results if r["result_field"] == "amount")
-        assert amt_item["value"] == "$45.50"
+        assert amt_item["value"] == "45.50"
         assert amt_item["is_valid"] is True
 
         # Verify Date
@@ -178,7 +178,7 @@ def test_pasted_text_bypasses_ocr_and_processes_successfully():
     
     values = [r["value"] for r in data["results"]]
     assert "MP998877.1234.T1122334" in values
-    assert "$100.00" in values
+    assert "100.00" in values
 
 
 def test_no_match_scenarios_handled_cleanly():
@@ -249,3 +249,28 @@ def test_extractable_fields_and_templates_remain_unaffected():
 
     assert tpl["id"] > 0
     assert tpl["body"] == "Hello {customer_name}, reference is {reference_number}."
+
+
+def test_amount_extraction_excludes_new_balance_and_strips_currency_symbols():
+    rules = [
+        ExtractionRule(
+            id=301,
+            company_id=1,
+            name="Amount",
+            result_field="amount",
+            pattern=r"(?:\$|USD\s*)?(\d+(?:\.\d{2})?)",
+            is_enabled=True,
+        )
+    ]
+
+    # Test text containing transaction amount and New Balance amount
+    text = "Successful transaction of USD 75.00 on your account. New Balance: $250.00."
+    results = process_text_extraction(text, rules)
+
+    assert len(results) == 1
+    amt_item = results[0]
+    assert amt_item["result_field"] == "amount"
+    # Must be 75.00 (numerals only, excluding New Balance $250.00 and excluding USD symbol)
+    assert amt_item["value"] == "75.00"
+    assert "250.00" not in amt_item["all_values"]
+
