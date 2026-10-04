@@ -101,19 +101,37 @@ export default function SmartExtractorWidget({
       return { tier1: [], tier2: [], all: templates || [] };
     }
 
-    const tier1 = []; // Uses ALL extracted fields
-    const tier2 = []; // Uses AT LEAST ONE extracted field
+    const tier1 = []; // Requires exactly the fields found in the extraction
+    const tier2 = []; // Uses extracted fields but also needs other inputs
 
     templates.forEach((t) => {
       const phs = getTemplatePlaceholders(t.body || "").map((p) => p.toLowerCase());
       const matching = extractedFieldsList.filter((ef) => phs.includes(ef));
 
-      if (matching.length === extractedFieldsList.length && matching.length > 0) {
-        tier1.push({ ...t, matchingFields: matching, placeholderList: phs });
+      const extraFields = phs.filter((field) => !extractedFieldsList.includes(field));
+      const missingExtractedFields = extractedFieldsList.filter((field) => !phs.includes(field));
+      const matchData = {
+        ...t,
+        matchingFields: matching,
+        extraFields,
+        missingExtractedFields,
+        placeholderList: phs,
+      };
+
+      if (matching.length === extractedFieldsList.length && extraFields.length === 0) {
+        tier1.push(matchData);
       } else if (matching.length > 0) {
-        tier2.push({ ...t, matchingFields: matching, placeholderList: phs });
+        tier2.push(matchData);
       }
     });
+
+    // Within partial matches, prefer templates that include every extracted
+    // field, then those with fewer additional required fields.
+    tier2.sort((a, b) =>
+      a.missingExtractedFields.length - b.missingExtractedFields.length ||
+      a.extraFields.length - b.extraFields.length ||
+      a.name.localeCompare(b.name)
+    );
 
     return { tier1, tier2, all: templates };
   }, [templates, extractedFieldsList]);
@@ -427,7 +445,7 @@ export default function SmartExtractorWidget({
                       <span>🎯</span> Select Target Message Template
                     </h4>
                     <p className="text-[11px] text-gray-300 mt-0.5">
-                      Templates automatically ranked based on required extracted fields:
+                      Exact matches use only extracted fields. Partial matches also need other fields:
                     </p>
                   </div>
 
@@ -437,20 +455,20 @@ export default function SmartExtractorWidget({
                     className="rounded-xl border bg-black/60 px-3 py-2 text-xs font-bold text-white border-[#4cd34c]/40 focus:outline-none focus:ring-2 focus:ring-[#4cd34c] max-w-full truncate"
                   >
                     {rankedTemplates.tier1.length > 0 && (
-                      <optgroup label="🌟 Best Match (Requires ALL Extracted Fields)">
+                      <optgroup label="🌟 Best Match (Requires Only Extracted Fields)">
                         {rankedTemplates.tier1.map((t) => (
                           <option key={t.id} value={t.id}>
-                            ✓ {t.name} (Requires {t.matchingFields.map((f) => `{${f}}`).join(", ")})
+                            ✓ {t.name} ({t.matchingFields.map((f) => `{${f}}`).join(", ")})
                           </option>
                         ))}
                       </optgroup>
                     )}
 
                     {rankedTemplates.tier2.length > 0 && (
-                      <optgroup label="⚡ Partial Match (Requires SOME Extracted Fields)">
+                      <optgroup label="⚡ Partial Match (Also Requires Other Fields)">
                         {rankedTemplates.tier2.map((t) => (
                           <option key={t.id} value={t.id}>
-                            • {t.name} (Uses {t.matchingFields.map((f) => `{${f}}`).join(", ")})
+                            • {t.name} (Uses {t.matchingFields.map((f) => `{${f}}`).join(", ")}{t.extraFields.length ? `; also needs ${t.extraFields.map((f) => `{${f}}`).join(", ")}` : ""}{t.missingExtractedFields.length ? `; missing ${t.missingExtractedFields.map((f) => `{${f}}`).join(", ")}` : ""})
                           </option>
                         ))}
                       </optgroup>
@@ -672,7 +690,7 @@ export default function SmartExtractorWidget({
                   className="w-full rounded-xl border bg-black/50 p-2.5 text-xs text-white border-gray-700 focus:outline-none focus:ring-2 focus:ring-[#4cd34c]"
                 >
                   {rankedTemplates.tier1.length > 0 && (
-                    <optgroup label="🌟 Best Match (Requires All Extracted Fields)">
+                    <optgroup label="🌟 Best Match (Requires Only Extracted Fields)">
                       {rankedTemplates.tier1.map((t) => (
                         <option key={t.id} value={t.id}>
                           ✓ {t.name}
@@ -681,7 +699,7 @@ export default function SmartExtractorWidget({
                     </optgroup>
                   )}
                   {rankedTemplates.tier2.length > 0 && (
-                    <optgroup label="⚡ Partial Match (Requires Some Extracted Fields)">
+                    <optgroup label="⚡ Partial Match (Also Requires Other Fields)">
                       {rankedTemplates.tier2.map((t) => (
                         <option key={t.id} value={t.id}>
                           • {t.name}
