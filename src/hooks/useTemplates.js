@@ -238,9 +238,10 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
 
 
   // Message generation logic
-  function generateMessage(values = {}) {
-    if (!activeTemplate) return "";
-    let out = activeTemplate.body;
+  function generateMessage(values = {}, targetTemplate = null) {
+    const tpl = targetTemplate || activeTemplate;
+    if (!tpl) return "";
+    let out = tpl.body;
 
     const dateAuto = getDateAutoValues();
     const autoMap = {
@@ -255,11 +256,11 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
 
     // Parse custom placeholder_config if present
     let parsedConfig = {};
-    if (activeTemplate?.placeholder_config) {
+    if (tpl?.placeholder_config) {
       try {
-        parsedConfig = typeof activeTemplate.placeholder_config === "string"
-          ? JSON.parse(activeTemplate.placeholder_config)
-          : activeTemplate.placeholder_config;
+        parsedConfig = typeof tpl.placeholder_config === "string"
+          ? JSON.parse(tpl.placeholder_config)
+          : tpl.placeholder_config;
       } catch (e) {
         parsedConfig = {};
       }
@@ -335,7 +336,7 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
 
     // Customer Reply & Quick Access rule: WhatsApp/Signed appends ^{agent_initials} only if template body does NOT already include an agent signature placeholder
     if ((activeScreen === "customer_reply" || activeScreen === "quick_access") && replyChannel === "signed") {
-      const hasAgentPlaceholder = activeTemplate?.body && /\{agent(_name|_initials)?\}/.test(activeTemplate.body);
+      const hasAgentPlaceholder = tpl?.body && /\{agent(_name|_initials)?\}/.test(tpl.body);
       if (!hasAgentPlaceholder && currentAgent?.agent_initials) {
         const initialsSig = ` ^${currentAgent.agent_initials}`;
         if (!out.endsWith(initialsSig)) {

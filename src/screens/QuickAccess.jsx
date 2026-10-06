@@ -23,6 +23,7 @@ export default function QuickAccess({
   values = {},
   setValues,
   generatedMsg,
+  generateMessage,
   copyText,
   privateNotesHook,
   replyChannel = "signed",
@@ -1082,7 +1083,13 @@ export default function QuickAccess({
                   {allTemplates.map((t) => (
                     <div
                       key={t.id}
-                      onClick={() => setSelectedQuickId(t.id)}
+                      onClick={() => {
+                        setSelectedQuickId(t.id);
+                        const msgToCopy = generateMessage ? generateMessage({}, t) : (t.body || "");
+                        if (msgToCopy && copyText) {
+                          copyText(msgToCopy, "Quick message copied to clipboard! 📋", t.id);
+                        }
+                      }}
                       className={`p-3 rounded-2xl border cursor-pointer transition flex items-center justify-between ${
                         t.id === activeTemplate?.id
                           ? "border-[#4cd34c] ring-1 ring-[#4cd34c]/30 bg-[#4cd34c]/5"
@@ -1134,6 +1141,13 @@ export default function QuickAccess({
                       handleToggleNoteSelection(t.id);
                     } else {
                       setSelectedQuickId(t.id);
+                      const msgToCopy = generateMessage ? generateMessage({}, t) : (t.body || "");
+                      if (msgToCopy && copyText) {
+                        copyText(msgToCopy, "Quick message copied to clipboard! 📋", t.id);
+                      }
+                      if (isPrivateNote && trackPrivateNoteUsage) {
+                        trackPrivateNoteUsage(t.id);
+                      }
                     }
                   }}
                   className={`p-3.5 rounded-2xl border cursor-pointer transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0 ${

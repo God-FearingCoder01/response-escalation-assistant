@@ -207,8 +207,16 @@ export default function SentenceSnippetSelector({
 
       {/* Live Preview Box */}
       <div
-        className="rounded-2xl border p-4 min-h-[10rem] max-h-[22rem] overflow-y-auto break-words [overflow-wrap:anywhere] font-mono text-sm leading-relaxed"
+        onClick={() => {
+          if (generatedMsg && isFullMessage) {
+            handleCopy();
+          }
+        }}
+        className={`rounded-2xl border p-4 min-h-[10rem] max-h-[22rem] overflow-y-auto break-words [overflow-wrap:anywhere] font-mono text-sm leading-relaxed ${
+          generatedMsg && isFullMessage ? "cursor-pointer" : ""
+        }`}
         style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+        title={generatedMsg && isFullMessage ? "Click to copy message text" : undefined}
       >
         {!generatedMsg ? (
           <span style={{ color: "var(--field-placeholder)" }}>Select a template to preview response...</span>

@@ -26,6 +26,7 @@ export default function CustomerReply({
   values,
   setValues,
   generatedMsg,
+  generateMessage,
   copyText,
   privateNotesHook,
 }) {
@@ -211,6 +212,10 @@ export default function CustomerReply({
                       setValues({});
                       setViewMode("english");
                       setTranslatedText("");
+                      const msgToCopy = generateMessage ? generateMessage({}, t) : (t.body || "");
+                      if (msgToCopy && copyText) {
+                        copyText(msgToCopy, "Customer reply copied to clipboard! 📋", t.id);
+                      }
                     }}
                     className={`p-3 rounded-2xl border cursor-pointer transition flex items-center justify-between ${
                       String(t.id) === String(activeTemplate?.id)

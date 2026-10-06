@@ -602,6 +602,7 @@ export default function App() {
           values={values}
           setValues={setValues}
           generatedMsg={generatedMsg}
+          generateMessage={generateMessage}
           copyText={copyText}
           privateNotesHook={privateNotesHook}
         />
@@ -715,6 +716,7 @@ export default function App() {
           values={values}
           setValues={setValues}
           generatedMsg={generatedMsg}
+          generateMessage={generateMessage}
           copyText={copyText}
           privateNotesHook={privateNotesHook}
           replyChannel={replyChannel}
