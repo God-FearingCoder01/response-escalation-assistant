@@ -116,27 +116,197 @@ export function evaluateRegexLocally(pattern, testInput) {
 }
 
 /**
- * Runs OCR on an image file / blob / data URL using Tesseract.js.
+ * Applies multi-pass image preprocessing (upscaling, contrast boosting, sharpening, and binarization)
+ * to HTML Canvas to dramatically enhance OCR recognition of cursive, handwritten, or decorative fonts.
+ */
+export async function preprocessImageForOcr(imageSrc) {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined" || typeof document === "undefined" || !imageSrc) {
+      return resolve([imageSrc]);
+    }
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const passes = [];
+        // Optimal scaling factor (2x for typical screenshot resolution up to 2400px width/height)
+        const scale = Math.max(1, Math.min(3.0, 2400 / Math.max(img.width, img.height)));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+
+        // Pass 1: High Contrast + Grayscale + Sharpening (Preserves font shape details for cursive)
+        const canvas1 = document.createElement("canvas");
+        canvas1.width = w;
+        canvas1.height = h;
+        const ctx1 = canvas1.getContext("2d");
+        ctx1.imageSmoothingEnabled = true;
+        ctx1.imageSmoothingQuality = "high";
+        ctx1.drawImage(img, 0, 0, w, h);
+
+        const imgData1 = ctx1.getImageData(0, 0, w, h);
+        applyGrayscaleAndContrast(imgData1.data, 1.75, 10);
+        applySharpenKernel(imgData1.data, w, h);
+        ctx1.putImageData(imgData1, 0, 0);
+        passes.push(canvas1.toDataURL("image/png"));
+
+        // Pass 2: Adaptive Binarization (Black/White thresholding for cursive script on noisy backgrounds)
+        const canvas2 = document.createElement("canvas");
+        canvas2.width = w;
+        canvas2.height = h;
+        const ctx2 = canvas2.getContext("2d");
+        ctx2.drawImage(img, 0, 0, w, h);
+
+        const imgData2 = ctx2.getImageData(0, 0, w, h);
+        applyAdaptiveThreshold(imgData2.data, w, h);
+        ctx2.putImageData(imgData2, 0, 0);
+        passes.push(canvas2.toDataURL("image/png"));
+
+        resolve(passes);
+      } catch (e) {
+        console.warn("Canvas preprocessing error, using raw image:", e);
+        resolve([imageSrc]);
+      }
+    };
+    img.onerror = () => resolve([imageSrc]);
+    img.src = typeof imageSrc === "string" ? imageSrc : (imageSrc instanceof Blob ? URL.createObjectURL(imageSrc) : imageSrc);
+  });
+}
+
+function applyGrayscaleAndContrast(data, contrast = 1.75, brightness = 10) {
+  const factor = (259 * (contrast * 100 + 255)) / (255 * (259 - contrast * 100));
+  for (let i = 0; i < data.length; i += 4) {
+    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    let v = factor * (gray - 128) + 128 + brightness;
+    v = Math.min(255, Math.max(0, v));
+    data[i] = v;
+    data[i + 1] = v;
+    data[i + 2] = v;
+  }
+}
+
+function applySharpenKernel(data, width, height) {
+  const copy = Uint8ClampedArray.from(data);
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = (y * width + x) * 4;
+      for (let c = 0; c < 3; c++) {
+        const center = copy[idx + c] * 5;
+        const top = copy[((y - 1) * width + x) * 4 + c];
+        const bottom = copy[((y + 1) * width + x) * 4 + c];
+        const left = copy[(y * width + (x - 1)) * 4 + c];
+        const right = copy[(y * width + (x + 1)) * 4 + c];
+        let val = center - top - bottom - left - right;
+        data[idx + c] = Math.min(255, Math.max(0, val));
+      }
+    }
+  }
+}
+
+function applyAdaptiveThreshold(data, width, height) {
+  for (let i = 0; i < data.length; i += 4) {
+    const g = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    data[i] = g;
+    data[i + 1] = g;
+    data[i + 2] = g;
+  }
+
+  const integral = new Int32Array(width * height);
+  for (let y = 0; y < height; y++) {
+    let sum = 0;
+    for (let x = 0; x < width; x++) {
+      sum += data[(y * width + x) * 4];
+      if (y === 0) {
+        integral[y * width + x] = sum;
+      } else {
+        integral[y * width + x] = integral[(y - 1) * width + x] + sum;
+      }
+    }
+  }
+
+  const s = Math.floor(Math.max(8, Math.min(width, height) / 16) / 2);
+  const t = 0.15;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const x1 = Math.max(x - s, 0);
+      const x2 = Math.min(x + s, width - 1);
+      const y1 = Math.max(y - s, 0);
+      const y2 = Math.min(y + s, height - 1);
+
+      const count = (x2 - x1 + 1) * (y2 - y1 + 1);
+      let sum = integral[y2 * width + x2];
+      if (x1 > 0) sum -= integral[y2 * width + (x1 - 1)];
+      if (y1 > 0) sum -= integral[(y1 - 1) * width + x2];
+      if (x1 > 0 && y1 > 0) sum += integral[(y1 - 1) * width + (x1 - 1)];
+
+      const idx = (y * width + x) * 4;
+      const pixelVal = data[idx];
+      const mean = sum / count;
+
+      const v = pixelVal < mean * (1.0 - t) ? 0 : 255;
+      data[idx] = v;
+      data[idx + 1] = v;
+      data[idx + 2] = v;
+    }
+  }
+}
+
+/**
+ * Runs multi-pass OCR on an image file / blob / data URL using Tesseract.js.
  */
 export async function performOcrFromImage(imageSrc, onProgress = () => {}) {
   if (!imageSrc) throw new Error("No image source provided for OCR processing.");
 
   let worker;
   try {
-    onProgress({ status: "initializing", message: "Initializing OCR Engine...", progress: 0.1 });
+    onProgress({ status: "initializing", message: "Initializing Multi-Pass Cursive OCR Engine...", progress: 0.1 });
     worker = await createWorker("eng");
-    
-    onProgress({ status: "recognizing", message: "Scanning image & recognizing text...", progress: 0.5 });
-    const ret = await worker.recognize(imageSrc);
-    
+
+    try {
+      await worker.setParameters({
+        tessedit_pageseg_mode: "6", // PSM 6: Uniform text block layout
+      });
+    } catch (e) {}
+
+    onProgress({ status: "preprocessing", message: "Enhancing cursive & unordinary fonts (Scaling & Sharpening)...", progress: 0.3 });
+    const imagePasses = await preprocessImageForOcr(imageSrc);
+
+    onProgress({ status: "recognizing", message: "Scanning image & recognizing text (Pass 1)...", progress: 0.5 });
+    const ret1 = await worker.recognize(imagePasses[0]);
+
+    let ret2 = null;
+    if (imagePasses.length > 1) {
+      onProgress({ status: "recognizing", message: "Running adaptive threshold recognition (Pass 2)...", progress: 0.8 });
+      try {
+        ret2 = await worker.recognize(imagePasses[1]);
+      } catch (e) {}
+    }
+
     onProgress({ status: "completed", message: "Text recognition complete", progress: 1.0 });
     await worker.terminate();
 
-    const rawText = (ret.data && ret.data.text) ? ret.data.text.trim() : "";
+    const combinedLines = [];
+    const seenLineTexts = new Set();
+
+    [ret1, ret2].forEach((ret) => {
+      if (ret && ret.data && Array.isArray(ret.data.lines)) {
+        ret.data.lines.forEach((l) => {
+          const txt = l.text ? l.text.trim() : "";
+          if (txt && !seenLineTexts.has(txt.toLowerCase())) {
+            seenLineTexts.add(txt.toLowerCase());
+            combinedLines.push(txt);
+          }
+        });
+      }
+    });
+
+    const rawText = combinedLines.length > 0 ? combinedLines.join("\n") : ((ret1?.data?.text) || "").trim();
+    const maxConfidence = Math.max(ret1?.data?.confidence || 0, ret2?.data?.confidence || 0);
+
     return {
       rawText,
-      confidence: ret.data.confidence || 0,
-      lines: ret.data.lines || [],
+      confidence: maxConfidence,
+      lines: combinedLines,
     };
   } catch (err) {
     if (worker) {
@@ -185,9 +355,24 @@ function normalizeExtractedValue(val, fieldKey = "", pattern = "") {
   let str = val.trim();
   const fk = fieldKey.toLowerCase();
 
-  // Strip preceding/trailing $, USD, US$ for amount fields so only numerals remain & strip trailing decimal zeros
+  // Normalize cursive spacing and comma/dot misrecognition in EcoCash transaction references
+  if (fk.includes("ref") || fk.includes("tx") || fk.includes("transaction") || /MP/i.test(str)) {
+    let cleanRef = str.replace(/[\s\r\n]+/g, "");
+    cleanRef = cleanRef.replace(/,/g, ".");
+    cleanRef = cleanRef.replace(/^[m1IuUivIV]{1,2}P/i, "MP");
+    cleanRef = cleanRef.replace(/[\.:\-][t7Il1](\d{7})/i, ".T$1");
+
+    if (/^MP\d{6}\.\d{4}\.T\d{7}$/i.test(cleanRef)) {
+      str = cleanRef.toUpperCase();
+    }
+  }
+
+  // Strip preceding/trailing $, USD, US$, S, s for amount fields & handle comma decimals e.g. 25,00 -> 25.00
   if (fk.includes("amount") || fk.includes("price") || fk.includes("cost") || fk.includes("sum")) {
-    str = str.replace(/^(?:USD|\$|US\$|\s)+/gi, "").replace(/(?:USD|\$|US\$|\s)+$/gi, "");
+    str = str.replace(/^(?:USD|\$|US\$|[Ss]|U5D|U5\$|\s)+/gi, "").replace(/(?:USD|\$|US\$|\s)+$/gi, "");
+    if (/^\d+,\d{2}$/.test(str)) {
+      str = str.replace(",", ".");
+    }
     if (/^\d+(?:\.\d+)?$/.test(str)) {
       const num = parseFloat(str);
       if (!isNaN(num)) {
@@ -196,13 +381,13 @@ function normalizeExtractedValue(val, fieldKey = "", pattern = "") {
     }
   }
 
-  // Fix OCR misrecognition of '+' as '4', '1', 'f', or 't' at start of international +263 numbers
-  if (/^[41ft]2637\d{8}$/i.test(str)) {
+  // Fix OCR misrecognition of '+' as '4', '1', 'f', 't', 'i', '*', or '#' at start of international +263 numbers
+  if (/^[41fti*#]2637\d{8}$/i.test(str)) {
     str = "+2637" + str.slice(5);
   } else if (/^2637\d{8}$/.test(str)) {
     str = "+" + str;
   } else if ((pattern && pattern.includes("263")) || fk.includes("phone") || fk.includes("account")) {
-    if (/^[41ft]263/i.test(str)) {
+    if (/^[41fti*#]263/i.test(str)) {
       str = "+" + str.slice(1);
     }
   }
@@ -427,10 +612,16 @@ function runSmartFallbackExtractionAll(cleanText, collapsedText, fieldKey, ruleN
     const ecoMatchesCollapsed = Array.from(collapsedText.matchAll(/\b(MP\d{6}\.\d{4}\.T\d{7})\b/gi));
     ecoMatchesCollapsed.forEach((m) => addVal(m[1] || m[0]));
 
+    // Cursive / script tolerant EcoCash matcher (handles spaces, m/p casing, character variations)
+    const cursiveEcoMatches = Array.from(
+      cleanText.matchAll(/\b([Mml1IuUivIV]{1,2}[\s\.]*[PpDDRþ]{1}[\s\.]*\d{6,8}[\s\.\,:\-]*\d{3,4}[\s\.\,:\-]*[Tt7Il1]{1}[\s\.]*\d{6,8})\b/gi)
+    );
+    cursiveEcoMatches.forEach((m) => addVal((m[1] || m[0])));
+
     const labelMatches = Array.from(cleanText.matchAll(/(?:ref(?:erence)?|tx(?:id)?|code|no\.?|id|approval)[:=\s]+([A-Z0-9.\-_]{4,35})/gi));
     labelMatches.forEach((m) => {
       const val = (m[1] || "").trim();
-      const isPhoneLike = /^([+41ft]?2637|07)\d{8}$/i.test(val) || (/^\d{10,12}$/.test(val) && val.startsWith("263"));
+      const isPhoneLike = /^([+41fti*#]?2637|07)\d{8}$/i.test(val) || (/^\d{10,12}$/.test(val) && val.startsWith("263"));
       if (!isPhoneLike && val.length >= 4) addVal(val);
     });
 
@@ -440,14 +631,14 @@ function runSmartFallbackExtractionAll(cleanText, collapsedText, fieldKey, ruleN
 
   // Amount / Price / Cost
   if (fk.includes("amount") || fk.includes("price") || fk.includes("cost") || fk.includes("sum")) {
-    const usdMatches = Array.from(cleanText.matchAll(/(?:\bUSD\s*|\$)\s*(\d+(?:\.\d{2})?)/gi));
+    const usdMatches = Array.from(cleanText.matchAll(/(?:\bUSD\s*|\$|[Ss])\s*(\d+(?:[.,]\d{2})?)/gi));
     usdMatches.forEach((m) => {
       if (!isNewBalanceContext(cleanText, m.index)) {
         addVal(m[1] || m[0]);
       }
     });
 
-    const decimalMatches = Array.from(cleanText.matchAll(/\b(\d+\.\d{2})\b/g));
+    const decimalMatches = Array.from(cleanText.matchAll(/\b(\d+[.,]\d{2})\b/g));
     decimalMatches.forEach((m) => {
       if (!isNewBalanceContext(cleanText, m.index)) {
         const v = m[1].trim();
@@ -472,7 +663,7 @@ function runSmartFallbackExtractionAll(cleanText, collapsedText, fieldKey, ruleN
 
   // Phone Number / Account Number (+2637... or 07...)
   if (fk.includes("phone") || fk.includes("mobile") || fk.includes("account") || fk.includes("acc") || fk.includes("contact")) {
-    const zimMatches = Array.from(cleanText.matchAll(/\b([+41ft]?2637\d{8}|07\d{8})\b/gi));
+    const zimMatches = Array.from(cleanText.matchAll(/\b([+41fti*#]?2637\d{8}|07\d{8})\b/gi));
     zimMatches.forEach((m) => addVal(m[1] || m[0]));
   }
 
@@ -490,8 +681,8 @@ export function getDefaultClientExtractionRules(companyId = 1) {
       name: "Transaction Reference",
       result_field: "reference_number",
       extraction_method: "regex",
-      pattern: "(?:MP[\\s\\n\\.\\d]{8,25}T\\d{7})|(?:\\b(?:ref(?:erence)?|tx(?:id)?|approval|code|no\\.?)\\b\\s*[:=]?\\s*(?:is\\s+)?([A-Z0-9.\\-_]{6,35}))",
-      description: "Standard EcoCash or general transaction reference / approval code format (e.g. MP260831.1923.T7382831 or REF123456)",
+      pattern: "(?:[Mml1IuUivIV]{1,2}[\\s\\.]*[PpDDRþ]{1}[\\s\\.]*\\d{6,8}[\\s\\.,:\\-]*\\d{3,4}[\\s\\.,:\\-]*[Tt7Il1]{1}[\\s\\.]*\\d{6,8})|(?:MP[\\s\\n\\.\\d]{8,25}T\\d{7})|(?:\\b(?:ref(?:erence)?|tx(?:id)?|approval|code|no\\.?)\\b\\s*[:=]?\\s*(?:is\\s+)?([A-Z0-9.\\-_]{6,35}))",
+      description: "Standard & Cursive EcoCash or general transaction reference / approval code format (e.g. MP260831.1923.T7382831 or REF123456)",
       is_enabled: true,
     },
     {
@@ -500,7 +691,7 @@ export function getDefaultClientExtractionRules(companyId = 1) {
       name: "Amount",
       result_field: "amount",
       extraction_method: "regex",
-      pattern: "(?:\\$|USD\\s*)(\\d+(?:\\.\\d{2})?)|\\b(\\d+\\.\\d{2})\\b",
+      pattern: "(?:\\$|USD\\s*|[Ss])(\\d+(?:[.,]\\d{2})?)|\\b(\\d+[.,]\\d{2})\\b",
       description: "Currency amount numeral format excluding New Balance (e.g. 25.00)",
       is_enabled: true,
     },
@@ -510,7 +701,7 @@ export function getDefaultClientExtractionRules(companyId = 1) {
       name: "Date",
       result_field: "date",
       extraction_method: "regex",
-      pattern: "\\b\\d{2}/\\d{2}/\\d{4}\\b",
+      pattern: "\\b\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}\\b",
       description: "Standard date format DD/MM/YYYY",
       is_enabled: true,
     },
@@ -520,7 +711,7 @@ export function getDefaultClientExtractionRules(companyId = 1) {
       name: "Time",
       result_field: "time",
       extraction_method: "regex",
-      pattern: "\\b\\d{2}:\\d{2}\\b",
+      pattern: "\\b\\d{1,2}:\\d{2}(?::\\d{2})?\\b",
       description: "Time format HH:MM (24-hour)",
       is_enabled: true,
     },
@@ -530,7 +721,7 @@ export function getDefaultClientExtractionRules(companyId = 1) {
       name: "Phone Number",
       result_field: "phone_number",
       extraction_method: "regex",
-      pattern: "\\+2637\\d{8}|07\\d{8}",
+      pattern: "[+41fti*#]?2637\\d{8}|07\\d{8}",
       description: "Customer phone number format (+263779431682 or 0779431682)",
       is_enabled: true,
     },
@@ -540,7 +731,7 @@ export function getDefaultClientExtractionRules(companyId = 1) {
       name: "Account Number",
       result_field: "account_number",
       extraction_method: "regex",
-      pattern: "\\+2637\\d{8}|07\\d{8}|\\b\\d{8,16}\\b",
+      pattern: "[+41fti*#]?2637\\d{8}|07\\d{8}|\\b\\d{8,16}\\b",
       description: "Account number or international phone format (+263779431682)",
       is_enabled: true,
     },

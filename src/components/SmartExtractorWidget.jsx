@@ -292,14 +292,19 @@ export default function SmartExtractorWidget({
 
         {/* MODAL BODY */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
-          <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-xs text-gray-400">
-            <span>
-              {extractor.loadingRules
-                ? "Loading current organization rules..."
-                : extractor.rulesError
-                  ? `Could not load rules: ${extractor.rulesError}`
-                  : `${extractor.rules.length} enabled rule${extractor.rules.length === 1 ? "" : "s"} loaded`}
-            </span>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-xs text-gray-400">
+            <div className="flex items-center gap-2">
+              <span className="text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2.5 py-0.5 rounded-full font-bold text-[10px]">
+                ✨ Enhanced Cursive & Script OCR Active
+              </span>
+              <span>
+                {extractor.loadingRules
+                  ? "Loading current organization rules..."
+                  : extractor.rulesError
+                    ? `Could not load rules: ${extractor.rulesError}`
+                    : `${extractor.rules.length} enabled rule${extractor.rules.length === 1 ? "" : "s"} loaded`}
+              </span>
+            </div>
             {extractor.rulesError && (
               <button onClick={extractor.reloadRules} className="text-[#4cd34c] hover:underline">
                 Retry
