@@ -752,6 +752,13 @@ export async function fetchMyTimetableApi(agentInitials, year, month) {
   });
 }
 
+export async function fetchShiftMatesApi(agentInitials, date) {
+  const params = new URLSearchParams({ date });
+  return await safeFetchJson(`${API_BASE}/timetables/shift-mates?${params}`, {
+    headers: { "X-Agent-Initials": agentInitials || "" },
+  });
+}
+
 export async function fetchAdminTimetableArchiveApi() {
   return await safeFetchJson(`${API_BASE}/timetables/admin/archive`, { headers: getAdminHeaders() });
 }

@@ -163,6 +163,52 @@ def get_my_timetable(year: int, month: int, company: Company = Depends(get_curre
         return {"year": year, "month": month, "entries": mine["entries"], "imported_at": record.created_at.isoformat()}
 
 
+@router.get("/shift-mates")
+def get_shift_mates(date: str, company: Company = Depends(get_current_company),
+                    x_agent_initials: Optional[str] = Header(None, alias="X-Agent-Initials")):
+    if not x_agent_initials:
+        raise HTTPException(status_code=401, detail="Agent profile required")
+    try:
+        selected_date = datetime.strptime(date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Date must use YYYY-MM-DD format")
+
+    cid = company.id or 1
+    with Session(engine) as session:
+        agent = session.exec(select(Agent).where(
+            Agent.company_id == cid,
+            Agent.agent_initials == x_agent_initials.strip().upper(),
+            Agent.is_active == True,
+        )).first()
+        if not agent:
+            raise HTTPException(status_code=403, detail="Agent profile is not active in this organization")
+        record = _latest_timetable(session, cid, selected_date.year, selected_date.month)
+        if not record:
+            raise HTTPException(status_code=404, detail="No timetable has been uploaded for this month")
+
+        schedules = json.loads(record.schedules_json)
+        mine = next((item for item in schedules if item.get("agent_initials", "").upper() == agent.agent_initials.upper()), None)
+        if not mine:
+            raise HTTPException(status_code=404, detail="No timetable is available for your profile for this month")
+        own_entry = next((item for item in mine.get("entries", []) if item.get("date") == date), None)
+        if not own_entry or own_entry.get("shift", "").strip().lower() in {"off", "leave", "holiday"}:
+            return {"date": date, "shift": own_entry.get("shift") if own_entry else None, "coworkers": []}
+
+        shift_key = " ".join(own_entry.get("shift", "").split()).casefold()
+        coworkers = []
+        for schedule in schedules:
+            if schedule.get("agent_initials", "").upper() == agent.agent_initials.upper():
+                continue
+            matching = next((item for item in schedule.get("entries", [])
+                             if item.get("date") == date and " ".join(item.get("shift", "").split()).casefold() == shift_key), None)
+            if matching:
+                coworkers.append({
+                    "agent_name": schedule.get("agent_name") or schedule.get("agent_initials"),
+                    "agent_initials": schedule.get("agent_initials"),
+                })
+        return {"date": date, "shift": own_entry["shift"], "coworkers": coworkers}
+
+
 @router.get("/admin/archive", dependencies=[Depends(require_admin)])
 def list_admin_timetable_archive(company: Company = Depends(get_current_company)):
     with Session(engine) as session:

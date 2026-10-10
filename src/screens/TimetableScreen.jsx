@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { fetchMyTimetableApi, fetchTimetableArchiveApi } from "../services/api";
+import { fetchMyTimetableApi, fetchShiftMatesApi, fetchTimetableArchiveApi } from "../services/api";
 
 const monthLabel = (year, month) => new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
 const isoDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -20,6 +20,10 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
   const [loading, setLoading] = useState(false);
   const [loadedArchive, setLoadedArchive] = useState(false);
   const [error, setError] = useState("");
+  const [clockNow, setClockNow] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [shiftMates, setShiftMates] = useState(null);
+  const [matesLoading, setMatesLoading] = useState(false);
 
   useEffect(() => {
     if (activeScreen !== "timetable" || !currentAgent?.agent_initials) return;
@@ -36,6 +40,10 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
 
   const [year, month] = (selected || `${new Date().getFullYear()}-${new Date().getMonth() + 1}`).split("-").map(Number);
   useEffect(() => {
+    const timer = setInterval(() => setClockNow(new Date()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+  useEffect(() => {
     if (activeScreen !== "timetable" || !currentAgent?.agent_initials || !selected) return;
     let cancelled = false;
     setLoading(true);
@@ -51,7 +59,23 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
     return () => { cancelled = true; };
   }, [activeScreen, currentAgent?.agent_initials, selected, year, month]);
 
+  useEffect(() => {
+    setSelectedDate(null);
+  }, [selected]);
+
+  useEffect(() => {
+    if (activeScreen !== "timetable" || !currentAgent?.agent_initials || !selectedDate || !schedule) return;
+    let cancelled = false;
+    setMatesLoading(true);
+    setShiftMates(null);
+    fetchShiftMatesApi(currentAgent.agent_initials, selectedDate)
+      .then((data) => { if (!cancelled) setShiftMates(data); })
+      .finally(() => { if (!cancelled) setMatesLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeScreen, currentAgent?.agent_initials, selectedDate, schedule]);
+
   const dayMap = useMemo(() => new Map((schedule?.entries || []).map((entry) => [entry.date, entry.shift])), [schedule]);
+  const selectedShift = selectedDate ? dayMap.get(selectedDate) : null;
   const weeks = useMemo(() => {
     const first = new Date(year, month - 1, 1);
     const start = new Date(year, month - 1, 1 - first.getDay());
@@ -80,6 +104,7 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
           <p className="text-xs uppercase tracking-[.25em] text-fuchsia-400 font-bold">Your work schedule</p>
           <h1 className="mt-1 text-3xl sm:text-4xl font-black" style={{ color: "var(--app-text)" }}>{currentAgent.agent_name}'s timetable</h1>
           <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>Monthly shifts and days off, in one place.</p>
+          <p className="mt-2 text-sm font-medium" style={{ color: "var(--text-muted)" }}><span className="mr-1 text-fuchsia-400">◷</span>{clockNow.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {clockNow.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</p>
         </div>
         <label className="relative flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}>
           <span className="text-fuchsia-400">🗓️</span>
@@ -109,10 +134,21 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
               <div className="space-y-2">{weeks.map((week, weekIndex) => <div className="grid grid-cols-7 gap-2" key={weekIndex}>{week.map((date) => {
                 const inMonth = date.getMonth() === month - 1;
                 const shift = inMonth ? dayMap.get(isoDate(date)) : null;
-                return <div key={isoDate(date)} className={`min-h-24 rounded-xl border p-2 flex flex-col justify-between ${inMonth ? "" : "opacity-35"}`} style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}><span className="text-xs font-bold" style={{ color: "var(--text-muted)" }}>{date.getDate()}</span>{shift ? <span className={`mt-3 rounded-md px-1 py-2 text-center text-xs font-extrabold leading-tight ${shiftClass(shift)}`}>{shift}</span> : inMonth ? <span className="mt-3 rounded-md border border-dashed px-1 py-2 text-center text-[10px]" style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}>No entry</span> : null}</div>;
+                return <button type="button" key={isoDate(date)} disabled={!inMonth} onClick={() => setSelectedDate(isoDate(date))} className={`min-h-24 rounded-xl border p-2 flex flex-col justify-between text-left transition hover:border-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-400 ${inMonth ? "cursor-pointer" : "cursor-default opacity-35"} ${selectedDate === isoDate(date) ? "ring-2 ring-fuchsia-400" : ""}`} style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }} aria-label={`${date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}: ${shift || "no shift entry"}. Select to view coworkers.`}><span className="text-xs font-bold" style={{ color: "var(--text-muted)" }}>{date.getDate()}</span>{shift ? <span className={`mt-3 rounded-md px-1 py-2 text-center text-xs font-extrabold leading-tight ${shiftClass(shift)}`}>{shift}</span> : inMonth ? <span className="mt-3 rounded-md border border-dashed px-1 py-2 text-center text-[10px]" style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}>No entry</span> : null}</button>;
               })}</div>)}</div>
             </div>
           </div>
+
+          {selectedDate && <div className="rounded-2xl border p-5" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div><p className="text-xs font-bold uppercase tracking-[.18em] text-fuchsia-400">Selected shift</p><h2 className="mt-1 text-lg font-bold" style={{ color: "var(--app-text)" }}>{new Date(`${selectedDate}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</h2></div>
+              <span className={`inline-flex w-fit rounded-lg px-3 py-2 text-sm font-extrabold ${selectedShift ? shiftClass(selectedShift) : "bg-slate-600 text-white"}`}>{selectedShift || "No shift entry"}</span>
+            </div>
+            <div className="mt-4 border-t pt-4" style={{ borderColor: "var(--panel-border)" }}>
+              <h3 className="text-sm font-bold" style={{ color: "var(--app-text)" }}>Also working this shift</h3>
+              {matesLoading ? <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>Finding teammates…</p> : shiftMates?.coworkers?.length ? <div className="mt-2 flex flex-wrap gap-2">{shiftMates.coworkers.map((agent) => <span key={agent.agent_initials} className="rounded-full border px-3 py-1.5 text-sm font-semibold" style={{ borderColor: "var(--badge-border)", color: "var(--app-text)" }}>{agent.agent_name}</span>)}</div> : <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>{selectedShift?.toLowerCase() === "off" ? "You’re off this day, so there are no shift teammates to show." : selectedShift ? "No other agents are listed on this same shift." : "No shift is listed for this date."}</p>}
+            </div>
+          </div>}
 
           <div className="flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
             <span className="font-bold mr-1">Legend</span><span className="rounded-md bg-lime-400 px-2 py-1 font-bold text-slate-950">☀ Morning shift</span><span className="rounded-md bg-fuchsia-500 px-2 py-1 font-bold text-slate-950">☾ Afternoon / evening</span><span className="rounded-md bg-slate-300 px-2 py-1 font-bold text-slate-950">◷ Off</span><span className="rounded-md bg-cyan-300 px-2 py-1 font-bold text-slate-950">Leave</span>

@@ -496,7 +496,6 @@ export default function App() {
         themeMode={themeMode}
         setThemeMode={setThemeMode}
         handleLogout={handleLogout}
-        onOpenSmartExtractor={() => setShowSmartExtractor(true)}
       />
 
       <PinModal
