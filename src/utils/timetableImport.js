@@ -31,13 +31,14 @@ function findWeekStart(rows, headerRow, fallbackDay) {
   return fallbackDay;
 }
 
-export async function parseTimetableWorkbook(file, agents, targetMonth = "") {
+export async function parseTimetableWorkbook(file, agents, targetMonth = "", excludedInitials = []) {
   const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
   const detected = findMonthYear(workbook);
   const agentLookup = new Map();
+  const excluded = new Set(excludedInitials.map((value) => value.toUpperCase()));
   (agents || []).forEach((agent) => {
     [agent.agent_name, agent.agent, agent.agent_initials].filter(Boolean).forEach((name) => {
-      agentLookup.set(key(name), agent);
+      agentLookup.set(key(name), { ...agent, ignoredFromRoster: excluded.has(agent.agent_initials.toUpperCase()) });
     });
   });
 
@@ -71,6 +72,7 @@ export async function parseTimetableWorkbook(file, agents, targetMonth = "") {
           unknownNames.add(name);
           continue;
         }
+        if (matched.ignoredFromRoster) continue;
         const initials = matched.agent_initials.toUpperCase();
         if (!schedules.has(initials)) schedules.set(initials, { agent_initials: initials, entries: [] });
         shiftValues.forEach((shift, dayIndex) => {
@@ -91,7 +93,7 @@ export async function parseTimetableWorkbook(file, agents, targetMonth = "") {
     detectedYear: detected.year,
     schedules: [...schedules.values()].filter((schedule) => schedule.entries.length),
     unknownNames: [...unknownNames],
-    missingAgents: (agents || []).filter((agent) => !schedules.has(agent.agent_initials.toUpperCase())).map((agent) => agent.agent_name || agent.agent_initials),
+    missingAgents: (agents || []).filter((agent) => !excluded.has(agent.agent_initials.toUpperCase()) && !schedules.has(agent.agent_initials.toUpperCase())).map((agent) => agent.agent_name || agent.agent_initials),
     sourceFilename: file.name,
   };
 }
