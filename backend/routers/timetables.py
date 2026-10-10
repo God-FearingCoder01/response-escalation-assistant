@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -11,6 +12,28 @@ from backend.models import Agent, Company, MonthlyTimetable
 from backend.security import get_current_company, require_admin
 
 router = APIRouter(prefix="/timetables", tags=["Timetables"])
+
+
+def _shift_team_key(shift: str) -> str:
+    """Group staggered manager starts with the team they cover."""
+    normalized = " ".join((shift or "").strip().lower().split())
+    match = re.match(r"^(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)", normalized)
+    if match:
+        hour = int(match.group(1)) % 12
+        is_pm = match.group(3).startswith("p")
+        hour += 12 if is_pm else 0
+    else:
+        # Also support 24-hour labels such as 07:00-16:00 and 14:00-22:00.
+        match = re.match(r"^(\d{1,2}):(\d{2})", normalized)
+        if not match:
+            return f"label:{normalized}"
+        hour = int(match.group(1))
+
+    if hour in (7, 8):
+        return "team:morning"
+    if hour in (14, 15):
+        return "team:afternoon"
+    return f"start:{hour:02d}"
 
 
 class TimetableAgent(BaseModel):
@@ -194,17 +217,18 @@ def get_shift_mates(date: str, company: Company = Depends(get_current_company),
         if not own_entry or own_entry.get("shift", "").strip().lower() in {"off", "leave", "holiday"}:
             return {"date": date, "shift": own_entry.get("shift") if own_entry else None, "coworkers": []}
 
-        shift_key = " ".join(own_entry.get("shift", "").split()).casefold()
+        shift_key = _shift_team_key(own_entry.get("shift", ""))
         coworkers = []
         for schedule in schedules:
             if schedule.get("agent_initials", "").upper() == agent.agent_initials.upper():
                 continue
             matching = next((item for item in schedule.get("entries", [])
-                             if item.get("date") == date and " ".join(item.get("shift", "").split()).casefold() == shift_key), None)
+                             if item.get("date") == date and _shift_team_key(item.get("shift", "")) == shift_key), None)
             if matching:
                 coworkers.append({
                     "agent_name": schedule.get("agent_name") or schedule.get("agent_initials"),
                     "agent_initials": schedule.get("agent_initials"),
+                    "shift": matching.get("shift"),
                 })
         return {"date": date, "shift": own_entry["shift"], "coworkers": coworkers}
 
