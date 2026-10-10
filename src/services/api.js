@@ -739,6 +739,36 @@ export async function fetchAgentsApi() {
   return await safeFetchJson(`${API_BASE}/agents`);
 }
 
+export async function fetchTimetableArchiveApi(agentInitials) {
+  return await safeFetchJson(`${API_BASE}/timetables/archive`, {
+    headers: { "X-Agent-Initials": agentInitials || "" },
+  });
+}
+
+export async function fetchMyTimetableApi(agentInitials, year, month) {
+  const params = new URLSearchParams({ year: String(year), month: String(month) });
+  return await safeFetchJson(`${API_BASE}/timetables/me?${params}`, {
+    headers: { "X-Agent-Initials": agentInitials || "" },
+  });
+}
+
+export async function fetchAdminTimetableArchiveApi() {
+  return await safeFetchJson(`${API_BASE}/timetables/admin/archive`, { headers: getAdminHeaders() });
+}
+
+export async function importTimetableApi(payload) {
+  const res = await fetch(`${API_BASE}/timetables/import`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAdminHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Unable to import timetable"));
+  }
+  return await res.json();
+}
+
 export async function createAgentApi(payload) {
   const res = await fetch(`${API_BASE}/agents`, {
     method: "POST",

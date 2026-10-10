@@ -113,6 +113,17 @@ class AgentRead(AgentBase):
     updated_at: datetime
 
 
+class MonthlyTimetable(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    company_id: int = Field(foreign_key="company.id", index=True)
+    year: int = Field(index=True)
+    month: int = Field(index=True)
+    source_filename: str
+    uploaded_by: str
+    schedules_json: str
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+
+
 class SuggestionBase(SQLModel):
     name: str
     body: str

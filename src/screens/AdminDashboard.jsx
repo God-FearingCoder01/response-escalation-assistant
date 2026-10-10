@@ -3,6 +3,7 @@ import { getPresetPhrases, savePresetPhrases, DEFAULT_PRESET_PHRASES } from "../
 import ExtractableFieldEditor from "../components/ExtractableFieldEditor";
 import SmartExtractorRuleManager from "../components/SmartExtractorRuleManager";
 import { sortTemplatesBySearchRelevance } from "../utils/searchUtils";
+import TimetableImportPanel from "../components/TimetableImportPanel";
 
 import {
   fetchGlobalVariables,
@@ -531,6 +532,7 @@ export default function AdminDashboard({
 
   return (
     <section className="max-w-7xl mx-auto space-y-8">
+      <TimetableImportPanel activeScreen={activeScreen} agents={agents} currentAgent={currentAgent} showToast={showToast} />
       <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: "var(--app-text)" }}>

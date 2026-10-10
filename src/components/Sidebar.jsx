@@ -191,6 +191,22 @@ export default function Sidebar({
             ) : null}
           </button>
 
+          <button
+            onClick={() => {
+              setActiveScreen("timetable");
+              setIsSidebarHovered(false);
+            }}
+            className={`flex w-full items-center justify-start rounded-2xl p-2.5 font-medium transition-all ${
+              activeScreen === "timetable"
+                ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
+                : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+            }`}
+            title="My Monthly Timetable"
+          >
+            <span className="flex h-6 w-6 items-center justify-center shrink-0 text-lg">🗓️</span>
+            {isSidebarHovered ? <span className="ml-3 font-semibold text-sm whitespace-nowrap">My Timetable</span> : null}
+          </button>
+
           {currentAgent?.is_admin ? (
             <button
               onClick={() => {

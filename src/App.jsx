@@ -29,6 +29,7 @@ import SuggestionsHub from "./screens/SuggestionsHub";
 import QuickAccess from "./screens/QuickAccess";
 import TranslatorScreen from "./screens/TranslatorScreen";
 import ShiftRegisterScreen from "./screens/ShiftRegisterScreen";
+import TimetableScreen from "./screens/TimetableScreen";
 import MonitorScreen from "./screens/MonitorScreen";
 import DeveloperSupportLanding from "./screens/DeveloperSupportLanding";
 
@@ -121,7 +122,7 @@ export default function App() {
         const parts = path.split("/").filter(Boolean);
         if (parts.length >= 2) {
           const subRoute = parts[1];
-          if (["tech-escalation", "customer-reply", "suggestions", "quick-access", "admin", "translator", "shift-register"].includes(subRoute)) {
+          if (["tech-escalation", "customer-reply", "suggestions", "quick-access", "admin", "translator", "shift-register", "timetable"].includes(subRoute)) {
             const mapRoute = subRoute.replace("-", "_");
             setActiveScreen(mapRoute);
           }
@@ -165,7 +166,7 @@ export default function App() {
         newPath = "/";
       } else {
         const slug = activeCompany?.slug || "default";
-        newPath = `/${slug}`;
+        newPath = screen === "timetable" ? `/${slug}/timetable` : `/${slug}`;
       }
       if (window.location.pathname !== newPath) {
         window.history.pushState({}, "", newPath);
@@ -740,6 +741,8 @@ export default function App() {
             sirState={sirState}
           />
         )}
+
+        <TimetableScreen activeScreen={activeScreen} currentAgent={currentAgent} />
       </div>
 
       <Toast toast={toast} onClose={() => setToast?.({ show: false, message: "" })} />
