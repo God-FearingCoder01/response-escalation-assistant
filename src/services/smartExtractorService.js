@@ -1,5 +1,19 @@
 import { API_BASE, getCompanyHeaders, getAdminHeaders } from "./api";
-import { createWorker } from "tesseract.js";
+import { createWorker, OEM } from "tesseract.js";
+
+function getOcrWorkerOptions() {
+  // The Chrome extension ships the worker, WASM core, and English model in its
+  // own package. Keep the hosted website's existing Tesseract defaults intact.
+  if (typeof chrome === "undefined" || !chrome.runtime?.getURL) return {};
+
+  const localOcrPath = chrome.runtime.getURL("ocr/");
+  return {
+    workerPath: `${localOcrPath}worker.min.js`,
+    corePath: `${localOcrPath}core/`,
+    langPath: `${localOcrPath}lang`,
+    workerBlobURL: false,
+  };
+}
 
 /**
  * Fetch all extraction rules for a company tenant.
@@ -260,7 +274,7 @@ export async function performOcrFromImage(imageSrc, onProgress = () => {}) {
   let worker;
   try {
     onProgress({ status: "initializing", message: "Initializing Multi-Pass Cursive OCR Engine...", progress: 0.1 });
-    worker = await createWorker("eng");
+    worker = await createWorker("eng", OEM.LSTM_ONLY, getOcrWorkerOptions());
 
     try {
       await worker.setParameters({

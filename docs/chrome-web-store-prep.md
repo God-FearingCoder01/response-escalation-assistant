@@ -18,7 +18,7 @@ From the repository root, run:
 npm run package:extensions
 ```
 
-This builds both profiles against `https://response-escalation-assistant.vercel.app` and creates:
+This builds the WinBucks profile against `https://response-escalation-assistant.vercel.app` and creates:
 
 - `release/chrome-web-store/rea-winbucks.zip`
 
@@ -28,13 +28,13 @@ Each ZIP has `manifest.json` at its root. The corresponding unpacked folders are
 
 Before uploading each ZIP:
 
-1. Load that unpacked package in Chrome and confirm the toolbar opens the side panel and all organization data/actions stay in its assigned organization.
+1. Load that unpacked package in Chrome and confirm the toolbar and floating button open the side panel, OCR works without CDN requests, and all organization data/actions stay in WinBucks.
 2. Prepare a separate listing for each package: name, short and detailed descriptions, 128×128 icon, screenshots, support contact, and organization-specific branding.
 3. Complete the privacy and data-use disclosures, provide a publicly accessible privacy policy URL, and verify that it accurately describes REA's data collection, processing, retention, and deletion practices.
 4. Supply reviewer instructions and a working test account for that organization. Do not put credentials or private customer data in this repository or listing assets.
 5. Upload each ZIP in the Chrome Web Store developer dashboard and review the permissions and listing previews before submitting.
 
-The manifest requests `sidePanel` and `storage`, and injects the floating REA launcher on web pages using `<all_urls>`. This broad host access is needed to preserve the launcher wherever agents work, and will be visible in Chrome's permission disclosure. The floating button's dismissal preference is stored locally by the extension. The side panel's API traffic goes to the production REA host.
+The manifest requests `sidePanel` and `storage`, and injects the floating REA launcher on web pages using `<all_urls>`. This broad host access is needed to preserve the launcher wherever agents work, and will be visible in Chrome's permission disclosure. The floating button's dismissal preference is stored locally by the extension. The side panel's API traffic goes to the production REA host. Tesseract's worker script, LSTM WASM cores, and English trained data are packaged under `ocr/`; extension OCR is configured to use those local files. The extension CSP permits WebAssembly with `wasm-unsafe-eval`, while keeping scripts restricted to packaged extension code.
 
 ## Remaining publication inputs
 
