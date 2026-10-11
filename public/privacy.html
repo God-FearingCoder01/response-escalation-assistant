@@ -37,7 +37,7 @@
 
     <h2>Smart Extractor and OCR</h2>
     <p>When an agent chooses an image for Smart Extractor, the image is processed by Tesseract.js packaged with the Chrome extension. OCR runs locally in the extension. The image, recognized text, and extracted values are not uploaded to REA's backend by the OCR feature. The extension may request the organization's extraction rules from REA's backend; those rules are used locally to identify fields. Results remain in the current interface unless the agent chooses to use or save them through another REA feature.</p>
-    <p>The extension's floating launcher is injected on web pages to display the launcher control. Its content script does not read page text, form values, browsing history, or page URLs, and does not transmit page content to REA.</p>
+    <p>The extension's floating launcher is injected only on WhatsApp Web, Facebook and Messenger sites, Telegram Web, Gmail, tawk.to sites, and WinBucks sites under winbucks.co.zw. Its content script displays the launcher but does not read page text, form values, browsing history, or page URLs, and does not transmit page content to REA.</p>
 
     <h2>How information is used</h2>
     <p>REA uses information to provide the requested support-work features, authenticate administrators, synchronize an agent's preferences and history, operate organization schedules and records, respond to support requests, prevent abuse, and maintain service security and reliability. REA does not sell personal information or use it for advertising.</p>

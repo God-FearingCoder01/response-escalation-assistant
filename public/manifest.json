@@ -9,7 +9,14 @@
     "storage"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "https://web.whatsapp.com/*",
+    "https://*.facebook.com/*",
+    "https://*.messenger.com/*",
+    "https://web.telegram.org/*",
+    "https://mail.google.com/*",
+    "https://*.tawk.to/*",
+    "https://*.winbucks.co.zw/*",
+    "https://response-escalation-assistant.vercel.app/*"
   ],
   "icons": {
     "16": "icon128.png",
@@ -30,7 +37,13 @@
   "content_scripts": [
     {
       "matches": [
-        "<all_urls>"
+        "https://web.whatsapp.com/*",
+        "https://*.facebook.com/*",
+        "https://*.messenger.com/*",
+        "https://web.telegram.org/*",
+        "https://mail.google.com/*",
+        "https://*.tawk.to/*",
+        "https://*.winbucks.co.zw/*"
       ],
       "js": [
         "content.js"
