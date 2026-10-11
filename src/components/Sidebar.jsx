@@ -184,7 +184,7 @@ export default function Sidebar({
             }`}
             title="My Monthly Timetable"
           >
-            <span className="flex h-6 w-6 items-center justify-center shrink-0 text-lg">🗓️</span>
+            <span className="flex h-6 w-6 items-center justify-center shrink-0"><img src="/calendar.png" alt="" className="h-5 w-5 object-contain" /></span>
             {isSidebarHovered ? <span className="ml-3 font-semibold text-sm whitespace-nowrap">My Timetable</span> : null}
           </button>
 

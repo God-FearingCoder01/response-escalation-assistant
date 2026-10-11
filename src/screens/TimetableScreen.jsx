@@ -107,7 +107,7 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
           <p className="mt-2 text-sm font-medium" style={{ color: "var(--text-muted)" }}><span className="mr-1 text-fuchsia-400">◷</span>{clockNow.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {clockNow.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</p>
         </div>
         <label className="relative flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}>
-          <span className="text-fuchsia-400">🗓️</span>
+          <img src="/calendar.png" alt="" className="h-5 w-5 object-contain" />
           {selected && monthLabel(year, month)}
           <span>⌄</span>
           <select aria-label="Choose timetable month" value={selected || ""} onChange={(event) => setSelected(event.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" disabled={!archive.length}>
@@ -117,7 +117,7 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
       </header>
 
       {!loadedArchive && <div className="rounded-2xl border p-8 text-center text-sm" style={{ borderColor: "var(--panel-border)", color: "var(--text-muted)" }}>Loading your available timetables…</div>}
-      {loadedArchive && !archive.length && <div className="rounded-2xl border p-10 text-center" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}><span className="mx-auto block text-4xl text-fuchsia-400">🗓️</span><h2 className="mt-3 text-lg font-bold" style={{ color: "var(--app-text)" }}>No timetable uploaded yet</h2><p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>Your monthly schedule will appear here when your admin imports it.</p></div>}
+      {loadedArchive && !archive.length && <div className="rounded-2xl border p-10 text-center" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}><img src="/calendar.png" alt="" className="mx-auto h-10 w-10 object-contain"/><h2 className="mt-3 text-lg font-bold" style={{ color: "var(--app-text)" }}>No timetable uploaded yet</h2><p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>Your monthly schedule will appear here when your admin imports it.</p></div>}
       {error && <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-4 text-sm text-rose-300">{error}</div>}
 
       {archive.length > 0 && <>

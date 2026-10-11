@@ -110,7 +110,7 @@ export default function TimetableImportPanel({ activeScreen, agents = [], curren
   return (
     <div className="rounded-3xl border p-5 sm:p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-5" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
       <div className="flex items-start gap-3">
-        <div className="rounded-xl bg-fuchsia-500/15 p-3 text-2xl">🗓️</div>
+        <div className="rounded-xl bg-fuchsia-500/15 p-3"><img src="/calendar.png" alt="" className="h-6 w-6 object-contain" /></div>
         <div><h3 className="text-lg font-bold" style={{ color: "var(--app-text)" }}>Monthly agent timetables</h3><p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>Import the month’s Excel schedule. Agents will see only the timetable for their own profile, while past imports remain available in the archive.</p></div>
       </div>
 
