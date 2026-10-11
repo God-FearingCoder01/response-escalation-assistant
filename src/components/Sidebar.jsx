@@ -96,9 +96,7 @@ export default function Sidebar({
             }`}
             title="Quick Access & Favorites"
           >
-            <span className="flex h-6 w-6 items-center justify-center shrink-0 text-base">
-              ⭐
-            </span>
+            <span className="flex h-6 w-6 items-center justify-center shrink-0"><img src="/star.png" alt="" className="h-5 w-5 object-contain" /></span>
             {isSidebarHovered ? (
               <span className="ml-3 font-semibold text-sm whitespace-nowrap">
                 Favorites & Recents
@@ -162,9 +160,7 @@ export default function Sidebar({
             }`}
             title="Template Suggestions Hub"
           >
-            <span className="flex h-6 w-6 items-center justify-center shrink-0 text-base">
-              💡
-            </span>
+            <span className="flex h-6 w-6 items-center justify-center shrink-0"><img src="/bulb.png" alt="" className="h-5 w-5 object-contain" /></span>
             {isSidebarHovered ? (
               <span className="ml-3 font-semibold text-sm whitespace-nowrap">
                 Suggestions Hub

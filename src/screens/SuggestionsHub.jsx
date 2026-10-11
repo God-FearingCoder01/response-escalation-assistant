@@ -129,7 +129,7 @@ export default function SuggestionsHub({
       {frequentNotes.length > 0 && (
         <div className="p-5 rounded-3xl border border-[#4cd34c]/40 bg-[#4cd34c]/10 shadow-md space-y-3">
           <div className="flex items-center gap-2">
-            <span className="text-xl">💡</span>
+            <img src="/bulb.png" alt="" className="h-5 w-5 object-contain" />
             <div>
               <h3 className="font-bold text-sm text-[var(--app-text)]">
                 Frequent Private Notes Suggested for Team Sharing

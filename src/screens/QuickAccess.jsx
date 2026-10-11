@@ -491,7 +491,7 @@ export default function QuickAccess({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold mb-1 flex items-center gap-2" style={{ color: "var(--app-text)" }}>
-              <span className="text-xl">⭐</span>
+              <img src="/star.png" alt="" className="h-5 w-5 object-contain" />
               Quick Access & Favorites Center
             </h2>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
