@@ -1,15 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Response & Escalation Assistant",
+  "name": "REA",
   "version": "1.0.0",
-  "description": "REA side panel extension",
-  "permissions": [
-    "sidePanel",
-    "storage"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
+  "description": "Response and Escalation Assistant",
+  "minimum_chrome_version": "114",
+  "permissions": ["sidePanel", "storage"],
+  "host_permissions": ["<all_urls>"],
   "icons": {
     "16": "REA.png",
     "32": "REA.png",
@@ -23,14 +19,14 @@
   "side_panel": {
     "default_path": "index.html"
   },
-  "background": {
-    "service_worker": "background.js"
-  },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
       "css": ["content.css"]
     }
-  ]
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
 }

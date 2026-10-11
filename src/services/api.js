@@ -20,8 +20,20 @@ export const ADMIN_TOKEN_KEY = "rea_admin_token_v1";
 export const ADMIN_INITIALS_KEY = "rea_admin_initials_v1";
 export const COMPANY_KEY = "rea_active_company_id_v1";
 
+function getRouteCompanySlug() {
+  if (typeof window === "undefined") return null;
+  const routeSlug = window.location.pathname.split("/").filter(Boolean)[0]?.toLowerCase();
+  return routeSlug && routeSlug !== "monitor" ? routeSlug : null;
+}
+
+function getConfiguredCompanySlug() {
+  return import.meta.env?.VITE_REA_COMPANY_SLUG?.toLowerCase() || getRouteCompanySlug();
+}
+
 export function getCompanyHeaders() {
   if (typeof window === "undefined") return {};
+  const companySlug = getConfiguredCompanySlug();
+  if (companySlug) return { "X-Company-Slug": companySlug };
   const companyId = localStorage.getItem(COMPANY_KEY);
   const headers = {};
   if (companyId) headers["X-Company-ID"] = companyId;
@@ -36,7 +48,9 @@ export function getAdminHeaders() {
   const headers = {};
   if (token) headers["X-Admin-Token"] = token;
   if (initials) headers["X-Admin-Initials"] = initials;
-  if (companyId) headers["X-Company-ID"] = companyId;
+  const companySlug = getConfiguredCompanySlug();
+  if (companySlug) headers["X-Company-Slug"] = companySlug;
+  else if (companyId) headers["X-Company-ID"] = companyId;
   return headers;
 }
 

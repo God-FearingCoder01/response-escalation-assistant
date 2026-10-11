@@ -8,7 +8,6 @@ export default function HeaderStatusBar({
   setError,
   companies = [],
   activeCompanyId = 1,
-  switchCompany = () => {},
   handleNavigate = () => {},
   checkHealth = () => {},
   onOpenSmartExtractor = () => {},

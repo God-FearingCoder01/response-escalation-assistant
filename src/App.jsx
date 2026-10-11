@@ -39,7 +39,6 @@ export default function App() {
     companies,
     activeCompanyId,
     activeCompany,
-    switchCompany,
     handleCreateCompany,
     handleUpdateCompany,
   } = useCompany();
@@ -172,14 +171,6 @@ export default function App() {
         window.history.pushState({}, "", newPath);
         setCurrentPath(newPath);
       }
-    }
-  };
-
-  const handleSwitchCompanyAndEnter = (companyIdOrSlug) => {
-    setError("");
-    switchCompany(companyIdOrSlug);
-    if (activeScreen === "monitor") {
-      setActiveScreen(currentAgent ? "tech_escalation" : "welcome");
     }
   };
 
@@ -533,7 +524,6 @@ export default function App() {
           setError={setError}
           companies={companies}
           activeCompanyId={activeCompanyId}
-          switchCompany={handleSwitchCompanyAndEnter}
           handleNavigate={handleNavigate}
           checkHealth={checkHealth}
           onOpenSmartExtractor={() => setShowSmartExtractor(true)}
@@ -545,7 +535,6 @@ export default function App() {
             currentAgent={currentAgent}
             companies={companies}
             activeCompanyId={activeCompanyId}
-            switchCompany={handleSwitchCompanyAndEnter}
             handleCreateCompany={handleCreateCompany}
             handleUpdateCompany={handleUpdateCompany}
             handleNavigate={handleNavigate}

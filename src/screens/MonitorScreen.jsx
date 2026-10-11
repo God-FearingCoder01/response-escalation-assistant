@@ -11,7 +11,6 @@ export default function MonitorScreen({
   currentAgent,
   companies = [],
   activeCompanyId,
-  switchCompany,
   handleCreateCompany,
   handleUpdateCompany,
   handleNavigate,
@@ -425,19 +424,7 @@ export default function MonitorScreen({
                 </div>
 
                 {/* Card actions */}
-                <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: "var(--panel-border)" }}>
-                  <button
-                    onClick={() => switchCompany(comp.id || comp.slug)}
-                    className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all ${
-                      isCurrent
-                        ? "bg-[#4cd34c]/20 text-[#4cd34c] border border-[#4cd34c]/40 cursor-default"
-                        : "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] hover:opacity-90 shadow-md cursor-pointer"
-                    }`}
-                  >
-                    <span>{isCurrent ? "Active Workspace" : "Enter Workspace"}</span>
-                    <span>➜</span>
-                  </button>
-
+                <div className="flex items-center justify-end gap-2 pt-2 border-t" style={{ borderColor: "var(--panel-border)" }}>
                   <button
                     onClick={() => handleOpenResetPin(comp)}
                     className="p-2.5 rounded-xl border border-amber-500/30 text-amber-400 text-xs font-semibold hover:bg-amber-500/10 transition-colors cursor-pointer"

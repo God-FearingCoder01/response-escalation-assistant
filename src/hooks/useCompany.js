@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { COMPANY_KEY, fetchCompaniesApi, createCompanyApi, updateCompanyApi } from "../services/api";
+import { COMPANY_KEY, fetchCompaniesApi, fetchCompanyBySlugApi, createCompanyApi, updateCompanyApi } from "../services/api";
 
 export function useCompany() {
   const [companies, setCompanies] = useState([
@@ -26,12 +26,16 @@ export function useCompany() {
 
   const loadCompanies = useCallback(async () => {
     try {
-      const data = await fetchCompaniesApi();
+      const fixedCompanySlug = import.meta.env?.VITE_REA_COMPANY_SLUG?.toLowerCase();
+      const response = fixedCompanySlug
+        ? await fetchCompanyBySlugApi(fixedCompanySlug)
+        : await fetchCompaniesApi();
+      const data = Array.isArray(response) ? response : response ? [response] : [];
       if (Array.isArray(data) && data.length > 0) {
         setCompanies(data);
 
         // Check if URL specifies an organization slug
-        const urlSlug = getSlugFromUrl();
+        const urlSlug = fixedCompanySlug || getSlugFromUrl();
         let matched = false;
         if (urlSlug) {
           const matchedComp = data.find((c) => c.slug.toLowerCase() === urlSlug);
@@ -81,44 +85,9 @@ export function useCompany() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, [companies]);
 
-  const switchCompany = (newIdOrSlug, screen = null) => {
-    let target = null;
-    if (typeof newIdOrSlug === "number") {
-      target = companies.find((c) => c.id === newIdOrSlug);
-    } else if (typeof newIdOrSlug === "string") {
-      const parsedId = parseInt(newIdOrSlug, 10);
-      if (!isNaN(parsedId)) {
-        target = companies.find((c) => c.id === parsedId);
-      }
-      if (!target) {
-        target = companies.find((c) => c.slug.toLowerCase() === newIdOrSlug.toLowerCase());
-      }
-    }
-
-    if (!target) {
-      target = companies[0];
-    }
-
-    if (target) {
-      setActiveCompanyId(target.id);
-      if (typeof window !== "undefined") {
-        localStorage.setItem(COMPANY_KEY, String(target.id));
-
-        // Push new URL slug to history
-        const newPath = screen ? `/${target.slug}/${screen}` : `/${target.slug}`;
-        if (window.location.pathname !== newPath && window.location.pathname !== "/monitor") {
-          window.history.pushState({ companyId: target.id }, "", newPath);
-        }
-      }
-    }
-  };
-
   const handleCreateCompany = async (payload) => {
     const newComp = await createCompanyApi(payload);
     await loadCompanies();
-    if (newComp && newComp.id) {
-      switchCompany(newComp.id);
-    }
     return newComp;
   };
 
@@ -134,7 +103,6 @@ export function useCompany() {
     companies,
     activeCompanyId,
     activeCompany,
-    switchCompany,
     loadCompanies,
     handleCreateCompany,
     handleUpdateCompany,
