@@ -23,7 +23,7 @@
       "dest": "/assets/$1"
     },
     {
-      "src": "/(.*\\.(png|jpg|jpeg|svg|ico|json|css|js))",
+      "src": "/(.*\\.(png|jpg|jpeg|svg|ico|json|css|js|html))",
       "dest": "/$1"
     },
     {
