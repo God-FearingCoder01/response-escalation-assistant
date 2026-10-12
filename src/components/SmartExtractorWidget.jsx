@@ -335,6 +335,19 @@ export default function SmartExtractorWidget({
             </button>
           </div>
 
+          <button
+            type="button"
+            onClick={async () => {
+              const pasted = await extractor.pasteFromClipboard();
+              if (pasted === "image") showToast("Screenshot pasted from clipboard! 📋");
+              if (pasted === "text") showToast("Message pasted from clipboard! 📝");
+            }}
+            disabled={extractor.isProcessing}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#4cd34c]/30 bg-[#4cd34c]/10 px-4 py-2.5 text-xs font-bold text-[#4cd34c] hover:bg-[#4cd34c]/20 disabled:opacity-50 transition"
+          >
+            📋 Paste message or screenshot from clipboard
+          </button>
+
           {/* IMAGE MODE CONTENT */}
           {extractor.inputMode === "image" && (
             <div className="space-y-4">

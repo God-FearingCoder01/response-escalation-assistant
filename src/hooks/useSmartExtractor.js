@@ -65,6 +65,74 @@ export function useSmartExtractor(companyId = 1) {
     reader.readAsDataURL(file);
   }, []);
 
+  // Read clipboard contents only when the agent explicitly clicks Paste.
+  const pasteFromClipboard = useCallback(async () => {
+    setError(null);
+
+    if (typeof chrome !== "undefined" && chrome.runtime?.id && chrome.permissions?.request) {
+      const granted = await new Promise((resolve) => {
+        chrome.permissions.request({ permissions: ["clipboardRead"] }, resolve);
+      });
+      if (!granted) {
+        setError("Clipboard access was not granted. Use Ctrl+V in the text box, or choose an image file.");
+        return null;
+      }
+    }
+
+    if (!navigator.clipboard) {
+      setError("Clipboard access is unavailable here. Use Ctrl+V in the text box or choose an image file.");
+      return null;
+    }
+
+    if (typeof navigator.clipboard.read === "function") {
+      try {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const imageType = item.types.find((type) => type.startsWith("image/"));
+          if (imageType) {
+            const blob = await item.getType(imageType);
+            const extension = imageType.split("/")[1]?.replace("jpeg", "jpg") || "png";
+            selectImage(new File([blob], `clipboard-image.${extension}`, { type: imageType }));
+            setInputMode("image");
+            return "image";
+          }
+        }
+
+        for (const item of items) {
+          if (item.types.includes("text/plain")) {
+            const text = await (await item.getType("text/plain")).text();
+            if (text.trim()) {
+              setExtractedResults([]);
+              setRawOcrText("");
+              setPastedText(text);
+              setInputMode("text");
+              return "text";
+            }
+          }
+        }
+      } catch {
+        // Try the simpler text-only clipboard API below.
+      }
+    }
+
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text.trim()) {
+        setExtractedResults([]);
+        setRawOcrText("");
+        setPastedText(text);
+        setInputMode("text");
+        return "text";
+      }
+    } catch {
+      setError("Clipboard access was denied. Use Ctrl+V in the text box, or choose an image file.");
+      return null;
+    }
+
+    setError("No text or screenshot was found in the clipboard.");
+    return null;
+  }, [selectImage]);
+
   // Handle Drag & Drop / Clipboard Paste
   const handleDropOrPaste = useCallback((event) => {
     event.preventDefault();
@@ -218,6 +286,7 @@ export function useSmartExtractor(companyId = 1) {
     imageFile,
     imagePreview,
     selectImage,
+    pasteFromClipboard,
 
     pastedText,
     setPastedText,
