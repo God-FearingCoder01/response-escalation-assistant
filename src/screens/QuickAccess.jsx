@@ -41,6 +41,7 @@ export default function QuickAccess({
   const [creatingNote, setCreatingNote] = useState(false);
   const [showHiddenFields, setShowHiddenFields] = useState(false);
   const [noteSearchQuery, setNoteSearchQuery] = useState("");
+  const [expandedPreviewId, setExpandedPreviewId] = useState(null);
 
   const [customCategories, setCustomCategories] = useState(() => {
     try {
@@ -1130,6 +1131,8 @@ export default function QuickAccess({
 
               const isPrivateNote = t.is_private_note || String(t.id).startsWith("priv_") || t.agent_initials !== undefined;
               const copyCount = isPrivateNote ? (t.use_count || 0) : (counts[t.id] || 0);
+              const isPreviewExpanded = String(expandedPreviewId) === String(t.id);
+              const hasLongBody = (t.body || "").length > 80 || (t.body || "").includes("\n");
 
               const isSelectedInBatch = selectedNoteIds.includes(t.id);
 
@@ -1193,9 +1196,25 @@ export default function QuickAccess({
                       )}
                     </div>
 
-                    <div className="text-xs truncate font-mono max-w-full" style={{ color: "var(--text-muted)" }}>
+                    <div
+                      className={`text-xs font-mono max-w-full min-w-0 break-words ${isPreviewExpanded ? "whitespace-pre-wrap" : "line-clamp-3"}`}
+                      style={{ color: "var(--text-muted)" }}
+                    >
                       {t.body}
                     </div>
+                    {hasLongBody && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedPreviewId(isPreviewExpanded ? null : t.id);
+                        }}
+                        className="pt-0.5 text-[10px] font-bold text-[#4cd34c] hover:underline"
+                        aria-expanded={isPreviewExpanded}
+                      >
+                        {isPreviewExpanded ? "Show less" : "Show full message"}
+                      </button>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0 self-start sm:self-center">
