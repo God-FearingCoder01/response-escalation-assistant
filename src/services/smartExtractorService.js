@@ -361,7 +361,7 @@ function extractPaymentConfirmationAmounts(text = "") {
   return values;
 }
 
-function extractPaymentConfirmationPairs(text = "") {
+function extractPaymentConfirmationPairs(text = "", knownReferences = []) {
   const headers = Array.from(text.matchAll(/payment\s*confirmation\s*:?/gi));
   const pairs = [];
   headers.forEach((header, index) => {
@@ -374,9 +374,18 @@ function extractPaymentConfirmationPairs(text = "") {
     if (boundary >= 0) end = start + boundary;
     const body = text.slice(start, end);
     const amountMatch = body.match(/^\s*(?:USD\s*)?(\d+(?:[.,]\d{2})?)/i);
-    const referenceMatch = body.match(/\b(MP[\s\n.,:\-\d]{8,30}T\s*\d{7})\b/i);
+    const compactBody = body.replace(/[\s.,:\-]/g, "").toUpperCase();
+    const knownReference = knownReferences.find((candidate) => {
+      const compactCandidate = String(candidate).replace(/[\s.,:\-]/g, "").toUpperCase();
+      return compactCandidate.startsWith("MP") && compactBody.includes(compactCandidate);
+    });
+    const referenceMatch = body.match(/\b(MP[\s\n.,:\-\d]{8,30}T[\s\d]{7,8})\b/i);
     const amount = amountMatch ? normalizeExtractedValue(amountMatch[1], "amount") : null;
-    const reference = referenceMatch ? normalizeExtractedValue(referenceMatch[1], "reference_number") : null;
+    const reference = knownReference
+      ? normalizeExtractedValue(String(knownReference), "reference_number")
+      : referenceMatch
+      ? normalizeExtractedValue(referenceMatch[1], "reference_number")
+      : null;
     if (amount && reference) pairs.push({ amount, reference });
   });
   return pairs;
@@ -529,9 +538,12 @@ export function extractValuesLocally(text = "", rules = []) {
     }
   });
 
-  const confirmationPairs = extractPaymentConfirmationPairs(cleanText);
+  const knownReferences = results
+    .filter((r) => /reference|\bref\b|tx|transaction/i.test(r.result_field || ""))
+    .flatMap((r) => r.all_values || [r.value]);
+  const confirmationPairs = extractPaymentConfirmationPairs(cleanText, knownReferences);
   if (confirmationPairs.length) {
-    const refResult = results.find((r) => /reference|\bref\b|tx/i.test(r.result_field || ""));
+    const refResult = results.find((r) => /reference|\bref\b|tx|transaction/i.test(r.result_field || ""));
     const amtResult = results.find((r) => /amount|price/i.test(r.result_field || ""));
     if (refResult && amtResult) {
       refResult.all_values = confirmationPairs.map((pair) => pair.reference);
