@@ -361,6 +361,27 @@ function extractPaymentConfirmationAmounts(text = "") {
   return values;
 }
 
+function extractPaymentConfirmationPairs(text = "") {
+  const headers = Array.from(text.matchAll(/payment\s*confirmation\s*:?/gi));
+  const pairs = [];
+  headers.forEach((header, index) => {
+    const start = header.index + header[0].length;
+    let end = index + 1 < headers.length ? headers[index + 1].index : text.length;
+    const segment = text.slice(start, end);
+    // Some OCR transcripts include adjacent SMS messages before the next payment
+    // confirmation. Stop at common message labels/metadata to avoid borrowing them.
+    const boundary = segment.search(/(?:\n\s*SMS\s*\d+\s*[·•.-]\s*\d{1,2}:\d{2}|\n\s*(?:EcoCash\s*:\s*Received|Send\s+Money\s+Confirmation\s*:))/i);
+    if (boundary >= 0) end = start + boundary;
+    const body = text.slice(start, end);
+    const amountMatch = body.match(/^\s*(?:USD\s*)?(\d+(?:[.,]\d{2})?)/i);
+    const referenceMatch = body.match(/\b(MP[\s\n.,:\-\d]{8,30}T\s*\d{7})\b/i);
+    const amount = amountMatch ? normalizeExtractedValue(amountMatch[1], "amount") : null;
+    const reference = referenceMatch ? normalizeExtractedValue(referenceMatch[1], "reference_number") : null;
+    if (amount && reference) pairs.push({ amount, reference });
+  });
+  return pairs;
+}
+
 function isNewBalanceContext(fullText, matchIndex) {
   if (matchIndex <= 0 || !fullText) return false;
   let preceding = fullText.slice(Math.max(0, matchIndex - 60), matchIndex);
@@ -508,6 +529,18 @@ export function extractValuesLocally(text = "", rules = []) {
     }
   });
 
+  const confirmationPairs = extractPaymentConfirmationPairs(cleanText);
+  if (confirmationPairs.length) {
+    const refResult = results.find((r) => /reference|\bref\b|tx/i.test(r.result_field || ""));
+    const amtResult = results.find((r) => /amount|price/i.test(r.result_field || ""));
+    if (refResult && amtResult) {
+      refResult.all_values = confirmationPairs.map((pair) => pair.reference);
+      refResult.value = refResult.all_values[0];
+      amtResult.all_values = confirmationPairs.map((pair) => pair.amount);
+      amtResult.value = amtResult.all_values[0];
+      return results;
+    }
+  }
   return alignReferenceNumberAndAmountResults(results, cleanText);
 }
 
