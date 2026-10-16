@@ -31,9 +31,22 @@ export default function SmartExtractorWidget({
   });
 
   const [selectedFieldValues, setSelectedFieldValues] = useState({});
+  const [selectedFieldValueIndices, setSelectedFieldValueIndices] = useState({});
 
   const handleSelectFieldValue = (fieldKey, val, vIdx) => {
     const fk = (fieldKey || "").toLowerCase();
+
+    setSelectedFieldValueIndices((prev) => {
+      const next = { ...prev, [fieldKey]: vIdx };
+      const paired = extractor.extractedResults.find((r) => {
+        const key = (r.result_field || "").toLowerCase();
+        return (fk.includes("amount") || fk.includes("price"))
+          ? key.includes("reference") || key.includes("ref") || key.includes("tx")
+          : (fk.includes("reference") || fk.includes("ref") || fk.includes("tx")) && (key.includes("amount") || key.includes("price"));
+      });
+      if (paired) next[paired.result_field || paired.rule_name] = vIdx;
+      return next;
+    });
 
     setSelectedFieldValues((prev) => {
       const nextMap = { ...prev, [fieldKey]: val };
@@ -525,6 +538,7 @@ export default function SmartExtractorWidget({
                   const allVals = res.all_values && res.all_values.length > 0 ? res.all_values : [res.value];
                   const hasMultiple = allVals.length > 1;
                   const currentSelected = selectedFieldValues[fieldKey] || allVals[0];
+                  const currentSelectedIndex = selectedFieldValueIndices[fieldKey] ?? Math.max(0, allVals.indexOf(currentSelected));
 
                   return (
                     <div key={idx} className="rounded-2xl border p-4 bg-black/30 space-y-3 border-white/10">
@@ -555,7 +569,7 @@ export default function SmartExtractorWidget({
                           </p>
                           <div className="space-y-1.5 rounded-xl border bg-black/40 p-2.5 border-white/10">
                             {allVals.map((val, vIdx) => {
-                              const isChecked = currentSelected === val;
+                              const isChecked = currentSelectedIndex === vIdx;
 
                               let pairedBadge = null;
                               const fkLower = fieldKey.toLowerCase();

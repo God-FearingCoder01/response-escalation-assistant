@@ -348,7 +348,18 @@ const BLACKLISTED_REF_WORDS = new Set([
   "withdrawal",
   "status",
   "receipt",
+  "code",
 ]);
+
+function extractPaymentConfirmationAmounts(text = "") {
+  const values = [];
+  const confirmationPattern = /payment\s*confirmation\s*:\s*(?:USD\s*)?([\d]+(?:[.,]\d{2})?)/gi;
+  for (const match of text.matchAll(confirmationPattern)) {
+    const value = normalizeExtractedValue(match[1], "amount");
+    if (value && !values.includes(value)) values.push(value);
+  }
+  return values;
+}
 
 function isNewBalanceContext(fullText, matchIndex) {
   if (matchIndex <= 0 || !fullText) return false;
@@ -471,6 +482,15 @@ export function extractValuesLocally(text = "", rules = []) {
     // 2. Smart fallback matchers if no values found or to supplement rule matching
     const fallbackVals = runSmartFallbackExtractionAll(cleanText, collapsedText, fieldKey, rule.name);
     fallbackVals.forEach((fv) => addVal(fv));
+
+    // Payment Confirmation amounts are the transaction fee. Other USD values in
+    // the same message (received amount, balance, etc.) are not equivalent.
+    if (fieldKey.includes("amount") || fieldKey.includes("price")) {
+      const confirmationAmounts = extractPaymentConfirmationAmounts(cleanText);
+      if (confirmationAmounts.length) {
+        extractedValues.splice(0, extractedValues.length, ...confirmationAmounts);
+      }
+    }
 
     if (extractedValues.length > 0) {
       seenFields.add(fieldKey);
