@@ -17,6 +17,7 @@ export default function QuickAccess({
   setSelectedQuickId,
   activeTemplate,
   toggleFavorite,
+  moveFavorite = () => {},
   favoriteIds = [],
   usageCounts = {},
   placeholders = [],
@@ -356,7 +357,9 @@ export default function QuickAccess({
         (t.category_type && t.category_type.toLowerCase().includes(q))
       );
     });
-    return sortTemplatesBySearchRelevance(matched, noteSearchQuery);
+    return quickTab === "favorites"
+      ? matched
+      : sortTemplatesBySearchRelevance(matched, noteSearchQuery);
   }, [currentTabTemplates, quickTab, selectedNoteCategory, noteSearchQuery]);
 
   const allSameCategory = useMemo(() => {
@@ -1130,6 +1133,7 @@ export default function QuickAccess({
             filteredTabTemplates.map((t) => {
 
               const isPrivateNote = t.is_private_note || String(t.id).startsWith("priv_") || t.agent_initials !== undefined;
+              const favoriteIndex = favIds.findIndex((id) => String(id) === String(t.id));
               const copyCount = isPrivateNote ? (t.use_count || 0) : (counts[t.id] || 0);
               const isPreviewExpanded = String(expandedPreviewId) === String(t.id);
               const hasLongBody = (t.body || "").length > 80 || (t.body || "").includes("\n");
@@ -1266,6 +1270,37 @@ export default function QuickAccess({
                       >
                         🗑️
                       </button>
+                    )}
+
+                    {quickTab === "favorites" && !noteSearchQuery.trim() && (
+                      <div className="flex flex-col" aria-label={`Reorder ${t.name}`}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            moveFavorite(t.id, -1);
+                          }}
+                          disabled={favoriteIndex <= 0}
+                          className="px-1 text-[10px] leading-3 hover:text-[#4cd34c] disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Move up in Starred templates"
+                          aria-label={`Move ${t.name} up`}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            moveFavorite(t.id, 1);
+                          }}
+                          disabled={favoriteIndex < 0 || favoriteIndex >= favIds.length - 1}
+                          className="px-1 text-[10px] leading-3 hover:text-[#4cd34c] disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Move down in Starred templates"
+                          aria-label={`Move ${t.name} down`}
+                        >
+                          ▼
+                        </button>
+                      </div>
                     )}
 
                     <button

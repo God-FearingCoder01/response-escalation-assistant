@@ -115,6 +115,21 @@ export function useUserInteractions({ currentAgent, apiStatus }) {
     showToast(isFav ? "Removed from Favorites ⭐" : "Added to Favorites ⭐");
   }
 
+  async function moveFavorite(id, direction) {
+    const currentIndex = favoriteIds.findIndex((item) => String(item) === String(id));
+    const nextIndex = currentIndex + direction;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= favoriteIds.length) return;
+
+    const next = [...favoriteIds];
+    [next[currentIndex], next[nextIndex]] = [next[nextIndex], next[currentIndex]];
+    setFavoriteIds(next);
+    const initials = currentAgent?.agent_initials || "DEFAULT";
+    try {
+      localStorage.setItem(`REA_FAVORITES_${initials}`, JSON.stringify(next));
+    } catch (e) {}
+    await saveAgentUserDataApi({ agent_initials: initials, favorites: next });
+  }
+
   async function recordCopyAction(templateId) {
     if (!templateId) return;
     const initials = currentAgent?.agent_initials || "DEFAULT";
@@ -175,6 +190,7 @@ export function useUserInteractions({ currentAgent, apiStatus }) {
     recentlyUsed,
     setRecentlyUsed,
     toggleFavorite,
+    moveFavorite,
     recordCopyAction,
     copyText,
   };

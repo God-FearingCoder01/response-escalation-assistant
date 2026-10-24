@@ -156,7 +156,8 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
   // Favorites templates list (system templates + starred private notes)
   const favoriteTemplates = useMemo(() => {
     const favList = favoriteIds || [];
-    return combinedTemplates.filter((t) => favList.includes(t.id));
+    const templatesById = new Map(combinedTemplates.map((template) => [String(template.id), template]));
+    return favList.map((id) => templatesById.get(String(id))).filter(Boolean);
   }, [combinedTemplates, favoriteIds]);
 
   // Most used templates list

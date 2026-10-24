@@ -184,6 +184,7 @@ export default function App() {
     usageCounts = {},
     recentlyUsed = [],
     toggleFavorite = () => {},
+    moveFavorite = () => {},
     copyText = () => {},
   } = userInteractions || {};
 
@@ -699,6 +700,7 @@ export default function App() {
           setSelectedQuickId={setSelectedQuickId}
           activeTemplate={activeTemplate}
           toggleFavorite={toggleFavorite}
+          moveFavorite={moveFavorite}
           favoriteIds={favoriteIds}
           usageCounts={usageCounts}
           placeholders={placeholders}
