@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { AGENT_KEY, fetchHealthApi } from "./services/api";
+import { AGENT_KEY, AGENT_TOKEN_KEY, fetchHealthApi } from "./services/api";
 import { useTheme } from "./hooks/useTheme";
 import { useAgents } from "./hooks/useAgents";
 import { useCompany } from "./hooks/useCompany";
@@ -14,6 +14,8 @@ import { useGlobalVariables } from "./hooks/useGlobalVariables";
 
 import Sidebar from "./components/Sidebar";
 import PinModal from "./components/PinModal";
+import PinSetupModal from "./components/PinSetupModal";
+import ChangePinModal from "./components/ChangePinModal";
 import SuperAdminPinModal from "./components/SuperAdminPinModal";
 import Toast from "./components/Toast";
 import HeaderStatusBar from "./components/HeaderStatusBar";
@@ -39,6 +41,7 @@ export default function App() {
     companies,
     activeCompanyId,
     activeCompany,
+    reloadCompanies,
     handleCreateCompany,
     handleUpdateCompany,
   } = useCompany();
@@ -50,6 +53,7 @@ export default function App() {
   const [statusMessage, setStatusMessage] = useState("");
   const [values, setValues] = useState({});
   const [showSmartExtractor, setShowSmartExtractor] = useState(false);
+  const [showChangePinModal, setShowChangePinModal] = useState(false);
 
   // Super Admin Authentication State
   const [isSuperAdminAuth, setIsSuperAdminAuth] = useState(false);
@@ -73,6 +77,11 @@ export default function App() {
     showPinModal = false,
     setShowPinModal,
     setPendingAdminAgent,
+    showPinSetupModal = false,
+    pinSetupError = "",
+    setPinSetupError,
+    completePinSetup,
+    changeCurrentAgentPin,
     pinDigits = ["", "", "", ""],
     setPinDigits,
     pinError = "",
@@ -104,6 +113,7 @@ export default function App() {
     handleResetAgentForm,
     handleCreateOrUpdateAgent,
     handleDeleteAgent,
+    handleResetAgentPin,
     handleToggleAgentActive,
   } = agentState || {};
 
@@ -196,7 +206,7 @@ export default function App() {
   });
 
   // 3.5 Global Variables hook
-  const globalVarState = useGlobalVariables(activeCompanyId || 1);
+  const globalVarState = useGlobalVariables(activeCompanyId || 1, currentAgent);
 
   // 4. Templates hook
   const templateState = useTemplates({
@@ -354,6 +364,9 @@ export default function App() {
     setCurrentAgent(null);
     try {
       window.localStorage.removeItem(AGENT_KEY);
+      window.sessionStorage.removeItem(AGENT_KEY);
+      window.sessionStorage.removeItem(AGENT_TOKEN_KEY);
+      window.sessionStorage.removeItem("rea_agent_setup_session_v1");
     } catch (e) {}
     handleNavigate("welcome");
   };
@@ -488,6 +501,15 @@ export default function App() {
         themeMode={themeMode}
         setThemeMode={setThemeMode}
         handleLogout={handleLogout}
+        onChangePin={() => setShowChangePinModal(true)}
+        onOpenSmartExtractor={() => setShowSmartExtractor(true)}
+        isSmartExtractorOpen={showSmartExtractor}
+      />
+
+      <ChangePinModal
+        isOpen={showChangePinModal}
+        onClose={() => setShowChangePinModal(false)}
+        onSubmit={changeCurrentAgentPin}
       />
 
       <PinModal
@@ -501,6 +523,14 @@ export default function App() {
         verifyPin={verifyPin}
       />
 
+      <PinSetupModal
+        isOpen={showPinSetupModal}
+        agent={agentState?.pendingAdminAgent}
+        error={pinSetupError}
+        setError={setPinSetupError}
+        onSubmit={completePinSetup}
+      />
+
       {/* Super Admin 4-digit PIN lock for /monitor */}
       {activeScreen === "monitor" && !isSuperAdminAuth && (
         <SuperAdminPinModal
@@ -508,6 +538,7 @@ export default function App() {
           onAuthenticated={(token, email) => {
             setIsSuperAdminAuth(true);
             if (email) setSuperAdminEmail(email);
+            reloadCompanies?.();
           }}
           onCancel={() => handleNavigate("root")}
           showToast={showToast}
@@ -649,6 +680,7 @@ export default function App() {
           handleResetAgentForm={handleResetAgentForm}
           handleCreateOrUpdateAgent={handleCreateOrUpdateAgent}
           handleDeleteAgent={handleDeleteAgent}
+          handleResetAgentPin={handleResetAgentPin}
           handleToggleAgentActive={handleToggleAgentActive}
           adminCurrentPin={adminCurrentPin}
           setAdminCurrentPin={setAdminCurrentPin}

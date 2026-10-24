@@ -208,16 +208,12 @@ export default function SuperAdminPinModal({
             </div>
 
             <div className="flex flex-col items-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("forgot_email");
-                  setError("");
-                }}
+              <a
+                href="mailto:gfc.dev@proton.me?subject=Super%20Admin%20PIN%20reset%20request"
                 className="text-xs font-semibold text-[#4cd34c] hover:underline cursor-pointer"
               >
-                Forgot Super Admin PIN?
-              </button>
+                Forgot Super Admin PIN? Contact support
+              </a>
 
               {onCancel && (
                 <button

@@ -12,8 +12,10 @@ from backend.models import (
     GlobalVariableUpdate,
     Template,
 )
+from backend.security import require_agent_session
+from backend.security import require_admin
 
-router = APIRouter(prefix="/api", tags=["global-variables"])
+router = APIRouter(prefix="/api", tags=["global-variables"], dependencies=[Depends(require_agent_session)])
 
 
 class MigrationSearchRequest(BaseModel):
@@ -47,14 +49,21 @@ def sanitize_variable_key(key: str) -> str:
     return clean
 
 
+def _assert_company_scope(company_id: int, auth: dict):
+    if int(company_id) != int(auth["company_id"]):
+        raise HTTPException(status_code=403, detail="The requested organization does not match the authenticated session.")
+
+
 @router.get("/global-variables", response_model=List[GlobalVariableRead])
 def get_global_variables(
     company_id: int = Query(default=1),
     session: Session = Depends(get_session),
+    auth: dict = Depends(require_agent_session),
 ):
     """
     Get all global variables for a specific company (tenant isolation enforced).
     """
+    _assert_company_scope(company_id, auth)
     statement = (
         select(GlobalVariable)
         .where(GlobalVariable.company_id == company_id)
@@ -63,14 +72,16 @@ def get_global_variables(
     return session.exec(statement).all()
 
 
-@router.post("/global-variables", response_model=GlobalVariableRead)
+@router.post("/global-variables", response_model=GlobalVariableRead, dependencies=[Depends(require_admin)])
 def create_global_variable(
     var_in: GlobalVariableCreate,
     session: Session = Depends(get_session),
+    auth: dict = Depends(require_agent_session),
 ):
     """
     Create a new company-scoped global variable.
     """
+    _assert_company_scope(var_in.company_id, auth)
     if not var_in.name or not var_in.key or var_in.value is None:
         raise HTTPException(status_code=400, detail="Variable name, key, and value are required.")
 
@@ -106,26 +117,30 @@ def get_global_variable(
     var_id: int,
     company_id: int = Query(default=1),
     session: Session = Depends(get_session),
+    auth: dict = Depends(require_agent_session),
 ):
     """
     Get details of a specific global variable (multi-tenant isolated).
     """
+    _assert_company_scope(company_id, auth)
     db_var = session.get(GlobalVariable, var_id)
     if not db_var or db_var.company_id != company_id:
         raise HTTPException(status_code=404, detail="Global variable not found for this company.")
     return db_var
 
 
-@router.put("/global-variables/{var_id}", response_model=GlobalVariableRead)
+@router.put("/global-variables/{var_id}", response_model=GlobalVariableRead, dependencies=[Depends(require_admin)])
 def update_global_variable(
     var_id: int,
     var_in: GlobalVariableUpdate,
     company_id: int = Query(default=1),
     session: Session = Depends(get_session),
+    auth: dict = Depends(require_agent_session),
 ):
     """
     Update a global variable (multi-tenant isolated).
     """
+    _assert_company_scope(company_id, auth)
     db_var = session.get(GlobalVariable, var_id)
     if not db_var or db_var.company_id != company_id:
         raise HTTPException(status_code=404, detail="Global variable not found for this company.")
@@ -158,16 +173,18 @@ def update_global_variable(
     return db_var
 
 
-@router.delete("/global-variables/{var_id}")
+@router.delete("/global-variables/{var_id}", dependencies=[Depends(require_admin)])
 def delete_global_variable(
     var_id: int,
     company_id: int = Query(default=1),
     force: bool = Query(default=False),
     session: Session = Depends(get_session),
+    auth: dict = Depends(require_agent_session),
 ):
     """
     Delete a global variable. Prevents accidental deletion if referenced in templates unless force=True.
     """
+    _assert_company_scope(company_id, auth)
     db_var = session.get(GlobalVariable, var_id)
     if not db_var or db_var.company_id != company_id:
         raise HTTPException(status_code=404, detail="Global variable not found for this company.")
@@ -196,10 +213,12 @@ def get_global_variable_usage(
     var_id: int,
     company_id: int = Query(default=1),
     session: Session = Depends(get_session),
+    auth: dict = Depends(require_agent_session),
 ):
     """
     Get list of templates currently referencing a global variable.
     """
+    _assert_company_scope(company_id, auth)
     db_var = session.get(GlobalVariable, var_id)
     if not db_var or db_var.company_id != company_id:
         raise HTTPException(status_code=404, detail="Global variable not found for this company.")
@@ -237,11 +256,13 @@ def get_global_variable_usage(
 def search_templates_for_migration(
     req: MigrationSearchRequest,
     session: Session = Depends(get_session),
+    auth: dict = Depends(require_agent_session),
 ):
     """
     Search company templates containing exact text or pattern to migrate into a global variable.
     Strictly isolated to req.company_id.
     """
+    _assert_company_scope(req.company_id, auth)
     if not req.search_text or not req.search_text.strip():
         raise HTTPException(status_code=400, detail="Search text is required.")
 
@@ -279,10 +300,12 @@ def search_templates_for_migration(
 def preview_template_migration(
     req: MigrationPreviewRequest,
     session: Session = Depends(get_session),
+    auth: dict = Depends(require_agent_session),
 ):
     """
     Generate side-by-side BEFORE / AFTER transformation previews for selected templates.
     """
+    _assert_company_scope(req.company_id, auth)
     if not req.search_text or not req.replace_text or not req.template_ids:
         return {"previews": [], "total_count": 0}
 
@@ -315,14 +338,16 @@ def preview_template_migration(
     }
 
 
-@router.post("/global-variables/migration/apply")
+@router.post("/global-variables/migration/apply", dependencies=[Depends(require_admin)])
 def apply_template_migration(
     req: MigrationApplyRequest,
     session: Session = Depends(get_session),
+    auth: dict = Depends(require_agent_session),
 ):
     """
     Atomically apply global variable replacement to selected tenant templates.
     """
+    _assert_company_scope(req.company_id, auth)
     if not req.search_text or not req.replace_text or not req.template_ids:
         raise HTTPException(status_code=400, detail="Search text, replace text, and template IDs are required.")
 

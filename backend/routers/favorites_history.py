@@ -4,9 +4,9 @@ from sqlmodel import Session, select, col
 
 from backend.database import engine
 from backend.models import Company, Favorite, UsageHistory, Template
-from backend.security import get_current_company
+from backend.security import get_current_company, require_agent_session
 
-router = APIRouter(tags=["Favorites & History"])
+router = APIRouter(tags=["Favorites & History"], dependencies=[Depends(require_agent_session)])
 
 
 @router.get("/favorites/{agent_initials}")

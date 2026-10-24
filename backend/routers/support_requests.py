@@ -10,7 +10,7 @@ from backend.models import (
     SupportRequestRead,
     SupportRequestUpdate,
 )
-from backend.security import require_admin
+from backend.security import require_superadmin
 
 router = APIRouter(tags=["Support Requests"])
 
@@ -39,14 +39,14 @@ def create_support_request(payload: SupportRequestCreate):
         return req_obj
 
 
-@router.get("/support-requests", response_model=List[SupportRequestRead], dependencies=[Depends(require_admin)])
+@router.get("/support-requests", response_model=List[SupportRequestRead], dependencies=[Depends(require_superadmin)])
 def list_support_requests():
     ensure_db_initialized()
     with Session(engine) as session:
         return session.exec(select(SupportRequest).order_by(col(SupportRequest.created_at).desc())).all()
 
 
-@router.patch("/support-requests/{request_id}", response_model=SupportRequestRead, dependencies=[Depends(require_admin)])
+@router.patch("/support-requests/{request_id}", response_model=SupportRequestRead, dependencies=[Depends(require_superadmin)])
 def update_support_request_status(request_id: int, payload: SupportRequestUpdate):
     ensure_db_initialized()
     with Session(engine) as session:

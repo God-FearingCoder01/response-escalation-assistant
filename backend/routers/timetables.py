@@ -9,9 +9,9 @@ from sqlmodel import Session, select, col
 
 from backend.database import engine
 from backend.models import Agent, Company, MonthlyTimetable
-from backend.security import get_current_company, require_admin
+from backend.security import get_current_company, require_admin, require_agent_session
 
-router = APIRouter(prefix="/timetables", tags=["Timetables"])
+router = APIRouter(prefix="/timetables", tags=["Timetables"], dependencies=[Depends(require_agent_session)])
 
 
 def _shift_team_key(shift: str) -> str:

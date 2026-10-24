@@ -13,13 +13,13 @@ from backend.models import (
     ExtractionRuleUpdate,
     get_utc_now,
 )
-from backend.security import require_admin
+from backend.security import require_admin, require_agent_session
 from backend.services.extraction_service import (
     process_text_extraction,
     evaluate_rule_pattern,
 )
 
-router = APIRouter(prefix="/api/extraction-rules", tags=["Smart Extractor Rules"])
+router = APIRouter(prefix="/api/extraction-rules", tags=["Smart Extractor Rules"], dependencies=[Depends(require_agent_session)])
 logger = logging.getLogger("rea_extraction_rules")
 
 
@@ -38,11 +38,14 @@ def get_extraction_rules(
     company_id: int = Query(default=1),
     enabled_only: bool = Query(default=False),
     session: Session = Depends(get_session),
+    auth: dict = Depends(require_agent_session),
 ):
     """
     Get all company-scoped extraction rules (tenant-isolated).
     Auto-seeds default rules into database if none exist yet for the company.
     """
+    if company_id != auth["company_id"]:
+        raise HTTPException(status_code=403, detail="Organization does not match the authenticated session.")
     try:
         statement = select(ExtractionRule).where(ExtractionRule.company_id == company_id)
         rules = session.exec(statement).all()
@@ -69,10 +72,13 @@ def create_extraction_rule(
     rule_in: ExtractionRuleCreate,
     session: Session = Depends(get_session),
     _: bool = Depends(require_admin),
+    auth: dict = Depends(require_agent_session),
 ):
     """
     Create a new company-scoped extraction rule (Admin protected).
     """
+    if rule_in.company_id != auth["company_id"]:
+        raise HTTPException(status_code=403, detail="Organization does not match the authenticated session.")
     if not rule_in.name or not rule_in.result_field or not rule_in.pattern:
         raise HTTPException(status_code=400, detail="Rule name, result field, and pattern are required.")
 
@@ -134,10 +140,13 @@ def get_extraction_rule(
     rule_id: int,
     company_id: int = Query(default=1),
     session: Session = Depends(get_session),
+    auth: dict = Depends(require_agent_session),
 ):
     """
     Get details of a single extraction rule with tenant validation.
     """
+    if company_id != auth["company_id"]:
+        raise HTTPException(status_code=403, detail="Organization does not match the authenticated session.")
     rule = session.get(ExtractionRule, rule_id)
     if not rule or rule.company_id != company_id:
         raise HTTPException(status_code=404, detail="Extraction rule not found.")
@@ -151,12 +160,13 @@ def update_extraction_rule(
     company_id: Optional[int] = Query(default=None),
     session: Session = Depends(get_session),
     _: bool = Depends(require_admin),
+    auth: dict = Depends(require_agent_session),
 ):
     """
     Update an existing extraction rule (Admin protected).
     """
     db_rule = session.get(ExtractionRule, rule_id)
-    if not db_rule:
+    if not db_rule or db_rule.company_id != auth["company_id"]:
         raise HTTPException(status_code=404, detail="Extraction rule not found.")
 
     if company_id is not None and db_rule.company_id != company_id:
@@ -193,12 +203,13 @@ def delete_extraction_rule(
     company_id: Optional[int] = Query(default=None),
     session: Session = Depends(get_session),
     _: bool = Depends(require_admin),
+    auth: dict = Depends(require_agent_session),
 ):
     """
     Delete an extraction rule (Admin protected).
     """
     db_rule = session.get(ExtractionRule, rule_id)
-    if not db_rule:
+    if not db_rule or db_rule.company_id != auth["company_id"]:
         raise HTTPException(status_code=404, detail="Extraction rule not found.")
 
     if company_id is not None and db_rule.company_id != company_id:
@@ -224,10 +235,13 @@ def test_extraction_rule(
 def process_text_extraction_endpoint(
     req: ExtractionProcessRequest,
     session: Session = Depends(get_session),
+    auth: dict = Depends(require_agent_session),
 ):
     """
     Process input text using all active extraction rules for the given company tenant.
     """
+    if req.company_id != auth["company_id"]:
+        raise HTTPException(status_code=403, detail="Organization does not match the authenticated session.")
     try:
         rules = session.exec(
             select(ExtractionRule)

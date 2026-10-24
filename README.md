@@ -38,9 +38,10 @@
 - **Agent Profiles**: Select active support profile to automatically bind credentials, full name, and agent initials across templates.
 - **Auto Signatures**: Automatically formats agent initials (`^initials`) for customer replies and agent handles (`#agent_name`) for tech escalations.
 
-### 🔐 System Admin Security PIN Protection
-- **4-Digit PIN Security**: Admin profile access within company spaces is guarded by 4-digit PIN authentication.
-- **Server-Verified**: Security PINs are queried asynchronously against the backend database to persist credentials across browser tabs, page refreshes, and devices.
+### 🔐 Agent Profile Authentication
+- **PIN Required for Every Profile**: Each agent profile requires a 4-digit PIN; new or reset profiles start with `0000` and must choose a new PIN before entering the workspace.
+- **Server-Verified Sessions**: PINs are salted and hashed in the backend. Successful sign-in creates a short-lived, company-bound session; protected APIs reject requests that do not carry it.
+- **Automatic Locking**: Sessions lock after 15 minutes of inactivity and expire after the configured session lifetime.
 
 ### ⚡ Tech Escalation Center
 - **Telegram Escalations**: Purpose-built builder for technical incident reports and channel escalations.
@@ -185,7 +186,8 @@ REA is configured out-of-the-box for seamless Vercel deployment with serverless 
 1. Push your repository to GitHub.
 2. Import project into Vercel dashboard.
 3. Configure `DATABASE_URL` or `POSTGRES_URL` in Vercel environment variables pointing to your production PostgreSQL database (Neon, Supabase, Vercel Postgres, AWS RDS).
-4. Deploy! Vercel will automatically build the React Vite frontend and serve the FastAPI Python backend endpoints.
+4. Set `SECRET_KEY` to a unique cryptographically random value of at least 32 characters and optionally set `AGENT_SESSION_EXPIRE_HOURS`. Production startup rejects the example/default secret.
+5. Deploy! Vercel will automatically build the React Vite frontend and serve the FastAPI Python backend endpoints.
 
 ---
 

@@ -18,9 +18,9 @@ from backend.models import (
     ShiftIssueRead,
     ShiftIssueUpdate,
 )
-from backend.security import get_current_company, require_admin
+from backend.security import get_current_company, require_admin, require_agent_session
 
-router = APIRouter(tags=["Shift Issue Register"])
+router = APIRouter(tags=["Shift Issue Register"], dependencies=[Depends(require_agent_session)])
 
 
 @router.get("/sir/shifts", response_model=List[ShiftConfigRead])
@@ -140,7 +140,11 @@ def list_sir_issues(company: Company = Depends(get_current_company)):
 
 
 @router.post("/sir/issues", response_model=ShiftIssueRead)
-def create_sir_issue(payload: ShiftIssueCreate, company: Company = Depends(get_current_company)):
+def create_sir_issue(
+    payload: ShiftIssueCreate,
+    company: Company = Depends(get_current_company),
+    authenticated_agent: dict = Depends(require_agent_session),
+):
     cid = company.id if company and company.id else 1
     with Session(engine) as session:
         now = datetime.now(timezone.utc)
@@ -160,8 +164,8 @@ def create_sir_issue(payload: ShiftIssueCreate, company: Company = Depends(get_c
             additional_notes=payload.additional_notes.strip() if payload.additional_notes else None,
             carry_forward=payload.carry_forward,
             next_shift_instructions=payload.next_shift_instructions.strip() if payload.next_shift_instructions else None,
-            logged_by_name=payload.logged_by_name or "Support Agent",
-            logged_by_initials=(payload.logged_by_initials or "SA").upper(),
+            logged_by_name=authenticated_agent["agent_name"],
+            logged_by_initials=authenticated_agent["agent_initials"],
             shift_name=payload.shift_name,
             company_id=cid,
             created_at=now,

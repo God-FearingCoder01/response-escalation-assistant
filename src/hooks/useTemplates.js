@@ -65,7 +65,7 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
 
   useEffect(() => {
     refreshTemplates();
-  }, [apiStatus]);
+  }, [apiStatus, currentAgent?.agent_initials]);
 
   // Reset template selections and search filters when active agent changes
   useEffect(() => {

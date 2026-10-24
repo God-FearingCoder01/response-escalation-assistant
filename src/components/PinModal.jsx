@@ -26,10 +26,10 @@ export default function PinModal({
             <img src="/lock.png" alt="Security Lock" className="h-8 w-8 object-contain" />
           </div>
           <h3 className="text-xl font-extrabold" style={{ color: "var(--app-text)" }}>
-            System Admin PIN Verification
+            Agent PIN Verification
           </h3>
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            Enter the 4-digit security PIN to access the System Admin profile.
+            Enter your 4-digit PIN to open this agent profile.
           </p>
         </div>
 
@@ -70,11 +70,7 @@ export default function PinModal({
             <div className="rounded-xl border px-3 py-2 text-center text-xs font-semibold" style={{ borderColor: "var(--error-border)", backgroundColor: "var(--error-bg)", color: "var(--error-text)" }}>
               {pinError}
             </div>
-          ) : (
-            <p className="text-[11px] text-center text-[var(--text-muted)] italic">
-              Kindly contact system support for your default admin PIN.
-            </p>
-          )}
+          ) : null}
 
           <div className="flex gap-3">
             <button

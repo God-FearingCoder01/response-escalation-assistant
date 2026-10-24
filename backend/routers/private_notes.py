@@ -14,9 +14,9 @@ from backend.models import (
     PrivateNoteCategoryCreate,
     PrivateNoteCategoryRead,
 )
-from backend.security import get_current_company
+from backend.security import get_current_company, require_agent_session
 
-router = APIRouter(tags=["Private Notes"])
+router = APIRouter(tags=["Private Notes"], dependencies=[Depends(require_agent_session)])
 
 
 @router.get("/private-notes/categories", response_model=List[PrivateNoteCategoryRead])
@@ -41,9 +41,10 @@ def create_private_note_category(
     payload: PrivateNoteCategoryCreate,
     agent_initials: Optional[str] = Header(None, alias="X-Agent-Initials"),
     company: Company = Depends(get_current_company),
+    authenticated_agent: dict = Depends(require_agent_session),
 ):
     cid = company.id if company and company.id else 1
-    init = (payload.agent_initials or agent_initials or "SA").upper()
+    init = authenticated_agent["agent_initials"]
     cat_name = payload.name.strip()
     if not cat_name:
         raise HTTPException(status_code=400, detail="Category name cannot be empty")
@@ -76,9 +77,10 @@ def delete_private_note_category(
     category_name: str,
     agent_initials: Optional[str] = Header(None, alias="X-Agent-Initials"),
     company: Company = Depends(get_current_company),
+    authenticated_agent: dict = Depends(require_agent_session),
 ):
     cid = company.id if company and company.id else 1
-    init = (agent_initials or "").upper()
+    init = authenticated_agent["agent_initials"]
     with Session(engine) as session:
         cats = session.exec(
             select(PrivateNoteCategory)
@@ -119,9 +121,10 @@ def create_private_note(
     note: PrivateNoteCreate,
     agent_initials: Optional[str] = Header(None, alias="X-Agent-Initials"),
     company: Company = Depends(get_current_company),
+    authenticated_agent: dict = Depends(require_agent_session),
 ):
     cid = company.id if company and company.id else 1
-    init = (note.agent_initials or agent_initials or "SA").upper()
+    init = authenticated_agent["agent_initials"]
     with Session(engine) as session:
         now = datetime.now(timezone.utc)
         db_note = PrivateNote(
@@ -150,14 +153,15 @@ def update_private_note(
     incoming: PrivateNoteUpdate,
     agent_initials: Optional[str] = Header(None, alias="X-Agent-Initials"),
     company: Company = Depends(get_current_company),
+    authenticated_agent: dict = Depends(require_agent_session),
 ):
     cid = company.id if company and company.id else 1
-    init = (agent_initials or "").upper()
+    init = authenticated_agent["agent_initials"]
     with Session(engine) as session:
         existing = session.get(PrivateNote, note_id)
         if not existing or existing.company_id != cid:
             raise HTTPException(status_code=404, detail="Private note not found")
-        if init and existing.agent_initials != init:
+        if existing.agent_initials != init:
             raise HTTPException(status_code=403, detail="Not authorized to edit this private note")
         if incoming.name is not None:
             existing.name = incoming.name
@@ -187,14 +191,15 @@ def delete_private_note(
     note_id: int,
     agent_initials: Optional[str] = Header(None, alias="X-Agent-Initials"),
     company: Company = Depends(get_current_company),
+    authenticated_agent: dict = Depends(require_agent_session),
 ):
     cid = company.id if company and company.id else 1
-    init = (agent_initials or "").upper()
+    init = authenticated_agent["agent_initials"]
     with Session(engine) as session:
         existing = session.get(PrivateNote, note_id)
         if not existing or existing.company_id != cid:
             raise HTTPException(status_code=404, detail="Private note not found")
-        if init and existing.agent_initials != init:
+        if existing.agent_initials != init:
             raise HTTPException(status_code=403, detail="Not authorized to delete this private note")
         session.delete(existing)
         session.commit()
@@ -205,11 +210,12 @@ def delete_private_note(
 def track_private_note_usage(
     note_id: int,
     company: Company = Depends(get_current_company),
+    authenticated_agent: dict = Depends(require_agent_session),
 ):
     cid = company.id if company and company.id else 1
     with Session(engine) as session:
         existing = session.get(PrivateNote, note_id)
-        if not existing or existing.company_id != cid:
+        if not existing or existing.company_id != cid or existing.agent_initials != authenticated_agent["agent_initials"]:
             raise HTTPException(status_code=404, detail="Private note not found")
         now = datetime.now(timezone.utc)
         if existing.updated_at and existing.updated_at.date() < now.date():

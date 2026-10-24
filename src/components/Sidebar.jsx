@@ -7,6 +7,9 @@ export default function Sidebar({
   themeMode,
   setThemeMode,
   handleLogout,
+  onChangePin,
+  onOpenSmartExtractor,
+  isSmartExtractorOpen = false,
 }) {
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
 
@@ -39,6 +42,27 @@ export default function Sidebar({
 
         {/* Nav links */}
         <nav className="space-y-2">
+
+          <button
+            onClick={() => {
+              onOpenSmartExtractor?.();
+              setIsSidebarHovered(false);
+            }}
+            className={`flex w-full items-center justify-start rounded-2xl p-2.5 font-medium transition-all ${
+              isSmartExtractorOpen
+                ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
+                : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+            }`}
+            title="Smart Extractor"
+            aria-label="Open Smart Extractor"
+          >
+            <span className="flex h-6 w-6 items-center justify-center shrink-0">
+              <img src="/search.png" alt="" className="h-5 w-5 object-contain" />
+            </span>
+            {isSidebarHovered ? (
+              <span className="ml-3 font-semibold text-sm whitespace-nowrap">Smart Extractor</span>
+            ) : null}
+          </button>
 
           <button
             onClick={() => {
@@ -246,6 +270,13 @@ export default function Sidebar({
           {isSidebarHovered ? (
             <div className="overflow-hidden whitespace-nowrap">
               <div className="text-xs font-semibold truncate">{currentAgent.agent_name}</div>
+              <button
+                type="button"
+                onClick={onChangePin}
+                className="text-[11px] text-[var(--text-muted)] hover:text-[#4cd34c] hover:underline mt-0.5 font-medium"
+              >
+                Change PIN
+              </button>
               <button
                 onClick={() => {
                   setIsSidebarHovered(false);

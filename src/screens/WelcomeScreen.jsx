@@ -33,7 +33,7 @@ export default function WelcomeScreen({
           Select Your Agent Profile
         </h2>
         <p className="max-w-xl mx-auto text-base" style={{ color: "var(--text-muted)" }}>
-          Welcome to Response & Escalation Assistant. Please choose your agent profile below to enter the system.
+          Welcome to Response & Escalation Assistant. Choose your profile and enter your PIN.
         </p>
       </div>
 
@@ -80,7 +80,7 @@ export default function WelcomeScreen({
               type="button"
               className="w-full rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] py-2.5 text-center text-sm font-semibold text-[#071007] shadow-lg group-hover:shadow-[0_8px_25px_rgba(15,155,0,0.4)] transition-all"
             >
-              {agent.is_admin ? "Authenticate PIN →" : "Sign In as Profile →"}
+              Authenticate with PIN →
             </button>
           </div>
         ))}

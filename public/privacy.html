@@ -22,15 +22,15 @@
 <body>
   <main>
     <h1>Privacy Policy</h1>
-    <p class="updated">Response and Escalation Assistant (REA) · Effective October 11, 2026</p>
+    <p class="updated">Response and Escalation Assistant (REA) · Effective October 24, 2026</p>
     <p>This policy explains how REA and the REA Chrome extension collect, use, store, and share information. REA is a support-work tool for organizations. Organization administrators configure the workspace and manage agent profiles.</p>
 
     <h2>Information handled by REA</h2>
     <ul>
-      <li><strong>Agent and organization records:</strong> organization name and settings; agent names, initials, role and active status; and administrator credentials. Administrator PINs are stored as salted hashes, not as readable PINs.</li>
+      <li><strong>Agent and organization records:</strong> organization name and settings; agent names, initials, role and active status; and authentication data for agent profiles. Every agent profile requires a four-digit PIN. PINs are stored as salted PBKDF2 hashes, not as readable PINs.</li>
       <li><strong>Workspace content:</strong> response templates and reusable variables, suggestions, private notes, shift and issue records, monthly schedules, extraction rules, and support requests. Their content may include names, contact details, customer-support text, and other information entered by an organization or its agents.</li>
       <li><strong>Agent activity and preferences:</strong> favorites, recently used items, daily usage counts, custom categories, and translation history.</li>
-      <li><strong>Authentication and technical information:</strong> administrator session tokens are kept in browser storage; the service processes request and connection information needed to authenticate, protect, and operate the service. Hosting providers may also create operational logs.</li>
+      <li><strong>Authentication and technical information:</strong> signed agent session tokens are kept in browser session storage; the service processes request and connection information needed to authenticate, protect, and operate the service. Hosting providers may also create operational logs.</li>
       <li><strong>Chrome extension setting:</strong> the extension stores whether its floating launcher was dismissed in Chrome's local extension storage.</li>
     </ul>
     <p>REA uses browser local storage for session state, preferences, caches, and some agent data. Some agent data and organization records are also synchronized to REA's backend database so they can be used across sessions and devices.</p>
@@ -57,7 +57,9 @@
     <p>Translation history is stored in browser local storage and may also be synchronized to the backend. Clearing it in the interface currently clears the local copy only; contact us to request removal of the synchronized copy.</p>
 
     <h2>Security</h2>
-    <p>REA uses access controls and technical measures intended to protect information, including hashed administrator PINs and organization-scoped records. No internet transmission or storage system can be guaranteed completely secure. Organizations are responsible for limiting access to their agent accounts and avoiding unnecessary sensitive information in templates, notes, issues, and translation requests.</p>
+    <p>REA uses access controls and technical measures intended to limit unauthorized access. Every agent profile is protected by a four-digit PIN; PINs are stored as salted PBKDF2 hashes. Initial and administrator-reset PINs must be changed before the agent can access the workspace. PIN verification attempts are rate-limited, and agent sessions expire after inactivity or a maximum session period. Administrators can reset the PIN of a non-admin agent profile.</p>
+    <p>PIN protection gates access to organization workspace information, including agent timetables and schedules, response templates and standard customer replies, and Shift Issue Register entries that may describe internal company operations. Authorized agents and administrators in an organization may access workspace information according to their role and the service's access controls; PINs do not provide item-by-item restrictions between those authorized users.</p>
+    <p>No internet transmission or storage system can be guaranteed completely secure. Organizations are responsible for assigning profiles only to authorized people, keeping PINs private, managing access when staff roles change, and avoiding unnecessary sensitive information in templates, notes, issues, and translation requests.</p>
 
     <h2>Children and changes</h2>
     <p>REA is a workplace tool and is not intended for children. This policy may be updated as REA's features, providers, or practices change. The effective date above indicates the latest revision.</p>

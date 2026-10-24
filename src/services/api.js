@@ -16,6 +16,7 @@ export const getApiBase = () => {
 export const API_BASE = getApiBase();
 export const THEME_KEY = "rea_theme_v1";
 export const AGENT_KEY = "rea_active_agent_v1";
+export const AGENT_TOKEN_KEY = "rea_agent_session_v1";
 export const ADMIN_TOKEN_KEY = "rea_admin_token_v1";
 export const ADMIN_INITIALS_KEY = "rea_admin_initials_v1";
 export const COMPANY_KEY = "rea_active_company_id_v1";
@@ -33,10 +34,16 @@ function getConfiguredCompanySlug() {
 export function getCompanyHeaders() {
   if (typeof window === "undefined") return {};
   const companySlug = getConfiguredCompanySlug();
-  if (companySlug) return { "X-Company-Slug": companySlug };
   const companyId = localStorage.getItem(COMPANY_KEY);
   const headers = {};
-  if (companyId) headers["X-Company-ID"] = companyId;
+  if (companySlug) headers["X-Company-Slug"] = companySlug;
+  else if (companyId) headers["X-Company-ID"] = companyId;
+  const agentToken = sessionStorage.getItem(AGENT_TOKEN_KEY);
+  if (agentToken) headers["X-Agent-Token"] = agentToken;
+  try {
+    const agent = JSON.parse(sessionStorage.getItem(AGENT_KEY) || "null");
+    if (agent?.agent_initials) headers["X-Agent-Initials"] = agent.agent_initials;
+  } catch (e) {}
   return headers;
 }
 
@@ -46,6 +53,8 @@ export function getAdminHeaders() {
   const initials = localStorage.getItem(ADMIN_INITIALS_KEY);
   const companyId = localStorage.getItem(COMPANY_KEY);
   const headers = {};
+  const agentToken = sessionStorage.getItem(AGENT_TOKEN_KEY);
+  if (agentToken) headers["X-Agent-Token"] = agentToken;
   if (token) headers["X-Admin-Token"] = token;
   if (initials) headers["X-Admin-Initials"] = initials;
   const companySlug = getConfiguredCompanySlug();
@@ -560,7 +569,7 @@ export async function fetchHealthApi(timeoutMs = 4000) {
 }
 
 export async function fetchCompaniesApi() {
-  return await safeFetchJson(`${API_BASE}/companies`);
+  return await safeFetchJson(`${API_BASE}/companies`, { headers: getAdminHeaders() });
 }
 
 export function parseApiError(errData, fallback = "Operation failed") {
@@ -828,13 +837,49 @@ export async function deleteAgentApi(id) {
   return true;
 }
 
+export async function resetAgentPinApi(id) {
+  const res = await fetch(`${API_BASE}/agents/${id}/reset-pin`, {
+    method: "POST",
+    headers: { ...getAdminHeaders() },
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to reset agent PIN"));
+  }
+  return await res.json();
+}
+
 export async function verifyAgentPinApi(agentInitials, pin) {
   const res = await fetch(`${API_BASE}/agents/verify-pin`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...getCompanyHeaders() },
     body: JSON.stringify({ agent_initials: agentInitials, pin }),
   });
-  if (!res.ok) return { valid: false };
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    return { valid: false, detail: parseApiError(errData, "PIN verification failed") };
+  }
+  return await res.json();
+}
+
+export async function changeAgentPinApi(agentInitials, currentPin, newPin, setupToken = null) {
+  const companyHeaders = getCompanyHeaders();
+  if (setupToken) companyHeaders["X-Agent-Token"] = setupToken;
+  const res = await fetch(`${API_BASE}/agents/change-pin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...companyHeaders },
+    body: JSON.stringify({ agent_initials: agentInitials, pin: currentPin, new_pin: newPin }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to update PIN"));
+  }
+  return await res.json();
+}
+
+export async function fetchAgentSessionApi() {
+  const res = await fetch(`${API_BASE}/agents/session`, { headers: getCompanyHeaders() });
+  if (!res.ok) return null;
   return await res.json();
 }
 

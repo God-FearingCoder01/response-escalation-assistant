@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   AGENT_KEY,
+  AGENT_TOKEN_KEY,
   ADMIN_TOKEN_KEY,
   ADMIN_INITIALS_KEY,
   DEFAULT_AGENTS,
@@ -8,21 +9,25 @@ import {
   createAgentApi,
   updateAgentApi,
   deleteAgentApi,
+  resetAgentPinApi,
   verifyAgentPinApi,
+  changeAgentPinApi,
+  fetchAgentSessionApi,
   generateInitials,
 } from "../services/api";
 
+function getSessionExpiryMs(token) {
+  try {
+    const encoded = token.split(".")[0].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(window.atob(encoded)).exp * 1000;
+  } catch {
+    return Date.now() + 8 * 60 * 60 * 1000;
+  }
+}
+
 export function useAgents({ apiStatus, showToast }) {
   const [agents, setAgents] = useState(DEFAULT_AGENTS);
-  const [currentAgent, setCurrentAgent] = useState(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const stored = window.localStorage.getItem(AGENT_KEY);
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [currentAgent, setCurrentAgent] = useState(null);
 
   const [activeScreen, setActiveScreen] = useState(() =>
     currentAgent ? "tech_escalation" : "welcome"
@@ -46,6 +51,8 @@ export function useAgents({ apiStatus, showToast }) {
   // PIN Security Modal States
   const [showPinModal, setShowPinModal] = useState(false);
   const [pendingAdminAgent, setPendingAdminAgent] = useState(null);
+  const [showPinSetupModal, setShowPinSetupModal] = useState(false);
+  const [pinSetupError, setPinSetupError] = useState("");
   const [pinDigits, setPinDigits] = useState(["", "", "", ""]);
   const [pinError, setPinError] = useState("");
 
@@ -93,80 +100,147 @@ export function useAgents({ apiStatus, showToast }) {
     loadAgents();
   }, [apiStatus]);
 
-  // Handle active agent selection from Welcome screen
-  const handleSelectAgent = (agent) => {
-    if (agent.is_admin) {
-      setPendingAdminAgent(agent);
-      setPinDigits(["", "", "", ""]);
-      setPinError("");
-      setShowPinModal(true);
-    } else {
-      setCurrentAgent(agent);
-      try {
-        window.localStorage.setItem(AGENT_KEY, JSON.stringify(agent));
-        window.localStorage.removeItem(ADMIN_TOKEN_KEY);
-        window.localStorage.removeItem(ADMIN_INITIALS_KEY);
-      } catch (e) {}
-      setActiveScreen("tech_escalation");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.removeItem(AGENT_KEY);
+    const storedToken = window.sessionStorage.getItem(AGENT_TOKEN_KEY);
+    let storedAgent = null;
+    try { storedAgent = JSON.parse(window.sessionStorage.getItem(AGENT_KEY) || "null"); } catch (e) {}
+    if (!storedToken || !storedAgent) {
+      window.sessionStorage.removeItem(AGENT_TOKEN_KEY);
+      window.sessionStorage.removeItem(AGENT_KEY);
+      return;
     }
+    let active = true;
+    fetchAgentSessionApi().then((session) => {
+      if (!active) return;
+      if (session?.valid) {
+        setCurrentAgent(storedAgent);
+        setActiveScreen("tech_escalation");
+      } else {
+        window.sessionStorage.removeItem(AGENT_TOKEN_KEY);
+        window.sessionStorage.removeItem(AGENT_KEY);
+      }
+    }).catch(() => {
+      if (!active) return;
+      window.sessionStorage.removeItem(AGENT_TOKEN_KEY);
+      window.sessionStorage.removeItem(AGENT_KEY);
+    });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!currentAgent || typeof window === "undefined") return;
+    let idleTimer;
+    const expiresAt = getSessionExpiryMs(window.sessionStorage.getItem(AGENT_TOKEN_KEY) || "");
+    const lockSession = () => {
+      window.sessionStorage.removeItem(AGENT_KEY);
+      window.sessionStorage.removeItem(AGENT_TOKEN_KEY);
+      setCurrentAgent(null);
+      setActiveScreen("welcome");
+    };
+    const resetTimer = () => {
+      window.clearTimeout(idleTimer);
+      idleTimer = window.setTimeout(lockSession, 15 * 60 * 1000);
+    };
+    const maxSessionTimer = window.setTimeout(lockSession, Math.max(0, expiresAt - Date.now()));
+    ["pointerdown", "keydown", "touchstart", "mousemove"].forEach((event) => window.addEventListener(event, resetTimer, { passive: true }));
+    resetTimer();
+    return () => {
+      window.clearTimeout(idleTimer);
+      window.clearTimeout(maxSessionTimer);
+      ["pointerdown", "keydown", "touchstart", "mousemove"].forEach((event) => window.removeEventListener(event, resetTimer));
+    };
+  }, [currentAgent]);
+
+  // Agent profiles all require server-side PIN verification before protected data can load.
+  const handleSelectAgent = (agent) => {
+    setPendingAdminAgent(agent);
+    setPinDigits(["", "", "", ""]);
+    setPinError("");
+    setShowPinModal(true);
   };
 
-  // Verify 4-digit PIN for Admin login
+  // Verify every agent PIN and establish a company-scoped API session.
   const verifyPin = async (enteredPin) => {
     if (!pendingAdminAgent) return;
     const pin = enteredPin || pinDigits.join("");
-    if (pin.length !== 4) {
-      setPinError("Please enter complete 4-digit PIN");
+    if (!/^\d{4}$/.test(pin)) {
+      setPinError("Please enter a complete 4-digit PIN.");
       return;
     }
     setPinError("");
-
-    if (apiStatus !== "offline") {
-      try {
-        const res = await verifyAgentPinApi(pendingAdminAgent.agent_initials, pin);
-        if (res.valid) {
-          const verifiedAgent = res.agent || pendingAdminAgent;
-          setCurrentAgent(verifiedAgent);
-          try {
-            window.localStorage.setItem(AGENT_KEY, JSON.stringify(verifiedAgent));
-            if (res.token) {
-              window.localStorage.setItem(ADMIN_TOKEN_KEY, res.token);
-            }
-            window.localStorage.setItem(ADMIN_INITIALS_KEY, verifiedAgent.agent_initials);
-          } catch (e) {}
-          setShowPinModal(false);
-          setPendingAdminAgent(null);
-          setActiveScreen("tech_escalation");
-          showToast(`Welcome back, ${verifiedAgent.agent_name}! 🛡️`);
-          return;
-        } else {
-          setPinError(res.detail || "Incorrect 4-digit Security PIN");
-          setPinDigits(["", "", "", ""]);
-          return;
-        }
-      } catch (err) {
-        // Fallback to local pin verification if network error
+    try {
+      if (apiStatus === "offline") throw new Error("The server is unavailable. Connect to the network and try again.");
+      const res = await verifyAgentPinApi(pendingAdminAgent.agent_initials, pin);
+      if (!res.valid) throw new Error(res.detail || "Incorrect 4-digit PIN.");
+      if (res.pin_change_required) {
+        window.sessionStorage.setItem(AGENT_TOKEN_KEY, res.setup_token);
+        window.sessionStorage.setItem(AGENT_KEY, JSON.stringify(res.agent || pendingAdminAgent));
+        setShowPinModal(false);
+        setPinSetupError("");
+        setShowPinSetupModal(true);
+        return;
       }
-    }
-
-    // Local PIN fallback check (default PIN: 0000 or custom stored pin)
-    const expectedPin = pendingAdminAgent.pin || "0000";
-    if (pin === expectedPin) {
-      setCurrentAgent(pendingAdminAgent);
-      try {
-        window.localStorage.setItem(AGENT_KEY, JSON.stringify(pendingAdminAgent));
-      } catch (e) {}
-      setShowPinModal(false);
-      setPendingAdminAgent(null);
-      setActiveScreen("tech_escalation");
-      showToast(`Welcome back, ${pendingAdminAgent.agent_name}! 🛡️`);
-    } else {
-      setPinError("Incorrect 4-digit Security PIN");
+      finishAgentLogin(res.agent || pendingAdminAgent, res.token);
+    } catch (err) {
+      setPinError(err instanceof Error ? err.message : "PIN verification failed.");
       setPinDigits(["", "", "", ""]);
     }
   };
 
-  // Change Admin Security PIN
+  const finishAgentLogin = (agent, token) => {
+    if (!token) throw new Error("The server did not establish an authenticated session.");
+    setCurrentAgent(agent);
+    window.sessionStorage.setItem(AGENT_KEY, JSON.stringify(agent));
+    window.sessionStorage.setItem(AGENT_TOKEN_KEY, token);
+    window.sessionStorage.removeItem("rea_agent_setup_session_v1");
+    window.localStorage.removeItem(AGENT_KEY);
+    window.localStorage.removeItem(ADMIN_TOKEN_KEY);
+    window.localStorage.removeItem(ADMIN_INITIALS_KEY);
+    setShowPinModal(false);
+    setShowPinSetupModal(false);
+    setPendingAdminAgent(null);
+    setPinDigits(["", "", "", ""]);
+    setActiveScreen("tech_escalation");
+    showToast(`Welcome, ${agent.agent_name}! 🔒`);
+  };
+
+  const completePinSetup = async (newPin) => {
+    setPinSetupError("");
+    try {
+      const agent = pendingAdminAgent;
+      const setupToken = window.sessionStorage.getItem(AGENT_TOKEN_KEY);
+      const result = await changeAgentPinApi(agent.agent_initials, "0000", newPin, setupToken);
+      finishAgentLogin(result.agent || agent, result.token);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to save your PIN.";
+      if (/expired|no longer valid|already been used/i.test(message)) {
+        window.sessionStorage.removeItem(AGENT_TOKEN_KEY);
+        window.sessionStorage.removeItem(AGENT_KEY);
+        setShowPinSetupModal(false);
+        setPinDigits(["", "", "", ""]);
+        setPinError("Setup session expired. Sign in again to continue.");
+        setShowPinModal(true);
+      } else {
+        setPinSetupError(message);
+      }
+    }
+  };
+
+  const changeCurrentAgentPin = async (currentPin, newPin) => {
+    if (!currentAgent?.agent_initials) throw new Error("Sign in before changing your PIN.");
+    if (apiStatus === "offline") throw new Error("The server is unavailable. Connect to the network and try again.");
+    const result = await changeAgentPinApi(currentAgent.agent_initials, currentPin, newPin);
+    if (!result.token || !result.agent) throw new Error("The server could not update your PIN.");
+    window.sessionStorage.setItem(AGENT_TOKEN_KEY, result.token);
+    window.sessionStorage.setItem(AGENT_KEY, JSON.stringify(result.agent));
+    setCurrentAgent(result.agent);
+    setAgents((curr) => curr.map((agent) => agent.agent_initials === result.agent.agent_initials ? result.agent : agent));
+    return result.agent;
+  };
+
+  // Change the current profile PIN.
   const handleChangeAdminPin = async (e) => {
     if (e) e.preventDefault();
     setPinSuccessMsg("");
@@ -181,44 +255,11 @@ export function useAgents({ apiStatus, showToast }) {
       return;
     }
 
-    const currentInitials = currentAgent?.agent_initials || "SA";
-    let updatedAgent = null;
-
-    if (apiStatus !== "offline") {
-      try {
-        const verifyRes = await verifyAgentPinApi(currentInitials, adminCurrentPin);
-        if (!verifyRes.valid) {
-          setPinErrorMsg(verifyRes.detail || "Current PIN is incorrect");
-          return;
-        }
-        if (currentAgent?.id) {
-          updatedAgent = await updateAgentApi(currentAgent.id, { pin: adminNewPin });
-        }
-      } catch (err) {
-        if (err instanceof Error && err.message === "Failed to fetch") {
-          // Fallback update for offline mode
-        } else {
-          setPinErrorMsg(err instanceof Error ? err.message : "Failed to update Security PIN");
-          return;
-        }
-      }
-    }
-
-    if (!updatedAgent) {
-      const targetAgent = agents.find((a) => a.agent_initials === currentInitials) || currentAgent;
-      if (targetAgent && targetAgent.pin && targetAgent.pin !== adminCurrentPin && adminCurrentPin !== "0000") {
-        setPinErrorMsg("Current PIN is incorrect");
-        return;
-      }
-      updatedAgent = { ...(targetAgent || currentAgent), pin: adminNewPin };
-    }
-
-    setAgents((curr) => curr.map((a) => (a.agent_initials === currentInitials ? updatedAgent : a)));
-    if (currentAgent?.agent_initials === currentInitials) {
-      setCurrentAgent(updatedAgent);
-      try {
-        window.localStorage.setItem(AGENT_KEY, JSON.stringify(updatedAgent));
-      } catch (e) {}
+    try {
+      await changeCurrentAgentPin(adminCurrentPin, adminNewPin);
+    } catch (err) {
+      setPinErrorMsg(err instanceof Error ? err.message : "Failed to update PIN");
+      return;
     }
 
     setAdminCurrentPin("");
@@ -346,6 +387,22 @@ export function useAgents({ apiStatus, showToast }) {
     }
   };
 
+  const handleResetAgentPin = async (agentId) => {
+    const targetAgent = agents.find((agent) => agent.id === agentId);
+    if (!targetAgent || targetAgent.is_admin) return;
+    const confirmed = window.confirm(`Reset ${targetAgent.agent_name}'s PIN? They will need to choose a new PIN at next sign-in.`);
+    if (!confirmed) return;
+    try {
+      const result = await resetAgentPinApi(agentId);
+      if (result?.agent) {
+        setAgents((curr) => curr.map((agent) => agent.id === agentId ? result.agent : agent));
+      }
+      showToast(`PIN reset for ${targetAgent.agent_name}. They must set a new PIN at next sign-in.`);
+    } catch (err) {
+      showToast(`Error: ${err instanceof Error ? err.message : "Failed to reset agent PIN"} ⚠️`);
+    }
+  };
+
   const handleToggleAgentActive = async (agentId) => {
     const targetAgent = (agents || []).find((a) => a.id === agentId);
     if (!targetAgent) return;
@@ -397,6 +454,11 @@ export function useAgents({ apiStatus, showToast }) {
     setShowPinModal,
     pendingAdminAgent,
     setPendingAdminAgent,
+    showPinSetupModal,
+    pinSetupError,
+    setPinSetupError,
+    completePinSetup,
+    changeCurrentAgentPin,
     pinDigits,
     setPinDigits,
     pinError,
@@ -431,5 +493,6 @@ export function useAgents({ apiStatus, showToast }) {
     handleResetAgentForm,
     handleCreateOrUpdateAgent,
     handleDeleteAgent,
+    handleResetAgentPin,
   };
 }

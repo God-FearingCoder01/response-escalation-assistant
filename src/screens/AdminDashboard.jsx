@@ -65,6 +65,7 @@ export default function AdminDashboard({
   handleResetAgentForm,
   handleCreateOrUpdateAgent,
   handleDeleteAgent,
+  handleResetAgentPin,
   handleToggleAgentActive,
   adminCurrentPin,
   setAdminCurrentPin,
@@ -1476,6 +1477,16 @@ export default function AdminDashboard({
                 >
                   Edit
                 </button>
+                {!agent.is_admin ? (
+                  <button
+                    onClick={() => handleResetAgentPin && handleResetAgentPin(agent.id)}
+                    className="px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition hover:bg-[#f1c84b]/10"
+                    style={{ borderColor: "#f1c84b66", color: "#f1c84b" }}
+                    title="Reset PIN and require a new one at next sign-in"
+                  >
+                    Reset PIN
+                  </button>
+                ) : null}
                 {agent.agent_initials === "SA" || agent.agent_name === "Sys_Admin" ? (
                   <button
                     disabled
@@ -1517,10 +1528,10 @@ export default function AdminDashboard({
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-bold" style={{ color: "var(--app-text)" }}>
-              3. System Admin Security & PIN Control
+              3. Profile Security & PIN Control
             </h3>
             <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-              Update the 4-digit security PIN required to sign in as System Admin.
+              Update the 4-digit PIN required to sign in as your agent profile.
             </p>
           </div>
           <span className="text-xs uppercase font-bold text-[#f1c84b] bg-[#f1c84b]/10 border border-[#f1c84b]/30 px-3 py-1 rounded-full flex items-center gap-1.5">
@@ -1606,7 +1617,7 @@ export default function AdminDashboard({
               disabled={!adminCurrentPin || !adminNewPin || !adminConfirmPin || saving}
               className="px-5 py-2.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-sm font-semibold shadow-md disabled:opacity-50 transition hover:opacity-90"
             >
-              {saving ? "Updating..." : "Update System Admin PIN"}
+              {saving ? "Updating..." : "Update Profile PIN"}
             </button>
           </div>
         </form>

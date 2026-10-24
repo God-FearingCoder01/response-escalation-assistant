@@ -92,6 +92,14 @@ class Agent(AgentBase, table=True):
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
 
 
+class AuthAttemptState(SQLModel, table=True):
+    """Persistent throttling state for PIN authentication attempts."""
+    key: str = Field(primary_key=True, max_length=64)
+    failed_attempts: int = Field(default=0, nullable=False)
+    window_started_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    blocked_until: Optional[datetime] = None
+
+
 class AgentCreate(AgentBase):
     pin: Optional[str] = "0000"
     company_id: int = 1

@@ -1,8 +1,9 @@
+import hashlib
 import re
 import secrets
 from datetime import datetime, timezone
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlmodel import SQLModel, Session, select, col
 
 from backend.database import engine, ensure_db_initialized, create_db_and_tables
@@ -20,6 +21,10 @@ from backend.security import (
     verify_pin_hash,
     generate_admin_token,
     require_admin,
+    require_superadmin,
+    check_pin_rate_limit,
+    record_failed_pin_attempt,
+    clear_pin_attempts,
 )
 from backend.services.seed_service import (
     DEFAULT_AGENTS,
@@ -57,8 +62,15 @@ class CompanyAdminPinReset(SQLModel):
 
 
 @router.post("/superadmin/verify-pin")
-def verify_superadmin_pin(payload: SuperAdminPinVerify):
+def verify_superadmin_pin(payload: SuperAdminPinVerify, request: Request):
     ensure_db_initialized()
+    if not payload.pin.isdigit() or len(payload.pin) != 4:
+        raise HTTPException(status_code=400, detail="PIN must be exactly 4 numeric digits")
+    identity_key = "superadmin:global"
+    ip = request.client.host if request.client else "unknown"
+    ip_key = f"superadmin:ip:{ip}"
+    check_pin_rate_limit(hashlib.sha256(identity_key.encode()).hexdigest())
+    check_pin_rate_limit(hashlib.sha256(ip_key.encode()).hexdigest())
     with Session(engine) as session:
         try:
             sa = session.exec(select(SuperAdmin)).first()
@@ -74,12 +86,16 @@ def verify_superadmin_pin(payload: SuperAdminPinVerify):
             session.commit()
             session.refresh(sa)
         if verify_pin_hash(payload.pin, sa.pin):
+            clear_pin_attempts(hashlib.sha256(identity_key.encode()).hexdigest())
+            clear_pin_attempts(hashlib.sha256(ip_key.encode()).hexdigest())
             token = generate_admin_token(agent_initials="SUPERADMIN", pin_hash=sa.pin)
             return {"status": "ok", "token": token, "email": sa.email}
+        record_failed_pin_attempt(hashlib.sha256(identity_key.encode()).hexdigest())
+        record_failed_pin_attempt(hashlib.sha256(ip_key.encode()).hexdigest())
         raise HTTPException(status_code=401, detail="Invalid Super Admin 4-digit PIN")
 
 
-@router.post("/superadmin/request-pin-reset")
+@router.post("/superadmin/request-pin-reset", dependencies=[Depends(require_superadmin)])
 def request_superadmin_pin_reset(payload: SuperAdminPinResetRequest):
     with Session(engine) as session:
         sa = session.exec(select(SuperAdmin)).first()
@@ -102,7 +118,7 @@ def request_superadmin_pin_reset(payload: SuperAdminPinResetRequest):
         }
 
 
-@router.post("/superadmin/reset-pin")
+@router.post("/superadmin/reset-pin", dependencies=[Depends(require_superadmin)])
 def reset_superadmin_pin(payload: SuperAdminPinResetConfirm):
     with Session(engine) as session:
         sa = session.exec(select(SuperAdmin).where(SuperAdmin.reset_token == payload.token)).first()
@@ -121,7 +137,7 @@ def reset_superadmin_pin(payload: SuperAdminPinResetConfirm):
         return {"status": "ok", "message": "Super Admin PIN reset successfully!"}
 
 
-@router.post("/superadmin/update-settings")
+@router.post("/superadmin/update-settings", dependencies=[Depends(require_superadmin)])
 def update_superadmin_settings(payload: SuperAdminSettingsUpdate):
     with Session(engine) as session:
         sa = session.exec(select(SuperAdmin)).first()
@@ -146,7 +162,7 @@ def update_superadmin_settings(payload: SuperAdminSettingsUpdate):
         return {"status": "ok", "message": "Super Admin settings updated successfully!", "email": sa.email}
 
 
-@router.post("/superadmin/reset-company-admin-pin")
+@router.post("/superadmin/reset-company-admin-pin", dependencies=[Depends(require_superadmin)])
 def reset_company_admin_pin(payload: CompanyAdminPinReset):
     ensure_db_initialized()
     try:
@@ -222,13 +238,13 @@ def get_company_by_slug(slug: str):
         return CompanyRead.model_validate(comp)
 
 
-@router.get("/companies", response_model=List[CompanyRead])
+@router.get("/companies", response_model=List[CompanyRead], dependencies=[Depends(require_superadmin)])
 def list_companies():
     with Session(engine) as session:
         return session.exec(select(Company).order_by(col(Company.id).asc())).all()
 
 
-@router.post("/companies", response_model=CompanyRead, dependencies=[Depends(require_admin)])
+@router.post("/companies", response_model=CompanyRead, dependencies=[Depends(require_superadmin)])
 def create_company(payload: CompanyCreate):
     ensure_db_initialized()
     with Session(engine) as session:
@@ -292,7 +308,7 @@ def create_company(payload: CompanyCreate):
         return CompanyRead.model_validate(comp)
 
 
-@router.get("/companies/{company_id}", response_model=CompanyRead)
+@router.get("/companies/{company_id}", response_model=CompanyRead, dependencies=[Depends(require_superadmin)])
 def get_company(company_id: int):
     with Session(engine) as session:
         comp = session.get(Company, company_id)
@@ -301,7 +317,7 @@ def get_company(company_id: int):
         return CompanyRead.model_validate(comp)
 
 
-@router.put("/companies/{company_id}", response_model=CompanyRead, dependencies=[Depends(require_admin)])
+@router.put("/companies/{company_id}", response_model=CompanyRead, dependencies=[Depends(require_superadmin)])
 def update_company(company_id: int, payload: CompanyUpdate):
     with Session(engine) as session:
         comp = session.get(Company, company_id)

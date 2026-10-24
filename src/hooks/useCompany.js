@@ -103,6 +103,7 @@ export function useCompany() {
     companies,
     activeCompanyId,
     activeCompany,
+    reloadCompanies: loadCompanies,
     loadCompanies,
     handleCreateCompany,
     handleUpdateCompany,

@@ -4,11 +4,15 @@ import {
   resolveGlobalVariablesInText,
 } from "../services/globalVariableService";
 
-export function useGlobalVariables(companyId = 1) {
+export function useGlobalVariables(companyId = 1, currentAgent = null) {
   const [globalVariables, setGlobalVariables] = useState([]);
   const [loadingVars, setLoadingVars] = useState(false);
 
   const reloadGlobalVariables = useCallback(async () => {
+    if (!currentAgent?.agent_initials) {
+      setGlobalVariables([]);
+      return;
+    }
     setLoadingVars(true);
     try {
       const data = await fetchGlobalVariables(companyId);
@@ -18,7 +22,7 @@ export function useGlobalVariables(companyId = 1) {
     } finally {
       setLoadingVars(false);
     }
-  }, [companyId]);
+  }, [companyId, currentAgent?.agent_initials]);
 
   useEffect(() => {
     reloadGlobalVariables();
