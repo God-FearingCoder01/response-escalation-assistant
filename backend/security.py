@@ -28,19 +28,28 @@ MAX_PIN_ATTEMPTS = 5
 PIN_LOCKOUT_WINDOW_SECONDS = 900
 
 
+def _as_utc_aware(value: datetime) -> datetime:
+    """Normalize database datetimes before comparing lockout timestamps."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 class PinVerifyRequest(BaseModel):
     agent_initials: str
     pin: str
 
 
 def check_pin_rate_limit(key: str):
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     with Session(engine) as session:
         state = session.get(AuthAttemptState, key)
-        if state and state.blocked_until and state.blocked_until > now:
-            remaining = max(1, int((state.blocked_until - now).total_seconds()))
+        blocked_until = _as_utc_aware(state.blocked_until) if state and state.blocked_until else None
+        window_started_at = _as_utc_aware(state.window_started_at) if state else None
+        if blocked_until and blocked_until > now:
+            remaining = max(1, int((blocked_until - now).total_seconds()))
             raise HTTPException(status_code=429, detail=f"Too many failed PIN attempts. Try again in {remaining} seconds.")
-        if state and (now - state.window_started_at).total_seconds() >= PIN_LOCKOUT_WINDOW_SECONDS:
+        if state and (now - window_started_at).total_seconds() >= PIN_LOCKOUT_WINDOW_SECONDS:
             state.failed_attempts = 0
             state.window_started_at = now
             state.blocked_until = None
@@ -49,12 +58,12 @@ def check_pin_rate_limit(key: str):
 
 
 def record_failed_pin_attempt(key: str):
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     with Session(engine) as session:
         state = session.get(AuthAttemptState, key)
         if not state:
             state = AuthAttemptState(key=key, failed_attempts=0, window_started_at=now)
-        elif (now - state.window_started_at).total_seconds() >= PIN_LOCKOUT_WINDOW_SECONDS:
+        elif (now - _as_utc_aware(state.window_started_at)).total_seconds() >= PIN_LOCKOUT_WINDOW_SECONDS:
             state.failed_attempts = 0
             state.window_started_at = now
             state.blocked_until = None
