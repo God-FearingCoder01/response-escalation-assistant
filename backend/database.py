@@ -21,7 +21,7 @@ def get_database_url() -> tuple[str, bool]:
         or os.environ.get("POSTGRESQL_URL")
     )
     is_vercel = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
-    is_prod = os.environ.get("ENVIRONMENT") == "production" or is_vercel
+    is_prod = os.environ.get("ENVIRONMENT", "").lower() == "production" or is_vercel
 
     if raw_url:
         db_url = raw_url.strip()
@@ -31,18 +31,15 @@ def get_database_url() -> tuple[str, bool]:
         return db_url, is_pg
 
     if is_prod:
-        logger.warning(
-            "Production environment detected but no PostgreSQL connection string (DATABASE_URL or POSTGRES_URL) was found. "
-            "For permanent production persistence across deployments, please set DATABASE_URL (e.g. Neon, Supabase, Vercel Postgres)."
+        raise RuntimeError(
+            "Production requires a PostgreSQL connection string. Set DATABASE_URL, POSTGRES_URL, "
+            "POSTGRES_URL_NON_POOLING, or POSTGRESQL_URL."
         )
 
-    # Local development & test SQLite database
-    # On Vercel, the application directory is read-only; use /tmp if running without DATABASE_URL
-    if is_vercel:
-        database_file = Path("/tmp") / "backend_data.db"
-    else:
-        base_dir = Path(__file__).resolve().parent
-        database_file = base_dir / "backend_data.db"
+    # SQLite is for local development and tests only. Serverless /tmp storage
+    # is ephemeral and must never silently replace the production database.
+    base_dir = Path(__file__).resolve().parent
+    database_file = base_dir / "backend_data.db"
     return f"sqlite:///{database_file}", False
 
 
@@ -74,22 +71,19 @@ def get_engine_url(db_url: str) -> tuple[str, str]:
         except ImportError:
             pass
 
-        if has_psycopg and not has_psycopg2:
+        if has_psycopg:
             engine_url = engine_url.replace("postgresql://", "postgresql+psycopg://", 1)
             driver_name = "psycopg"
         elif has_psycopg2:
             engine_url = engine_url.replace("postgresql://", "postgresql+psycopg2://", 1)
             driver_name = "psycopg2"
-        elif has_psycopg:
-            engine_url = engine_url.replace("postgresql://", "postgresql+psycopg://", 1)
-            driver_name = "psycopg"
         else:
             driver_name = "unknown"
             logger.warning("Neither psycopg nor psycopg2 could be imported for PostgreSQL connection.")
-    elif "psycopg" in engine_url:
-        driver_name = "psycopg"
     elif "psycopg2" in engine_url:
         driver_name = "psycopg2"
+    elif "+psycopg" in engine_url:
+        driver_name = "psycopg"
     elif engine_url.startswith("sqlite"):
         driver_name = "sqlite"
 
@@ -260,7 +254,8 @@ def get_database_health() -> dict:
         logger.exception("Database health ping failed: %s", e)
         diag["status"] = "error"
         diag["database"] = "unavailable"
-        diag["error"] = str(e)
+        # Keep connection details and credentials out of the public health response.
+        diag["error"] = "Database connection failed; see server logs for details."
         return diag
 
 
