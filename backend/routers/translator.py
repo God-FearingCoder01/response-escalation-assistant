@@ -5,7 +5,7 @@ from backend.security import require_agent_session
 
 from backend.services.translator_service import translate_text_with_engine
 
-router = APIRouter(tags=["Translator"], dependencies=[Depends(require_agent_session)])
+router = APIRouter(tags=["Translator"])
 
 
 class TranslateRequest(BaseModel):

@@ -238,10 +238,10 @@ def get_company_by_slug(slug: str):
         return CompanyRead.model_validate(comp)
 
 
-@router.get("/companies", response_model=List[CompanyRead], dependencies=[Depends(require_superadmin)])
+@router.get("/companies", response_model=List[CompanyRead])
 def list_companies():
     with Session(engine) as session:
-        return session.exec(select(Company).order_by(col(Company.id).asc())).all()
+        return session.exec(select(Company).where(Company.is_active == True).order_by(col(Company.id).asc())).all()
 
 
 @router.post("/companies", response_model=CompanyRead, dependencies=[Depends(require_superadmin)])

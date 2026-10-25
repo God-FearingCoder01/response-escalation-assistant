@@ -7,9 +7,9 @@ from sqlmodel import Session, select
 
 from backend.database import engine
 from backend.models import Company, AgentUserData
-from backend.security import get_current_company, require_agent_session
+from backend.security import get_current_company, optional_agent_session
 
-router = APIRouter(tags=["Agent User Data"], dependencies=[Depends(require_agent_session)])
+router = APIRouter(tags=["Agent User Data"])
 
 
 class SaveAgentDataPayload(BaseModel):
@@ -110,10 +110,10 @@ def get_agent_user_data(agent_initials: str, company: Company = Depends(get_curr
 def save_agent_user_data(
     payload: SaveAgentDataPayload,
     company: Company = Depends(get_current_company),
-    authenticated_agent: dict = Depends(require_agent_session),
+    authenticated_agent: dict | None = Depends(optional_agent_session),
 ):
     cid = company.id if company and company.id else 1
-    init = authenticated_agent["agent_initials"]
+    init = (authenticated_agent["agent_initials"] if authenticated_agent else payload.agent_initials).strip().upper()
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     with Session(engine) as session:

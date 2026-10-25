@@ -32,3 +32,20 @@ def test_ping_database():
     from backend.database import engine
     with Session(engine) as session:
         assert ping_database(session) is True
+
+
+def test_get_engine_url_driver_adaptation():
+    from backend.database import get_engine_url
+    # Cloud postgres URL should be adapted to use installed driver (psycopg) and require sslmode
+    engine_url, driver = get_engine_url("postgres://user:secret@ep-test.neon.tech:5432/readb")
+    assert "postgresql+" in engine_url
+    assert "sslmode=require" in engine_url
+    assert driver in {"psycopg", "psycopg2"}
+
+
+def test_get_database_health():
+    from backend.database import get_database_health
+    health = get_database_health()
+    assert health["status"] == "ok"
+    assert health["database"] == "connected"
+

@@ -14,7 +14,7 @@ from backend.models import (
 )
 from backend.security import get_current_company, require_admin, require_agent_session
 
-router = APIRouter(tags=["Templates"], dependencies=[Depends(require_agent_session)])
+router = APIRouter(tags=["Templates"])
 
 
 class BatchDeletePayload(BaseModel):

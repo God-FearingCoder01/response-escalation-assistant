@@ -170,16 +170,18 @@ def verify_agent_pin(req: PinVerifyRequest, request: Request, company: Company =
         ).first()
         if not agent:
             record_failed_pin_attempt(ip_rate_key)
-            raise HTTPException(status_code=401, detail="Invalid profile or PIN")
+            return {"valid": False, "detail": "Invalid profile or PIN"}
 
         if verify_pin_hash(req.pin, agent.pin):
             clear_pin_attempts(rate_key)
             clear_pin_attempts(ip_rate_key)
             if verify_pin_hash("0000", agent.pin):
+                token = generate_agent_token(agent, cid, pin_setup=True)
                 return {
                     "valid": True,
                     "pin_change_required": True,
-                    "setup_token": generate_agent_token(agent, cid, pin_setup=True),
+                    "token": token,
+                    "setup_token": token,
                     "agent": AgentRead.model_validate(agent),
                 }
             if not agent.pin or not agent.pin.startswith("pbkdf2_v1:") or agent.pin.split(":")[1] == "rea_admin_pin_salt_v2":
@@ -191,7 +193,7 @@ def verify_agent_pin(req: PinVerifyRequest, request: Request, company: Company =
         else:
             record_failed_pin_attempt(rate_key)
             record_failed_pin_attempt(ip_rate_key)
-            raise HTTPException(status_code=401, detail="Incorrect 4-digit Security PIN")
+            return {"valid": False, "detail": "Incorrect 4-digit Security PIN"}
 
 
 @router.post("/agents/change-pin")

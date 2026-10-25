@@ -12,9 +12,9 @@ from backend.models import (
     Template,
     TemplateRead,
 )
-from backend.security import get_current_company, require_admin, require_agent_session
+from backend.security import get_current_company, require_admin, optional_agent_session
 
-router = APIRouter(tags=["Suggestions"], dependencies=[Depends(require_agent_session)])
+router = APIRouter(tags=["Suggestions"])
 
 
 @router.get("/suggestions", response_model=List[SuggestionRead])
@@ -32,9 +32,12 @@ def get_suggestions(company: Company = Depends(get_current_company)):
 def create_suggestion(
     payload: SuggestionCreate,
     company: Company = Depends(get_current_company),
-    authenticated_agent: dict = Depends(require_agent_session),
+    authenticated_agent: dict | None = Depends(optional_agent_session),
 ):
     cid = company.id if company and company.id else 1
+    sug_name = authenticated_agent["agent_name"] if authenticated_agent else (payload.suggested_by_name or "Support Agent")
+    sug_initials = authenticated_agent["agent_initials"] if authenticated_agent else (payload.suggested_by_initials or "SA")
+
     with Session(engine) as session:
         now = datetime.now(timezone.utc)
         suggestion = Suggestion(
@@ -43,8 +46,8 @@ def create_suggestion(
             category_type=payload.category_type or "tech_escalation",
             category=payload.category.strip() if payload.category else None,
             subcategory=payload.subcategory.strip() if payload.subcategory else None,
-            suggested_by_name=authenticated_agent["agent_name"],
-            suggested_by_initials=authenticated_agent["agent_initials"],
+            suggested_by_name=sug_name,
+            suggested_by_initials=sug_initials,
             status=payload.status or "pending",
             company_id=cid,
             created_at=now,
