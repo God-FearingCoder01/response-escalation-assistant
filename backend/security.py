@@ -49,7 +49,7 @@ def check_pin_rate_limit(key: str):
         if blocked_until and blocked_until > now:
             remaining = max(1, int((blocked_until - now).total_seconds()))
             raise HTTPException(status_code=429, detail=f"Too many failed PIN verification attempts. Try again in {remaining} seconds.")
-        if state and (now - window_started_at).total_seconds() >= PIN_LOCKOUT_WINDOW_SECONDS:
+        if state and (now - _as_utc_aware(state.window_started_at)).total_seconds() >= PIN_LOCKOUT_WINDOW_SECONDS:
             state.failed_attempts = 0
             state.window_started_at = now
             state.blocked_until = None
@@ -126,10 +126,10 @@ def generate_agent_token(agent: Agent, company_id: int, pin_setup: bool = False)
     now = int(time.time())
     claims = {
         "sub": agent.agent_initials.upper(),
-        "cid": int(company_id),
-        "admin": bool(agent.is_admin),
+        "cid": company_id,
+        "admin": agent.is_admin,
         "pin": _pin_fingerprint(agent),
-        "setup": bool(pin_setup),
+        "setup": pin_setup,
         "iat": now,
         "exp": now + (600 if pin_setup else AGENT_SESSION_EXPIRE_HOURS * 3600),
         "nonce": secrets.token_hex(16),
@@ -215,7 +215,7 @@ def require_agent_session(
     claims = verify_agent_token(x_agent_token)
     if not claims or claims.get("setup"):
         raise HTTPException(status_code=401, detail="Agent authentication required. Please sign in again.")
-    if int(claims.get("cid", 0)) != int(company.id or 0):
+    if int(claims.get("cid", 0)) != (company.id or 0):
         raise HTTPException(status_code=403, detail="Agent session does not belong to this organization.")
     initials = str(claims.get("sub", "")).strip().upper()
     supplied_identity = (x_agent_initials or "").strip().upper()
@@ -235,7 +235,7 @@ def require_agent_session(
         return {
             "agent_initials": initials,
             "agent_name": agent.agent_name,
-            "is_admin": bool(agent.is_admin),
+            "is_admin": agent.is_admin,
             "company_id": company.id,
         }
 

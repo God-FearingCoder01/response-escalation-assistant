@@ -102,13 +102,19 @@ for (const profile of profiles) {
   // supplies workerPath explicitly. Point that dormant default locally too.
   const appAssets = join(packageDir, "assets");
   let replacedWorkerDefault = 0;
+  let replacedLocalhostWorkerDefault = 0;
   for (const file of readdirSync(appAssets).filter((name) => name.endsWith(".js"))) {
     const path = join(appAssets, file);
     const source = readFileSync(path, "utf8");
-    const localSource = source.replace(
+    let localSource = source.replace(
       /`https:\/\/cdn\.jsdelivr\.net\/npm\/tesseract\.js@v\$\{[^}]+\}\/dist\/worker\.min\.js`/g,
       '"./ocr/worker.min.js"',
     );
+    const localhostWorkerURL = '"http://localhost:3000/dist/tesseract.min.js"';
+    if (localSource.includes(localhostWorkerURL)) {
+      localSource = localSource.replace(localhostWorkerURL, '"./ocr/worker.min.js"');
+      replacedLocalhostWorkerDefault += 1;
+    }
     if (localSource !== source) {
       replacedWorkerDefault += 1;
       writeFileSync(path, localSource);
@@ -117,6 +123,37 @@ for (const profile of profiles) {
   if (replacedWorkerDefault !== 1) {
     throw new Error(`Expected one Tesseract worker CDN default in the extension bundle; found ${replacedWorkerDefault}.`);
   }
+  if (replacedLocalhostWorkerDefault > 1) {
+    throw new Error(`Expected at most one dormant Tesseract localhost worker URL; found ${replacedLocalhostWorkerDefault}.`);
+  }
+
+  // jsPDF ships an optional `pdfobjectnewwindow` output mode that injects
+  // PDFObject from cdnjs. REA only exports PDFs with `doc.save()`, so remove
+  // this unused mode from the packaged bundle instead of leaving a dormant
+  // remote-code loader in the Manifest V3 extension.
+  let removedPdfObjectLoaders = 0;
+  for (const file of readdirSync(appAssets).filter((name) => name.endsWith(".js"))) {
+    const path = join(appAssets, file);
+    const source = readFileSync(path, "utf8");
+    const startMarker = "case`pdfobjectnewwindow`:";
+    const endMarker = "case`pdfjsnewwindow`:";
+    const start = source.indexOf(startMarker);
+    if (start === -1) continue;
+    const end = source.indexOf(endMarker, start + startMarker.length);
+    if (end === -1 || source.indexOf(startMarker, start + startMarker.length) !== -1) {
+      throw new Error(`Could not safely isolate jsPDF's PDFObject output mode in ${file}.`);
+    }
+    const branch = source.slice(start, end);
+    if (!branch.includes("https://cdnjs.cloudflare.com/ajax/libs/pdfobject/2.1.1/pdfobject.min.js")) {
+      throw new Error(`Expected the jsPDF PDFObject CDN loader in ${file}; refusing an unverified patch.`);
+    }
+    const localOnlyBranch = `${startMarker}throw Error("PDFObject output mode is unavailable in this extension.");`;
+    writeFileSync(path, `${source.slice(0, start)}${localOnlyBranch}${source.slice(end)}`);
+    removedPdfObjectLoaders += 1;
+  }
+  if (removedPdfObjectLoaders !== 1) {
+    throw new Error(`Expected to remove one jsPDF PDFObject CDN loader; found ${removedPdfObjectLoaders}.`);
+  }
 
   const manifestPath = join(packageDir, "manifest.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
@@ -124,6 +161,32 @@ for (const profile of profiles) {
   manifest.description = `Response and Escalation Assistant for ${profile.label}.`;
   manifest.homepage_url = `${apiUrl}/${profile.slug}`;
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+  // Guard against remote script and worker URLs in the actual packaged files.
+  // Network API endpoints and documentation links are allowed; executable
+  // code must be shipped with this extension.
+  for (const directory of [appAssets, ocrDir]) {
+    const pending = [directory];
+    while (pending.length) {
+      const current = pending.pop();
+      for (const file of readdirSync(current, { withFileTypes: true })) {
+        const path = join(current, file.name);
+        if (file.isDirectory()) {
+          pending.push(path);
+          continue;
+        }
+        if (!file.isFile() || !/\.(?:js|mjs|cjs)$/.test(file.name)) continue;
+        const source = readFileSync(path, "utf8");
+        const remoteCodeUrls = source.match(/https?:\/\/[^"'`\s)]*\.(?:m?js|wasm)(?:[?#][^"'`\s)]*)?/gi) ?? [];
+        const executableRemoteCodeUrls = remoteCodeUrls.filter((url) =>
+          !url.startsWith("http://localhost:") && !url.startsWith("https://github.com/naptha/tesseract.js"),
+        );
+        if (executableRemoteCodeUrls.length) {
+          throw new Error(`Remote executable-code URL found in packaged file ${file.name}: ${executableRemoteCodeUrls[0]}`);
+        }
+      }
+    }
+  }
 
   const zipPath = resolve(releaseRoot, `rea-${profile.slug}.zip`);
   const python = process.platform === "win32" ? "python" : "python3";

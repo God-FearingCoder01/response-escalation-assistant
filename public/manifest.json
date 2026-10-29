@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "REA",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Response and Escalation Assistant",
   "minimum_chrome_version": "114",
   "permissions": [
@@ -19,7 +19,6 @@
     "https://mail.google.com/*",
     "https://*.tawk.to/*",
     "https://*.winbucks.co.zw/*",
-    "https://usd-win.betfounders.com/*",
     "https://response-escalation-assistant.vercel.app/*"
   ],
   "icons": {
@@ -47,8 +46,7 @@
         "https://web.telegram.org/*",
         "https://mail.google.com/*",
         "https://*.tawk.to/*",
-        "https://*.winbucks.co.zw/*",
-        "https://usd-win.betfounders.com/*"
+        "https://*.winbucks.co.zw/*"
       ],
       "js": [
         "content.js"
