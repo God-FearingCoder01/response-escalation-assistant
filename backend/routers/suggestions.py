@@ -12,7 +12,12 @@ from backend.models import (
     Template,
     TemplateRead,
 )
-from backend.security import get_current_company, require_admin, optional_agent_session
+from backend.security import (
+    get_current_company,
+    optional_agent_session,
+    require_admin,
+    require_agent_session,
+)
 
 router = APIRouter(tags=["Suggestions"])
 
