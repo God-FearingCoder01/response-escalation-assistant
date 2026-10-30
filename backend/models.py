@@ -88,6 +88,7 @@ class AgentBase(SQLModel):
 class Agent(AgentBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     pin: Optional[str] = Field(default=None, nullable=True)
+    token_version: int = Field(default=1, nullable=False, sa_column_kwargs={"server_default": "1"})
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
 

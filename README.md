@@ -151,6 +151,9 @@ source .venv/bin/activate
 # Install Python backend dependencies
 pip install -r backend/requirements.txt
 
+# Create/update the local database schema and seed defaults (once per migration)
+npm run db:migrate
+
 # Run full automated test suite (30 tests)
 python -m pytest
 
@@ -159,7 +162,7 @@ npm run backend
 # Or directly: uvicorn backend.main:app --reload --port 8000
 ```
 
-The frontend will be available at `http://localhost:5173` and the backend API at `http://localhost:8000`.
+The frontend will be available at `http://localhost:5173` and the backend API at `http://localhost:8000`. Set `SUPERADMIN_BOOTSTRAP_PIN`, `AGENT_BOOTSTRAP_PIN`, and `PIN_PEPPER` in the root `.env` before migrating or starting the backend.
 
 ---
 

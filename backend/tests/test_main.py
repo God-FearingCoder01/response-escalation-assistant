@@ -146,7 +146,7 @@ def test_pin_verification_rate_limiting():
 
 def test_pbkdf2_pin_hashing_and_upgrade():
     h = hash_pin("1234")
-    assert h.startswith("pbkdf2_v1:")
+    assert h.startswith("pbkdf2_v2:")
 
     from backend.security import verify_pin_hash
     assert verify_pin_hash("1234", h) is True

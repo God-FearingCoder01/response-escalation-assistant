@@ -2,7 +2,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from backend.database import ensure_db_initialized, get_database_health
+from backend.database import get_database_health
 
 router = APIRouter(tags=["Health"])
 logger = logging.getLogger("rea_health")
@@ -10,7 +10,6 @@ logger = logging.getLogger("rea_health")
 
 @router.get("/health")
 def health_check():
-    ensure_db_initialized()
     health = get_database_health()
     if health.get("status") != "ok":
         error_msg = health.get("error", "Database connection failed")

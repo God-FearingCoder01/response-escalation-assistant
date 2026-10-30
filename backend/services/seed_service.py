@@ -15,7 +15,7 @@ from backend.models import (
     GlobalVariable,
     ExtractionRule,
 )
-from backend.security import hash_pin, hash_setup_pin, verify_pin_hash
+from backend.security import hash_pin, hash_setup_pin, migrate_recoverable_legacy_pin
 from backend.bootstrap import AGENT_BOOTSTRAP_PIN, SUPERADMIN_BOOTSTRAP_PIN
 
 DEFAULT_COMPANY_NAME = os.environ.get("DEFAULT_COMPANY_NAME", "Default").strip()
@@ -260,8 +260,10 @@ def sync_default_data_if_needed(session: Session) -> None:
     # a secure change at the next sign-in.
     all_agents = session.exec(select(Agent)).all()
     for agent in all_agents:
-        if verify_pin_hash("0000", agent.pin):
-            agent.pin = hash_setup_pin(AGENT_BOOTSTRAP_PIN)
+        upgraded_pin = migrate_recoverable_legacy_pin(agent.pin)
+        if upgraded_pin:
+            agent.pin = upgraded_pin
+            agent.token_version = (agent.token_version or 1) + 1
             agent.updated_at = now
             session.add(agent)
     if all_agents:
@@ -338,8 +340,13 @@ def sync_default_data_if_needed(session: Session) -> None:
         )
         session.commit()
     else:
-        if verify_pin_hash("0000", superadmin.pin):
-            superadmin.pin = hash_pin(SUPERADMIN_BOOTSTRAP_PIN)
+        upgraded_superadmin_pin = migrate_recoverable_legacy_pin(
+            superadmin.pin,
+            bootstrap_pin=SUPERADMIN_BOOTSTRAP_PIN,
+            require_setup=False,
+        )
+        if upgraded_superadmin_pin:
+            superadmin.pin = upgraded_superadmin_pin
             superadmin.updated_at = now
             session.add(superadmin)
             session.commit()

@@ -21,6 +21,11 @@ export const ADMIN_TOKEN_KEY = "rea_admin_token_v1";
 export const ADMIN_INITIALS_KEY = "rea_admin_initials_v1";
 export const COMPANY_KEY = "rea_active_company_id_v1";
 
+if (typeof window !== "undefined") {
+  localStorage.removeItem(ADMIN_TOKEN_KEY);
+  localStorage.removeItem(ADMIN_INITIALS_KEY);
+}
+
 function getRouteCompanySlug() {
   if (typeof window === "undefined") return null;
   const routeSlug = window.location.pathname.split("/").filter(Boolean)[0]?.toLowerCase();
@@ -49,8 +54,11 @@ export function getCompanyHeaders() {
 
 export function getAdminHeaders() {
   if (typeof window === "undefined") return {};
-  const token = localStorage.getItem(ADMIN_TOKEN_KEY);
-  const initials = localStorage.getItem(ADMIN_INITIALS_KEY);
+  const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+  const initials = sessionStorage.getItem(ADMIN_INITIALS_KEY);
+  // Remove credentials persisted by older releases.
+  localStorage.removeItem(ADMIN_TOKEN_KEY);
+  localStorage.removeItem(ADMIN_INITIALS_KEY);
   const companyId = localStorage.getItem(COMPANY_KEY);
   const headers = {};
   const agentToken = sessionStorage.getItem(AGENT_TOKEN_KEY);
@@ -679,7 +687,7 @@ export async function resetCompanyAdminPinApi(companyId, agentId, newPin) {
 }
 
 export async function fetchTemplatesApi() {
-  return await safeFetchJson(`${API_BASE}/templates`);
+  return await safeFetchJson(`${API_BASE}/templates`, { headers: getCompanyHeaders() });
 }
 
 export async function createTemplateApi(payload) {
@@ -884,7 +892,7 @@ export async function fetchAgentSessionApi() {
 }
 
 export async function fetchSuggestionsApi() {
-  return await safeFetchJson(`${API_BASE}/suggestions`);
+  return await safeFetchJson(`${API_BASE}/suggestions`, { headers: getCompanyHeaders() });
 }
 
 export async function createSuggestionApi(payload) {

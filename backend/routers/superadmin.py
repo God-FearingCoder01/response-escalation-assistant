@@ -6,7 +6,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlmodel import SQLModel, Session, select, col
 
-from backend.database import engine, ensure_db_initialized, create_db_and_tables
+from backend.database import engine
 from backend.models import (
     Company,
     CompanyCreate,
@@ -26,11 +26,11 @@ from backend.security import (
     check_pin_rate_limit,
     record_failed_pin_attempt,
     clear_pin_attempts,
+    get_client_ip,
 )
 from backend.services.seed_service import (
     DEFAULT_AGENTS,
     DEFAULT_TEMPLATES,
-    sync_default_data_if_needed,
     seed_company_extraction_rules_if_needed,
 )
 from backend.bootstrap import AGENT_BOOTSTRAP_PIN, SUPERADMIN_BOOTSTRAP_PIN
@@ -65,34 +65,25 @@ class CompanyAdminPinReset(SQLModel):
 
 @router.post("/superadmin/verify-pin")
 def verify_superadmin_pin(payload: SuperAdminPinVerify, request: Request):
-    ensure_db_initialized()
     if not payload.pin.isdigit() or len(payload.pin) != 4:
         raise HTTPException(status_code=400, detail="PIN must be exactly 4 numeric digits")
-    identity_key = "superadmin:global"
-    ip = request.client.host if request.client else "unknown"
+    ip = get_client_ip(request)
     ip_key = f"superadmin:ip:{ip}"
-    check_pin_rate_limit(hashlib.sha256(identity_key.encode()).hexdigest())
     check_pin_rate_limit(hashlib.sha256(ip_key.encode()).hexdigest())
     with Session(engine) as session:
-        try:
-            sa = session.exec(select(SuperAdmin)).first()
-        except Exception:
-            create_db_and_tables()
-            sync_default_data_if_needed(session)
-            sa = session.exec(select(SuperAdmin)).first()
+        sa = session.exec(select(SuperAdmin)).first()
 
         if not sa:
-            now = datetime.now(timezone.utc)
-            sa = SuperAdmin(email="gfc.dev@proton.me", pin=hash_pin(SUPERADMIN_BOOTSTRAP_PIN), created_at=now, updated_at=now)
-            session.add(sa)
-            session.commit()
-            session.refresh(sa)
+            raise HTTPException(status_code=503, detail="Super Admin account is not initialized; run database migrations and seed step.")
         if verify_pin_hash(payload.pin, sa.pin):
-            clear_pin_attempts(hashlib.sha256(identity_key.encode()).hexdigest())
+            if sa.pin and not sa.pin.startswith("pbkdf2_v2:"):
+                sa.pin = hash_pin(payload.pin)
+                sa.updated_at = datetime.now(timezone.utc)
+                session.add(sa)
+                session.commit()
             clear_pin_attempts(hashlib.sha256(ip_key.encode()).hexdigest())
             token = generate_admin_token(agent_initials="SUPERADMIN", pin_hash=sa.pin)
             return {"status": "ok", "token": token, "email": sa.email}
-        record_failed_pin_attempt(hashlib.sha256(identity_key.encode()).hexdigest())
         record_failed_pin_attempt(hashlib.sha256(ip_key.encode()).hexdigest())
         raise HTTPException(status_code=401, detail="Invalid Super Admin 4-digit PIN")
 
@@ -166,7 +157,6 @@ def update_superadmin_settings(payload: SuperAdminSettingsUpdate):
 
 @router.post("/superadmin/reset-company-admin-pin", dependencies=[Depends(require_superadmin)])
 def reset_company_admin_pin(payload: CompanyAdminPinReset):
-    ensure_db_initialized()
     try:
         with Session(engine) as session:
             if not payload.new_pin or not isinstance(payload.new_pin, str):
@@ -215,6 +205,7 @@ def reset_company_admin_pin(payload: CompanyAdminPinReset):
 
             for agent in admin_agents:
                 agent.pin = hashed
+                agent.token_version = (agent.token_version or 1) + 1
                 agent.is_admin = True
                 agent.updated_at = now
                 session.add(agent)
@@ -240,7 +231,7 @@ def get_company_by_slug(slug: str):
         return CompanyRead.model_validate(comp)
 
 
-@router.get("/companies", response_model=List[CompanyRead])
+@router.get("/companies", response_model=List[CompanyRead], dependencies=[Depends(require_superadmin)])
 def list_companies():
     with Session(engine) as session:
         return session.exec(select(Company).where(Company.is_active == True).order_by(col(Company.id).asc())).all()
@@ -248,7 +239,6 @@ def list_companies():
 
 @router.post("/companies", response_model=CompanyRead, dependencies=[Depends(require_superadmin)])
 def create_company(payload: CompanyCreate):
-    ensure_db_initialized()
     with Session(engine) as session:
         if not payload.name or not payload.name.strip():
             raise HTTPException(status_code=400, detail="Organization name cannot be empty")

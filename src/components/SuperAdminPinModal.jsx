@@ -48,8 +48,10 @@ export default function SuperAdminPinModal({
     try {
       const data = await verifySuperAdminPinApi(pinToTest);
       if (data && data.token) {
-        localStorage.setItem(ADMIN_TOKEN_KEY, data.token);
-        localStorage.setItem(ADMIN_INITIALS_KEY, "SUPERADMIN");
+        sessionStorage.setItem(ADMIN_TOKEN_KEY, data.token);
+        sessionStorage.setItem(ADMIN_INITIALS_KEY, "SUPERADMIN");
+        localStorage.removeItem(ADMIN_TOKEN_KEY);
+        localStorage.removeItem(ADMIN_INITIALS_KEY);
         showToast("Super Admin Authenticated!");
         onAuthenticated(data.token, data.email);
         setPin("");

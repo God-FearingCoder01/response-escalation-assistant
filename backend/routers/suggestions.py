@@ -17,7 +17,7 @@ from backend.security import get_current_company, require_admin, optional_agent_
 router = APIRouter(tags=["Suggestions"])
 
 
-@router.get("/suggestions", response_model=List[SuggestionRead])
+@router.get("/suggestions", response_model=List[SuggestionRead], dependencies=[Depends(require_agent_session)])
 def get_suggestions(company: Company = Depends(get_current_company)):
     cid = company.id if company and company.id else 1
     with Session(engine) as session:

@@ -9,9 +9,13 @@ from datetime import datetime, timedelta, timezone
 from fastapi import Depends, Header, HTTPException, Request
 from pydantic import BaseModel
 from sqlmodel import Session, select
+from sqlalchemy import case
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
-from backend.database import engine, ensure_db_initialized
+from backend.database import engine
 from backend.models import Agent, AuthAttemptState, Company
+from backend.bootstrap import AGENT_BOOTSTRAP_PIN
 
 _configured_secret = os.environ.get("SECRET_KEY", "")
 _development_secret = "rea_admin_secret_key_v1_change_in_production"
@@ -24,6 +28,10 @@ SECRET_KEY = (_configured_secret or _development_secret).encode("utf-8")
 ADMIN_SESSION_EXPIRE_HOURS = int(os.environ.get("ADMIN_SESSION_EXPIRE_HOURS", "12"))
 AGENT_SESSION_EXPIRE_HOURS = int(os.environ.get("AGENT_SESSION_EXPIRE_HOURS", "8"))
 PBKDF2_ITERATIONS = 100000
+_pin_pepper_value = os.environ.get("PIN_PEPPER", "")
+if (os.environ.get("VERCEL") or os.environ.get("ENVIRONMENT", "").lower() == "production") and len(_pin_pepper_value) < 32:
+    raise RuntimeError("Set PIN_PEPPER to a unique random value of at least 32 characters in production.")
+PIN_PEPPER = (_pin_pepper_value or SECRET_KEY.decode("utf-8")).encode("utf-8")
 MAX_PIN_ATTEMPTS = 5
 PIN_LOCKOUT_WINDOW_SECONDS = 900
 
@@ -33,6 +41,17 @@ def _as_utc_aware(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
+
+
+def get_client_ip(request: Request) -> str:
+    """Use Vercel's proxy-overwritten client IP header on hosted deployments."""
+    if os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"):
+        forwarded = request.headers.get("x-vercel-forwarded-for") or request.headers.get("x-forwarded-for")
+        if forwarded:
+            address = forwarded.split(",", 1)[0].strip()
+            if address:
+                return address
+    return request.client.host if request.client else "unknown"
 
 
 class PinVerifyRequest(BaseModel):
@@ -49,28 +68,39 @@ def check_pin_rate_limit(key: str):
         if blocked_until and blocked_until > now:
             remaining = max(1, int((blocked_until - now).total_seconds()))
             raise HTTPException(status_code=429, detail=f"Too many failed PIN verification attempts. Try again in {remaining} seconds.")
-        if state and (now - _as_utc_aware(state.window_started_at)).total_seconds() >= PIN_LOCKOUT_WINDOW_SECONDS:
-            state.failed_attempts = 0
-            state.window_started_at = now
-            state.blocked_until = None
-            session.add(state)
-            session.commit()
 
 
 def record_failed_pin_attempt(key: str):
     now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(seconds=PIN_LOCKOUT_WINDOW_SECONDS)
+    dialect = engine.dialect.name
+    insert = pg_insert if dialect == "postgresql" else sqlite_insert if dialect == "sqlite" else None
+    if insert is None:
+        raise RuntimeError(f"Atomic PIN throttling is unsupported for database dialect {dialect!r}.")
+    base = insert(AuthAttemptState).values(
+        key=key,
+        failed_attempts=1,
+        window_started_at=now,
+        blocked_until=None,
+    )
+    expired = AuthAttemptState.window_started_at <= cutoff
+    next_attempts = case(
+        (expired, 1),
+        else_=AuthAttemptState.failed_attempts + 1,
+    )
+    statement = base.on_conflict_do_update(
+        index_elements=[AuthAttemptState.key],
+        set_={
+            "failed_attempts": next_attempts,
+            "window_started_at": case((expired, now), else_=AuthAttemptState.window_started_at),
+            "blocked_until": case(
+                (next_attempts >= MAX_PIN_ATTEMPTS, now + timedelta(seconds=PIN_LOCKOUT_WINDOW_SECONDS)),
+                else_=None,
+            ),
+        },
+    )
     with Session(engine) as session:
-        state = session.get(AuthAttemptState, key)
-        if not state:
-            state = AuthAttemptState(key=key, failed_attempts=0, window_started_at=now)
-        elif (now - _as_utc_aware(state.window_started_at)).total_seconds() >= PIN_LOCKOUT_WINDOW_SECONDS:
-            state.failed_attempts = 0
-            state.window_started_at = now
-            state.blocked_until = None
-        state.failed_attempts += 1
-        if state.failed_attempts >= MAX_PIN_ATTEMPTS:
-            state.blocked_until = now + timedelta(seconds=PIN_LOCKOUT_WINDOW_SECONDS)
-        session.add(state)
+        session.execute(statement)
         session.commit()
 
 
@@ -87,8 +117,9 @@ def hash_pin(pin: str, salt: str | None = None) -> str:
     if not clean_pin:
         raise ValueError("PIN cannot be empty")
     salt = salt or secrets.token_hex(16)
-    digest = hashlib.pbkdf2_hmac("sha256", clean_pin.encode("utf-8"), salt.encode("utf-8"), PBKDF2_ITERATIONS)
-    return f"pbkdf2_v1:{salt}:{digest.hex()}"
+    peppered_pin = hmac.new(PIN_PEPPER, clean_pin.encode("utf-8"), hashlib.sha256).digest()
+    digest = hashlib.pbkdf2_hmac("sha256", peppered_pin, salt.encode("utf-8"), PBKDF2_ITERATIONS)
+    return f"pbkdf2_v2:{salt}:{digest.hex()}"
 
 
 def hash_setup_pin(pin: str) -> str:
@@ -108,19 +139,60 @@ def verify_pin_hash(pin: str, stored_hash: str | None) -> bool:
     clean_pin = pin.strip()
     if stored_hash is not None and stored_hash.startswith("setup_v1:"):
         stored_hash = stored_hash[len("setup_v1:"):]
-    if not stored_hash or stored_hash == "0000":
-        return clean_pin == "0000"
-    if stored_hash.startswith("pbkdf2_v1:"):
+    if stored_hash and stored_hash.startswith(("pbkdf2_v2:", "pbkdf2_legacy_v1:")):
         parts = stored_hash.split(":")
         if len(parts) == 3:
-            _, salt, expected = parts
-            actual = hashlib.pbkdf2_hmac("sha256", clean_pin.encode("utf-8"), salt.encode("utf-8"), PBKDF2_ITERATIONS).hex()
+            scheme, salt, expected = parts
+            if scheme == "pbkdf2_v2":
+                secret_pin = hmac.new(PIN_PEPPER, clean_pin.encode("utf-8"), hashlib.sha256).digest()
+                actual = hashlib.pbkdf2_hmac("sha256", secret_pin, salt.encode("utf-8"), PBKDF2_ITERATIONS).hex()
+            else:
+                legacy_digest = hashlib.pbkdf2_hmac("sha256", clean_pin.encode("utf-8"), salt.encode("utf-8"), PBKDF2_ITERATIONS)
+                actual = hmac.new(PIN_PEPPER, legacy_digest, hashlib.sha256).hexdigest()
             return hmac.compare_digest(actual, expected)
-    if len(stored_hash) == 64:
-        unsalted = hashlib.sha256(clean_pin.encode("utf-8")).hexdigest()
-        legacy_salted = hashlib.sha256(f"rea_admin_pin_salt_v1:{clean_pin}".encode("utf-8")).hexdigest()
-        return hmac.compare_digest(legacy_salted, stored_hash) or hmac.compare_digest(unsalted, stored_hash)
-    return hmac.compare_digest(clean_pin, stored_hash)
+    # Plaintext, SHA-256 and old PBKDF2 rows are converted by the deployment migration.
+    return False
+
+
+def migrate_recoverable_legacy_pin(
+    stored_hash: str | None,
+    bootstrap_pin: str = AGENT_BOOTSTRAP_PIN,
+    require_setup: bool = True,
+) -> str | None:
+    """Return a peppered hash for recoverable pre-PBKDF2 PIN rows, else None."""
+    if not stored_hash:
+        return None
+    setup_required = stored_hash.startswith("setup_v1:")
+    legacy_hash = stored_hash[len("setup_v1:"):] if setup_required else stored_hash
+    if legacy_hash.startswith(("pbkdf2_v2:", "pbkdf2_legacy_v1:")):
+        return None
+    if legacy_hash.startswith("pbkdf2_v1:"):
+        parts = legacy_hash.split(":")
+        if len(parts) != 3:
+            return None
+        _, salt, expected = parts
+        try:
+            wrapped = hmac.new(PIN_PEPPER, bytes.fromhex(expected), hashlib.sha256).hexdigest()
+        except ValueError:
+            return None
+        upgraded = f"pbkdf2_legacy_v1:{salt}:{wrapped}"
+        return f"setup_v1:{upgraded}" if setup_required else upgraded
+    if setup_required:
+        return None
+    if legacy_hash.isdigit() and len(legacy_hash) == 4:
+        if legacy_hash == "0000":
+            return hash_setup_pin(bootstrap_pin) if require_setup else hash_pin(bootstrap_pin)
+        return hash_pin(legacy_hash)
+    if len(legacy_hash) == 64:
+        for number in range(10000):
+            candidate = f"{number:04d}"
+            unsalted = hashlib.sha256(candidate.encode("utf-8")).hexdigest()
+            legacy_salted = hashlib.sha256(f"rea_admin_pin_salt_v1:{candidate}".encode("utf-8")).hexdigest()
+            if hmac.compare_digest(unsalted, legacy_hash) or hmac.compare_digest(legacy_salted, legacy_hash):
+                if candidate == "0000":
+                    return hash_setup_pin(bootstrap_pin) if require_setup else hash_pin(bootstrap_pin)
+                return hash_pin(candidate)
+    return None
 
 
 def base64_url_encode(data: bytes) -> str:
@@ -133,17 +205,13 @@ def base64_url_decode(value: str) -> bytes:
     return base64.urlsafe_b64decode(value + "=" * ((4 - len(value) % 4) % 4))
 
 
-def _pin_fingerprint(agent: Agent) -> str:
-    return hashlib.sha256((agent.pin or "0000").encode("utf-8")).hexdigest()
-
-
 def generate_agent_token(agent: Agent, company_id: int, pin_setup: bool = False) -> str:
     now = int(time.time())
     claims = {
         "sub": agent.agent_initials.upper(),
         "cid": company_id,
         "admin": agent.is_admin,
-        "pin": _pin_fingerprint(agent),
+        "tv": agent.token_version,
         "setup": pin_setup,
         "iat": now,
         "exp": now + (600 if pin_setup else AGENT_SESSION_EXPIRE_HOURS * 3600),
@@ -198,7 +266,6 @@ def get_current_company(
     x_company_id: str | None = Header(None, alias="X-Company-ID"),
     x_company_slug: str | None = Header(None, alias="X-Company-Slug"),
 ) -> Company:
-    ensure_db_initialized()
     with Session(engine) as session:
         comp = None
         if x_company_id:
@@ -245,7 +312,7 @@ def require_agent_session(
             Agent.agent_initials == initials,
             Agent.is_active == True,
         )).first()
-        if not agent or claims.get("pin") != _pin_fingerprint(agent):
+        if not agent or int(claims.get("tv", 0)) != int(agent.token_version or 1):
             raise HTTPException(status_code=401, detail="Agent session is no longer valid. Please sign in again.")
         return {
             "agent_initials": initials,
@@ -297,7 +364,7 @@ def require_admin(
                 Agent.agent_initials == initials,
                 Agent.is_active == True,
             )).first()
-            if agent and agent.is_admin and claims.get("pin") == _pin_fingerprint(agent):
+            if agent and agent.is_admin and int(claims.get("tv", 0)) == int(agent.token_version or 1):
                 return True
 
     legacy = verify_admin_token(x_admin_token)

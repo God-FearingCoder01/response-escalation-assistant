@@ -21,7 +21,7 @@ class BatchDeletePayload(BaseModel):
     template_ids: List[int]
 
 
-@router.get("/templates", response_model=List[TemplateRead])
+@router.get("/templates", response_model=List[TemplateRead], dependencies=[Depends(require_agent_session)])
 def list_templates(company: Company = Depends(get_current_company)):
     cid = company.id if company and company.id else 1
     with Session(engine) as session:
@@ -67,7 +67,7 @@ def create_template(template: TemplateCreate, company: Company = Depends(get_cur
         return db_template
 
 
-@router.get("/templates/{template_id}", response_model=TemplateRead)
+@router.get("/templates/{template_id}", response_model=TemplateRead, dependencies=[Depends(require_agent_session)])
 def get_template(template_id: int, company: Company = Depends(get_current_company)):
     cid = company.id if company and company.id else 1
     with Session(engine) as session:
@@ -131,7 +131,7 @@ def batch_delete_templates(payload: BatchDeletePayload, company: Company = Depen
         return {"ok": True, "count": count, "message": f"Deleted {count} template(s)"}
 
 
-@router.get("/export", response_model=List[TemplateRead])
+@router.get("/export", response_model=List[TemplateRead], dependencies=[Depends(require_admin)])
 def export_templates(company: Company = Depends(get_current_company)):
     cid = company.id if company and company.id else 1
     with Session(engine) as session:

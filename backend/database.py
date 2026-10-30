@@ -2,9 +2,12 @@ import os
 import logging
 import re
 from pathlib import Path
-from sqlmodel import create_engine, SQLModel, Session
-from sqlalchemy import inspect, text, event
+from sqlmodel import create_engine, Session
+from sqlalchemy import event
 from sqlalchemy.pool import NullPool
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 logger = logging.getLogger("rea_database")
 
@@ -139,81 +142,6 @@ else:
                 pass
 
 
-def create_db_and_tables():
-    """
-    Creates all database tables using SQLModel metadata and executes
-    dialect-agnostic column migrations for existing tables missing new attributes.
-    """
-    try:
-        SQLModel.metadata.create_all(engine)
-    except Exception as e:
-        logger.exception("create_all failed: %s", e)
-        raise
-
-    try:
-        inspector = inspect(engine)
-        existing_tables = set(inspector.get_table_names())
-
-        def column_exists(table_name: str, col_name: str) -> bool:
-            if table_name not in existing_tables:
-                return False
-            columns = [c["name"].lower() for c in inspector.get_columns(table_name)]
-            return col_name.lower() in columns
-
-        migrations = [
-            ("agent", "company_id", "INTEGER DEFAULT 1"),
-            ("agent", "pin", "VARCHAR"),
-            ("agent", "is_active", "BOOLEAN DEFAULT TRUE"),
-            ("template", "company_id", "INTEGER DEFAULT 1"),
-            ("template", "category_type", "VARCHAR DEFAULT 'tech_escalation'"),
-            ("template", "category", "VARCHAR"),
-            ("template", "subcategory", "VARCHAR"),
-            ("template", "placeholder_config", "VARCHAR"),
-            ("company", "is_active", "BOOLEAN DEFAULT TRUE"),
-            ("company", "reporting_week_start", "VARCHAR DEFAULT 'Monday'"),
-            ("company", "logo_url", "TEXT"),
-            ("suggestion", "company_id", "INTEGER DEFAULT 1"),
-            ("suggestion", "suggested_by_name", "VARCHAR DEFAULT 'Support Agent'"),
-            ("suggestion", "suggested_by_initials", "VARCHAR DEFAULT 'SA'"),
-            ("suggestion", "status", "VARCHAR DEFAULT 'pending'"),
-            ("suggestion", "created_at", "TIMESTAMP"),
-            ("suggestion", "updated_at", "TIMESTAMP"),
-            ("agentuserdata", "custom_categories_json", "TEXT DEFAULT '[]'"),
-            ("extractionrule", "result_field", "VARCHAR DEFAULT ''"),
-            ("extractionrule", "extraction_method", "VARCHAR DEFAULT 'regex'"),
-            ("extractionrule", "description", "TEXT"),
-            ("extractionrule", "is_enabled", "BOOLEAN DEFAULT TRUE"),
-            ("extractionrule", "company_id", "INTEGER DEFAULT 1"),
-            ("extractionrule", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
-            ("extractionrule", "updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
-        ]
-
-        with engine.begin() as conn:
-            for table_name, col_name, col_type in migrations:
-                if table_name in existing_tables and not column_exists(table_name, col_name):
-                    try:
-                        conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"))
-                    except Exception as e:
-                        logger.warning("Column migration skipped for %s.%s: %s", table_name, col_name, e)
-
-            # Older rule rows have a name but no result_field. Backfill a
-            # stable key from the rule name so those rows remain usable and
-            # can be edited after upgrading the schema.
-            if "extractionrule" in existing_tables and column_exists("extractionrule", "result_field"):
-                rows = conn.execute(
-                    text("SELECT id, name, result_field FROM extractionrule WHERE result_field IS NULL OR result_field = ''")
-                ).mappings().all()
-                for row in rows:
-                    base_key = re.sub(r"[^a-z0-9]+", "_", (row["name"] or "extracted_value").strip().lower()).strip("_")
-                    result_field = f"{base_key or 'extracted_value'}_{row['id']}"
-                    conn.execute(
-                        text("UPDATE extractionrule SET result_field = :result_field WHERE id = :id"),
-                        {"result_field": result_field, "id": row["id"]},
-                    )
-    except Exception as e:
-        logger.exception("Error executing column migrations: %s", e)
-
-
 def ping_database(session: Session) -> bool:
     from sqlmodel import select
     try:
@@ -262,22 +190,3 @@ def get_database_health() -> dict:
 def get_session():
     with Session(engine) as session:
         yield session
-
-
-_db_initialized = False
-
-
-def ensure_db_initialized():
-    global _db_initialized
-    if not _db_initialized:
-        try:
-            create_db_and_tables()
-            from backend.services.seed_service import sync_default_data_if_needed
-            with Session(engine) as session:
-                sync_default_data_if_needed(session)
-            _db_initialized = True
-        except Exception as e:
-            logger.exception("Failed to initialize database tables or seed data: %s", e)
-
-
-

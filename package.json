@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "backend": ".venv\\Scripts\\python -m uvicorn backend.main:app --reload --port 8000",
+    "db:migrate": "python -m alembic upgrade head",
     "build": "vite build",
     "package:extensions": "node scripts/package-extensions.mjs",
     "preview": "vite preview",

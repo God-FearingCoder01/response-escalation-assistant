@@ -21,6 +21,7 @@ from backend.security import (
     generate_admin_token,
     require_admin,
     get_current_company,
+    get_client_ip,
     check_pin_rate_limit,
     record_failed_pin_attempt,
     clear_pin_attempts,
@@ -123,6 +124,7 @@ def update_agent(agent_id: int, incoming: AgentUpdate, company: Company = Depend
             existing.is_active = incoming.is_active
         if incoming.pin:
             existing.pin = hash_pin(incoming.pin)
+            existing.token_version = (existing.token_version or 1) + 1
         existing.updated_at = datetime.now(timezone.utc)
         session.add(existing)
         session.commit()
@@ -168,6 +170,7 @@ def reset_agent_pin(agent_id: int, company: Company = Depends(get_current_compan
             raise HTTPException(status_code=403, detail="Admins cannot reset another admin profile's PIN.")
         setup_pin = _new_setup_pin(agent.pin)
         agent.pin = hash_setup_pin(setup_pin)
+        agent.token_version = (agent.token_version or 1) + 1
         agent.updated_at = datetime.now(timezone.utc)
         session.add(agent)
         session.commit()
@@ -180,11 +183,9 @@ def verify_agent_pin(req: PinVerifyRequest, request: Request, company: Company =
     if not req.pin.isdigit() or len(req.pin) != 4:
         raise HTTPException(status_code=400, detail="PIN must be exactly 4 numeric digits")
     cid = company.id if company and company.id else 1
-    client_ip = request.client.host if request.client else "unknown"
-    rate_key = hashlib.sha256(f"{cid}:{req.agent_initials.strip().upper()}".encode()).hexdigest()
-    ip_rate_key = hashlib.sha256(f"{cid}:ip:{client_ip}".encode()).hexdigest()
+    client_ip = get_client_ip(request)
+    rate_key = hashlib.sha256(f"{cid}:{req.agent_initials.strip().upper()}:{client_ip}".encode()).hexdigest()
     check_pin_rate_limit(rate_key)
-    check_pin_rate_limit(ip_rate_key)
 
     with Session(engine) as session:
         agent = session.exec(
@@ -195,16 +196,11 @@ def verify_agent_pin(req: PinVerifyRequest, request: Request, company: Company =
             )
         ).first()
         if not agent:
-            record_failed_pin_attempt(ip_rate_key)
+            record_failed_pin_attempt(rate_key)
             return {"valid": False, "detail": "Invalid profile or PIN"}
 
         if verify_pin_hash(req.pin, agent.pin):
-            if req.pin == "0000" and verify_pin_hash("0000", agent.pin):
-                record_failed_pin_attempt(rate_key)
-                record_failed_pin_attempt(ip_rate_key)
-                return {"valid": False, "detail": "This legacy setup PIN has been disabled. Ask an administrator to reset this profile."}
             clear_pin_attempts(rate_key)
-            clear_pin_attempts(ip_rate_key)
             if is_setup_pin_hash(agent.pin):
                 token = generate_agent_token(agent, cid, pin_setup=True)
                 return {
@@ -214,15 +210,15 @@ def verify_agent_pin(req: PinVerifyRequest, request: Request, company: Company =
                     "setup_token": token,
                     "agent": AgentRead.model_validate(agent),
                 }
-            if not agent.pin or not agent.pin.startswith("pbkdf2_v1:") or agent.pin.split(":")[1] == "rea_admin_pin_salt_v2":
+            if not agent.pin or not agent.pin.startswith("setup_v1:pbkdf2_v2:") and not agent.pin.startswith("pbkdf2_v2:"):
                 agent.pin = hash_pin(req.pin)
+                agent.token_version = (agent.token_version or 1) + 1
                 session.add(agent)
                 session.commit()
                 session.refresh(agent)
             return {"valid": True, "pin_change_required": False, "agent": AgentRead.model_validate(agent), "token": generate_agent_token(agent, cid)}
         else:
             record_failed_pin_attempt(rate_key)
-            record_failed_pin_attempt(ip_rate_key)
             return {"valid": False, "detail": "Incorrect 4-digit Security PIN"}
 
 
@@ -239,11 +235,9 @@ def change_agent_pin(
     if not claims or int(claims.get("cid", 0)) != int(company.id or 0):
         raise HTTPException(status_code=401, detail="PIN setup session expired. Please sign in again.")
     initials = req.agent_initials.strip().upper()
-    rate_key = hashlib.sha256(f"{company.id}:{initials}".encode()).hexdigest()
-    client_ip = request.client.host if request.client else "unknown"
-    ip_rate_key = hashlib.sha256(f"{company.id}:ip:{client_ip}".encode()).hexdigest()
+    client_ip = get_client_ip(request)
+    rate_key = hashlib.sha256(f"{company.id}:{initials}:{client_ip}".encode()).hexdigest()
     check_pin_rate_limit(rate_key)
-    check_pin_rate_limit(ip_rate_key)
     if initials != str(claims.get("sub", "")).upper():
         raise HTTPException(status_code=403, detail="Agent profile does not match the active session.")
     with Session(engine) as session:
@@ -252,8 +246,7 @@ def change_agent_pin(
             Agent.agent_initials == initials,
             Agent.is_active == True,
         )).first()
-        fingerprint = hashlib.sha256((agent.pin or "0000").encode()).hexdigest() if agent else None
-        if not agent or claims.get("pin") != fingerprint:
+        if not agent or int(claims.get("tv", 0)) != int(agent.token_version or 1):
             raise HTTPException(status_code=401, detail="PIN setup session is no longer valid.")
         if claims.get("setup"):
             if not is_setup_pin_hash(agent.pin) or verify_pin_hash(req.new_pin, agent.pin):
@@ -263,11 +256,10 @@ def change_agent_pin(
                 raise HTTPException(status_code=400, detail="Current PIN must be exactly 4 numeric digits")
             if is_setup_pin_hash(agent.pin) or not verify_pin_hash(req.pin, agent.pin):
                 record_failed_pin_attempt(rate_key)
-                record_failed_pin_attempt(ip_rate_key)
                 raise HTTPException(status_code=401, detail="Current PIN is incorrect.")
         clear_pin_attempts(rate_key)
-        clear_pin_attempts(ip_rate_key)
         agent.pin = hash_pin(req.new_pin)
+        agent.token_version = (agent.token_version or 1) + 1
         agent.updated_at = datetime.now(timezone.utc)
         session.add(agent)
         session.commit()

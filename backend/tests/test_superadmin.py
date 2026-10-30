@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
-from backend.main import app, engine, Company, Agent, SuperAdmin, hash_pin
+from backend.main import app, engine, Company, Agent, SuperAdmin
 from backend.bootstrap import SUPERADMIN_BOOTSTRAP_PIN
 from backend.tests.auth_helpers import get_superadmin_headers
 
@@ -59,7 +59,7 @@ def test_legacy_superadmin_setup_pin_is_rotated_during_seed_sync():
 
     with Session(engine) as session:
         sa = session.exec(select(SuperAdmin)).first()
-        sa.pin = hash_pin("0000")
+        sa.pin = "0000"
         session.add(sa)
         session.commit()
         sync_default_data_if_needed(session)

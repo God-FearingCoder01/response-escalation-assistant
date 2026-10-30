@@ -3,7 +3,7 @@ from typing import List
 from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select, col
 
-from backend.database import engine, ensure_db_initialized
+from backend.database import engine
 from backend.models import (
     SupportRequest,
     SupportRequestCreate,
@@ -17,7 +17,6 @@ router = APIRouter(tags=["Support Requests"])
 
 @router.post("/support-requests", response_model=SupportRequestRead)
 def create_support_request(payload: SupportRequestCreate):
-    ensure_db_initialized()
     with Session(engine) as session:
         if not payload.org_name.strip() or not payload.requester_name.strip() or not payload.contact_email.strip():
             raise HTTPException(status_code=400, detail="Organization name, requester name, and contact email are required")
@@ -41,14 +40,12 @@ def create_support_request(payload: SupportRequestCreate):
 
 @router.get("/support-requests", response_model=List[SupportRequestRead], dependencies=[Depends(require_superadmin)])
 def list_support_requests():
-    ensure_db_initialized()
     with Session(engine) as session:
         return session.exec(select(SupportRequest).order_by(col(SupportRequest.created_at).desc())).all()
 
 
 @router.patch("/support-requests/{request_id}", response_model=SupportRequestRead, dependencies=[Depends(require_superadmin)])
 def update_support_request_status(request_id: int, payload: SupportRequestUpdate):
-    ensure_db_initialized()
     with Session(engine) as session:
         req_obj = session.get(SupportRequest, request_id)
         if not req_obj:

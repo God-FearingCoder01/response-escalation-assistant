@@ -1,10 +1,11 @@
 from contextlib import asynccontextmanager
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from backend.database import engine
+from backend.services.seed_service import sync_default_data_if_needed
 
 # Database and seed dependencies
-from backend.database import engine, ensure_db_initialized, create_db_and_tables, ping_database, get_session
-from backend.services.seed_service import sync_default_data_if_needed, DEFAULT_TEMPLATES, DEFAULT_AGENTS, DEFAULT_COMPANY_NAME, DEFAULT_COMPANY_SLUG
 from backend.security import (
     hash_pin,
     verify_pin_hash,
@@ -80,16 +81,29 @@ from backend.routers.timetables import router as timetables_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    ensure_db_initialized()
     yield
 
 
 app = FastAPI(title="Response Escalation Assistant API", lifespan=lifespan)
 
+_default_cors_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://response-escalation-assistant.vercel.app",
+]
+_configured_cors_origins = [
+    origin.strip().rstrip("/")
+    for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+_extension_id = os.environ.get("CHROME_EXTENSION_ID", "").strip()
+if _extension_id:
+    _configured_cors_origins.append(f"chrome-extension://{_extension_id}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=list(dict.fromkeys(_default_cors_origins + _configured_cors_origins)),
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

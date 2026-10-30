@@ -198,6 +198,8 @@ export function useAgents({ apiStatus, showToast }) {
     window.localStorage.removeItem(AGENT_KEY);
     window.localStorage.removeItem(ADMIN_TOKEN_KEY);
     window.localStorage.removeItem(ADMIN_INITIALS_KEY);
+    window.sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+    window.sessionStorage.removeItem(ADMIN_INITIALS_KEY);
     setShowPinModal(false);
     setShowPinSetupModal(false);
     setPendingAdminAgent(null);
