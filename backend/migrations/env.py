@@ -42,13 +42,25 @@ def run_migrations_online():
         migration_lock = connection.dialect.name == "postgresql"
         if migration_lock:
             connection.execute(text("SELECT pg_advisory_lock(1380270925)"))
+            # SQLAlchemy 2.x starts a transaction on the first statement. If it is left
+            # open, Alembic treats it as an outer transaction it does not own, never
+            # commits it, and everything the migration did is rolled back when the
+            # connection closes - while still exiting with code 0. Commit it now; the
+            # session-level advisory lock survives the commit.
+            connection.commit()
         try:
             context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
             with context.begin_transaction():
                 context.run_migrations()
+            # Belt and braces: never let a finished migration be silently rolled back.
+            if connection.in_transaction():
+                connection.commit()
         finally:
             if migration_lock:
+                if connection.in_transaction():
+                    connection.rollback()
                 connection.execute(text("SELECT pg_advisory_unlock(1380270925)"))
+                connection.commit()
 
 
 if context.is_offline_mode():
