@@ -1,6 +1,5 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from fastapi import Depends
 from backend.security import require_agent_session
 
 from backend.services.translator_service import translate_text_with_engine
@@ -15,7 +14,7 @@ class TranslateRequest(BaseModel):
 
 
 @router.post("/translate")
-def handle_translation(req: TranslateRequest):
+def handle_translation(req: TranslateRequest, _authenticated_agent: dict = Depends(require_agent_session)):
     translated, provider = translate_text_with_engine(req.text, req.target_lang, req.source_lang or "en")
     return {
         "status": "ok",

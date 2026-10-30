@@ -18,6 +18,7 @@ from backend.models import (
 )
 from backend.security import (
     hash_pin,
+    hash_setup_pin,
     verify_pin_hash,
     generate_admin_token,
     require_admin,
@@ -32,6 +33,7 @@ from backend.services.seed_service import (
     sync_default_data_if_needed,
     seed_company_extraction_rules_if_needed,
 )
+from backend.bootstrap import AGENT_BOOTSTRAP_PIN, SUPERADMIN_BOOTSTRAP_PIN
 
 router = APIRouter(tags=["SuperAdmin & Organizations"])
 
@@ -81,7 +83,7 @@ def verify_superadmin_pin(payload: SuperAdminPinVerify, request: Request):
 
         if not sa:
             now = datetime.now(timezone.utc)
-            sa = SuperAdmin(email="gfc.dev@proton.me", pin=hash_pin("0000"), created_at=now, updated_at=now)
+            sa = SuperAdmin(email="gfc.dev@proton.me", pin=hash_pin(SUPERADMIN_BOOTSTRAP_PIN), created_at=now, updated_at=now)
             session.add(sa)
             session.commit()
             session.refresh(sa)
@@ -126,7 +128,7 @@ def reset_superadmin_pin(payload: SuperAdminPinResetConfirm):
             raise HTTPException(status_code=400, detail="Invalid or expired reset token")
 
         clean_pin = payload.new_pin.strip()
-        if len(clean_pin) != 4 or not clean_pin.isdigit():
+        if len(clean_pin) != 4 or not clean_pin.isdigit() or clean_pin in {"0000", SUPERADMIN_BOOTSTRAP_PIN}:
             raise HTTPException(status_code=400, detail="Super Admin PIN must be exactly 4 digits")
 
         sa.pin = hash_pin(clean_pin)
@@ -152,7 +154,7 @@ def update_superadmin_settings(payload: SuperAdminSettingsUpdate):
 
         if payload.pin and payload.pin.strip():
             clean_pin = payload.pin.strip()
-            if len(clean_pin) != 4 or not clean_pin.isdigit():
+            if len(clean_pin) != 4 or not clean_pin.isdigit() or clean_pin in {"0000", SUPERADMIN_BOOTSTRAP_PIN}:
                 raise HTTPException(status_code=400, detail="New Super Admin PIN must be exactly 4 digits")
             sa.pin = hash_pin(clean_pin)
 
@@ -170,7 +172,7 @@ def reset_company_admin_pin(payload: CompanyAdminPinReset):
             if not payload.new_pin or not isinstance(payload.new_pin, str):
                 raise HTTPException(status_code=400, detail="New PIN is required")
             clean_pin = payload.new_pin.strip()
-            if len(clean_pin) != 4 or not clean_pin.isdigit():
+            if len(clean_pin) != 4 or not clean_pin.isdigit() or clean_pin in {"0000", AGENT_BOOTSTRAP_PIN}:
                 raise HTTPException(status_code=400, detail="PIN must be exactly 4 digits")
 
             cid = payload.company_id
@@ -282,7 +284,7 @@ def create_company(payload: CompanyCreate):
                     agent_name=item["agent_name"],
                     agent_initials=item["agent_initials"],
                     is_admin=item["is_admin"],
-                    pin=hash_pin(item["pin"]),
+                    pin=hash_setup_pin(item["pin"]),
                     company_id=comp_id_val,
                     created_at=now,
                     updated_at=now,

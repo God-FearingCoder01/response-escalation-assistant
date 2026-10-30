@@ -21,12 +21,11 @@ router = APIRouter(tags=["Private Notes"], dependencies=[Depends(require_agent_s
 
 @router.get("/private-notes/categories", response_model=List[PrivateNoteCategoryRead])
 def list_private_note_categories(
-    agent_initials: Optional[str] = Header(None, alias="X-Agent-Initials"),
+    authenticated_agent: dict = Depends(require_agent_session),
     company: Company = Depends(get_current_company),
 ):
     cid = company.id if company and company.id else 1
-    if not agent_initials:
-        return []
+    agent_initials = authenticated_agent["agent_initials"]
     with Session(engine) as session:
         return session.exec(
             select(PrivateNoteCategory)
@@ -96,12 +95,11 @@ def delete_private_note_category(
 
 @router.get("/private-notes", response_model=List[PrivateNoteRead])
 def list_private_notes(
-    agent_initials: Optional[str] = Header(None, alias="X-Agent-Initials"),
+    authenticated_agent: dict = Depends(require_agent_session),
     company: Company = Depends(get_current_company),
 ):
     cid = company.id if company and company.id else 1
-    if not agent_initials:
-        return []
+    agent_initials = authenticated_agent["agent_initials"]
     with Session(engine) as session:
         notes = session.exec(
             select(PrivateNote)

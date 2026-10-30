@@ -10,7 +10,9 @@ router = APIRouter(tags=["Favorites & History"], dependencies=[Depends(require_a
 
 
 @router.get("/favorites/{agent_initials}")
-def get_agent_favorites(agent_initials: str, company: Company = Depends(get_current_company)):
+def get_agent_favorites(agent_initials: str, company: Company = Depends(get_current_company), auth: dict = Depends(require_agent_session)):
+    if agent_initials.upper() != auth["agent_initials"]:
+        raise HTTPException(status_code=403, detail="Agent session does not match requested profile")
     with Session(engine) as session:
         initials = agent_initials.upper()
         favs = session.exec(
@@ -23,7 +25,9 @@ def get_agent_favorites(agent_initials: str, company: Company = Depends(get_curr
 
 
 @router.post("/favorites/{agent_initials}/{template_id}")
-def toggle_agent_favorite(agent_initials: str, template_id: int, company: Company = Depends(get_current_company)):
+def toggle_agent_favorite(agent_initials: str, template_id: int, company: Company = Depends(get_current_company), auth: dict = Depends(require_agent_session)):
+    if agent_initials.upper() != auth["agent_initials"]:
+        raise HTTPException(status_code=403, detail="Agent session does not match requested profile")
     if company.id is None:
         raise HTTPException(status_code=400, detail="Invalid company ID")
     with Session(engine) as session:
@@ -58,7 +62,9 @@ def toggle_agent_favorite(agent_initials: str, template_id: int, company: Compan
 
 
 @router.get("/history/{agent_initials}")
-def get_agent_history(agent_initials: str, company: Company = Depends(get_current_company)):
+def get_agent_history(agent_initials: str, company: Company = Depends(get_current_company), auth: dict = Depends(require_agent_session)):
+    if agent_initials.upper() != auth["agent_initials"]:
+        raise HTTPException(status_code=403, detail="Agent session does not match requested profile")
     with Session(engine) as session:
         initials = agent_initials.upper()
         now = datetime.now(timezone.utc)
@@ -91,7 +97,9 @@ def get_agent_history(agent_initials: str, company: Company = Depends(get_curren
 
 
 @router.post("/history/{agent_initials}/{template_id}")
-def record_agent_copy_history(agent_initials: str, template_id: int, company: Company = Depends(get_current_company)):
+def record_agent_copy_history(agent_initials: str, template_id: int, company: Company = Depends(get_current_company), auth: dict = Depends(require_agent_session)):
+    if agent_initials.upper() != auth["agent_initials"]:
+        raise HTTPException(status_code=403, detail="Agent session does not match requested profile")
     if company.id is None:
         raise HTTPException(status_code=400, detail="Invalid company ID")
     with Session(engine) as session:

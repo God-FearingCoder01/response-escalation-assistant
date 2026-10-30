@@ -1,12 +1,22 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session, select
-from backend.main import app, engine, PrivateNote
+from sqlmodel import Session, select, SQLModel
+from backend.main import app, engine, PrivateNote, sync_default_data_if_needed
+from backend.tests.auth_helpers import get_agent_admin_headers
 
 client = TestClient(app)
 
+
+@pytest.fixture(autouse=True)
+def setup_db():
+    SQLModel.metadata.drop_all(engine)
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        sync_default_data_if_needed(session)
+    yield
+
 def test_private_notes_lifecycle_and_privacy():
-    headers_sa = {"X-Agent-Initials": "SA", "X-Company-ID": "1"}
+    headers_sa = get_agent_admin_headers(1, "SA")
     res = client.post(
         "/private-notes",
         json={
@@ -29,7 +39,7 @@ def test_private_notes_lifecycle_and_privacy():
     sa_notes = res_list_sa.json()
     assert any(n["id"] == note_id for n in sa_notes)
 
-    headers_cw = {"X-Agent-Initials": "CW", "X-Company-ID": "1"}
+    headers_cw = get_agent_admin_headers(1, "CW")
     res_list_cw = client.get("/private-notes", headers=headers_cw)
     assert res_list_cw.status_code == 200
     cw_notes = res_list_cw.json()
@@ -60,7 +70,7 @@ def test_private_notes_lifecycle_and_privacy():
 
 
 def test_private_note_custom_categories_lifecycle():
-    headers_sa = {"X-Agent-Initials": "SA", "X-Company-ID": "1"}
+    headers_sa = get_agent_admin_headers(1, "SA")
     
     # 1. Create custom category
     res_create = client.post(
@@ -80,7 +90,7 @@ def test_private_note_custom_categories_lifecycle():
     assert any(c["name"] == "VIP Billing Desk" for c in cats)
 
     # 3. Agent privacy check (Agent CW should not see SA's custom category)
-    headers_cw = {"X-Agent-Initials": "CW", "X-Company-ID": "1"}
+    headers_cw = get_agent_admin_headers(1, "CW")
     res_list_cw = client.get("/private-notes/categories", headers=headers_cw)
     assert res_list_cw.status_code == 200
     cw_cats = res_list_cw.json()

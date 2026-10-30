@@ -101,7 +101,7 @@ class AuthAttemptState(SQLModel, table=True):
 
 
 class AgentCreate(AgentBase):
-    pin: Optional[str] = "0000"
+    pin: Optional[str] = None
     company_id: int = 1
 
 

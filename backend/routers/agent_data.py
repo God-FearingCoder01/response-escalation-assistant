@@ -7,13 +7,13 @@ from sqlmodel import Session, select
 
 from backend.database import engine
 from backend.models import Company, AgentUserData
-from backend.security import get_current_company, optional_agent_session
+from backend.security import get_current_company, require_agent_session
 
 router = APIRouter(tags=["Agent User Data"])
 
 
 class SaveAgentDataPayload(BaseModel):
-    agent_initials: str
+    agent_initials: Optional[str] = None
     favorites: Optional[List[Any]] = None
     recently_used: Optional[List[Any]] = None
     usage_counts: Optional[dict] = None
@@ -24,9 +24,12 @@ class SaveAgentDataPayload(BaseModel):
 
 @router.get("/api/agent-data")
 @router.get("/agent-data")
-def get_agent_user_data(agent_initials: str, company: Company = Depends(get_current_company)):
+def get_agent_user_data(
+    company: Company = Depends(get_current_company),
+    authenticated_agent: dict = Depends(require_agent_session),
+):
     cid = company.id if company and company.id else 1
-    init = agent_initials.strip().upper()
+    init = authenticated_agent["agent_initials"]
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     with Session(engine) as session:
@@ -37,30 +40,17 @@ def get_agent_user_data(agent_initials: str, company: Company = Depends(get_curr
         ).first()
 
         if not record:
-            record = AgentUserData(
-                company_id=cid,
-                agent_initials=init,
-                favorites_json="[]",
-                recently_used_json="[]",
-                usage_counts_json="{}",
-                usage_date=today_str,
-                private_notes_json="[]",
-                translation_history_json="[]",
-                custom_categories_json="[]",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-            )
-            session.add(record)
-            session.commit()
-            session.refresh(record)
-
-        if record.usage_date != today_str:
-            record.usage_counts_json = "{}"
-            record.usage_date = today_str
-            record.updated_at = datetime.now(timezone.utc)
-            session.add(record)
-            session.commit()
-            session.refresh(record)
+            return {
+                "agent_initials": init,
+                "company_id": cid,
+                "favorites": [],
+                "recently_used": [],
+                "usage_counts": {},
+                "usage_date": today_str,
+                "private_notes": [],
+                "translation_history": [],
+                "custom_categories": [],
+            }
 
         try:
             favs = json.loads(record.favorites_json or "[]")
@@ -73,7 +63,7 @@ def get_agent_user_data(agent_initials: str, company: Company = Depends(get_curr
             recents = []
 
         try:
-            counts = json.loads(record.usage_counts_json or "{}")
+            counts = json.loads(record.usage_counts_json or "{}") if record.usage_date == today_str else {}
         except Exception:
             counts = {}
 
@@ -110,10 +100,10 @@ def get_agent_user_data(agent_initials: str, company: Company = Depends(get_curr
 def save_agent_user_data(
     payload: SaveAgentDataPayload,
     company: Company = Depends(get_current_company),
-    authenticated_agent: dict | None = Depends(optional_agent_session),
+    authenticated_agent: dict = Depends(require_agent_session),
 ):
     cid = company.id if company and company.id else 1
-    init = (authenticated_agent["agent_initials"] if authenticated_agent else payload.agent_initials).strip().upper()
+    init = authenticated_agent["agent_initials"]
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     with Session(engine) as session:

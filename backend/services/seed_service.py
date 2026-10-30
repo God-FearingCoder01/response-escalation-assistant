@@ -15,7 +15,8 @@ from backend.models import (
     GlobalVariable,
     ExtractionRule,
 )
-from backend.security import hash_pin
+from backend.security import hash_pin, hash_setup_pin, verify_pin_hash
+from backend.bootstrap import AGENT_BOOTSTRAP_PIN, SUPERADMIN_BOOTSTRAP_PIN
 
 DEFAULT_COMPANY_NAME = os.environ.get("DEFAULT_COMPANY_NAME", "Default").strip()
 DEFAULT_COMPANY_SLUG = os.environ.get("DEFAULT_COMPANY_SLUG", "default").strip().lower()
@@ -29,8 +30,8 @@ class DefaultAgent(TypedDict):
 
 
 DEFAULT_AGENTS: List[DefaultAgent] = [
-    {"agent": "System Administrator", "agent_name": "Sys_Admin", "agent_initials": "SA", "is_admin": True, "pin": "0000"},
-    {"agent": "Chris Whyt", "agent_name": "Chris", "agent_initials": "CW", "is_admin": False, "pin": "0000"},
+    {"agent": "System Administrator", "agent_name": "Sys_Admin", "agent_initials": "SA", "is_admin": True, "pin": AGENT_BOOTSTRAP_PIN},
+    {"agent": "Chris Whyt", "agent_name": "Chris", "agent_initials": "CW", "is_admin": False, "pin": AGENT_BOOTSTRAP_PIN},
 ]
 
 DEFAULT_TEMPLATES = [
@@ -248,12 +249,22 @@ def sync_default_data_if_needed(session: Session) -> None:
                     agent_name=item["agent_name"],
                     agent_initials=item["agent_initials"],
                     is_admin=item["is_admin"],
-                    pin=hash_pin(item["pin"]),
+                    pin=hash_setup_pin(item["pin"]),
                     company_id=default_company.id,
                     created_at=now,
                     updated_at=now,
                 )
             )
+        session.commit()
+    # Replace publicly known legacy setup PINs across every tenant and require
+    # a secure change at the next sign-in.
+    all_agents = session.exec(select(Agent)).all()
+    for agent in all_agents:
+        if verify_pin_hash("0000", agent.pin):
+            agent.pin = hash_setup_pin(AGENT_BOOTSTRAP_PIN)
+            agent.updated_at = now
+            session.add(agent)
+    if all_agents:
         session.commit()
 
     # 3. Seed default templates for default_company (ID #1) ONLY if no templates exist yet
@@ -320,13 +331,18 @@ def sync_default_data_if_needed(session: Session) -> None:
         session.add(
             SuperAdmin(
                 email="gfc.dev@proton.me",
-                pin=hash_pin("0000"),
+                pin=hash_pin(SUPERADMIN_BOOTSTRAP_PIN),
                 created_at=now,
                 updated_at=now,
             )
         )
         session.commit()
     else:
+        if verify_pin_hash("0000", superadmin.pin):
+            superadmin.pin = hash_pin(SUPERADMIN_BOOTSTRAP_PIN)
+            superadmin.updated_at = now
+            session.add(superadmin)
+            session.commit()
         if superadmin.email == "admin@support.com":
             superadmin.email = "gfc.dev@proton.me"
             session.add(superadmin)

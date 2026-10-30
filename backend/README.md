@@ -44,6 +44,7 @@ backend/
 
 - **Local Development**: When `DATABASE_URL` is omitted, the application uses SQLite at `backend/backend_data.db`.
 - **Production Persistence**: Set `DATABASE_URL` (or `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`) to a PostgreSQL connection string (e.g. Neon, Supabase, Vercel Postgres, AWS RDS).
+- **Bootstrap PINs**: Set private four-digit `SUPERADMIN_BOOTSTRAP_PIN` and `AGENT_BOOTSTRAP_PIN` environment variables before starting the backend. Startup fails if either is missing, malformed, or set to `0000`. Seeded superadmin PINs use the configured value; seeded agent PINs use the configured value and require an immediate PIN change. Legacy `0000` agent PINs are rotated to the agent bootstrap PIN and require a PIN change.
 - **Automatic Dialect Normalization**: Connection strings starting with `postgres://` are automatically normalized to `postgresql://`.
 - **Connection Pooling**: PostgreSQL connections utilize connection pooling (`pool_size=10`, `max_overflow=20`, `pool_recycle=300`, `pool_pre_ping=True`).
 - **Dialect-Agnostic Migrations**: Column additions check table metadata using SQLAlchemy `inspect(engine)` prior to executing `ALTER TABLE ... ADD COLUMN`, preventing dialect errors across both SQLite and PostgreSQL.

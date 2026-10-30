@@ -2,8 +2,9 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import SQLModel, Session, select
 
-from backend.main import app, engine, generate_admin_token, sync_default_data_if_needed
+from backend.main import app, engine, sync_default_data_if_needed
 from backend.models import ExtractionRule, Template
+from backend.tests.auth_helpers import get_agent_admin_headers, get_superadmin_headers
 from backend.services.extraction_service import (
     process_text_extraction,
     evaluate_rule_pattern,
@@ -22,9 +23,8 @@ def setup_db():
     yield
 
 
-def get_admin_headers(agent_initials="SA"):
-    token = generate_admin_token(agent_initials)
-    return {"X-Admin-Token": token, "X-Admin-Initials": agent_initials}
+def get_admin_headers(agent_initials="SA", company_id=1):
+    return get_agent_admin_headers(company_id=company_id, initials=agent_initials)
 
 
 # ============================================================
@@ -81,7 +81,7 @@ def test_extraction_rules_persistence_and_update():
     assert res_update.json()["is_enabled"] is False
 
     # Fetch rule to verify persistence
-    res_get = client.get(f"/api/extraction-rules/{rule_id}?company_id=1")
+    res_get = client.get(f"/api/extraction-rules/{rule_id}?company_id=1", headers=headers)
     assert res_get.status_code == 200
     assert res_get.json()["pattern"] == r"INV-\d{6}"
 
@@ -92,7 +92,7 @@ def test_extraction_rules_tenant_isolation():
     # Create Company B
     comp_b = client.post(
         "/companies",
-        headers=headers,
+        headers=get_superadmin_headers(),
         json={"name": "Company B", "slug": "company-b", "is_active": True}
     ).json()
     company_b_id = comp_b["id"]
@@ -112,7 +112,8 @@ def test_extraction_rules_tenant_isolation():
     ).json()
 
     # Company B listing must NOT contain Company A's rules
-    res_b_list = client.get(f"/api/extraction-rules?company_id={company_b_id}").json()
+    headers_b = get_admin_headers(company_id=company_b_id)
+    res_b_list = client.get(f"/api/extraction-rules?company_id={company_b_id}", headers=headers_b).json()
     fields_b = [r["result_field"] for r in res_b_list]
     assert "secret_a_field" not in fields_b
 
@@ -349,18 +350,19 @@ def test_ecocash_payment_confirmation_block_extraction_with_ocr_linebreaks():
 
 
 def test_default_rules_seeded_for_new_company_and_can_be_edited_and_deleted():
-    headers = get_admin_headers()
+    superadmin_headers = get_superadmin_headers()
     # 1. Create a new company
     comp_res = client.post(
         "/companies",
-        headers=headers,
+        headers=superadmin_headers,
         json={"name": "Test Company X", "slug": "test-company-x", "is_active": True}
     )
     assert comp_res.status_code == 200
     comp_id = comp_res.json()["id"]
+    headers = get_admin_headers(company_id=comp_id)
 
     # 2. Fetch rules for new company (starter default rules should be present)
-    rules_res = client.get(f"/api/extraction-rules?company_id={comp_id}")
+    rules_res = client.get(f"/api/extraction-rules?company_id={comp_id}", headers=headers)
     assert rules_res.status_code == 200
     rules = rules_res.json()
     assert len(rules) == 6
@@ -380,7 +382,7 @@ def test_default_rules_seeded_for_new_company_and_can_be_edited_and_deleted():
     assert update_res.json()["pattern"] == r"\bACCT-\d{8}\b"
 
     # 5. Reload rules to verify edited rule persists
-    reloaded_rules = client.get(f"/api/extraction-rules?company_id={comp_id}").json()
+    reloaded_rules = client.get(f"/api/extraction-rules?company_id={comp_id}", headers=headers).json()
     updated_in_list = next(r for r in reloaded_rules if r["id"] == rule_id)
     assert updated_in_list["name"] == "Custom Account Rule"
     assert updated_in_list["pattern"] == r"\bACCT-\d{8}\b"
@@ -390,24 +392,25 @@ def test_default_rules_seeded_for_new_company_and_can_be_edited_and_deleted():
     assert del_res.status_code == 200
 
     # 7. Reload rules to verify it is gone
-    final_rules = client.get(f"/api/extraction-rules?company_id={comp_id}").json()
+    final_rules = client.get(f"/api/extraction-rules?company_id={comp_id}", headers=headers).json()
     assert len(final_rules) == 5
     assert not any(r["id"] == rule_id for r in final_rules)
 
 
 def test_exact_production_scenario_editing_and_deleting_default_rules_persists_across_restart():
-    headers = get_admin_headers()
+    superadmin_headers = get_superadmin_headers()
     # 1. Create a company
     comp_res = client.post(
         "/companies",
-        headers=headers,
+        headers=superadmin_headers,
         json={"name": "Prod Scenario Co", "slug": "prod-scenario-co", "is_active": True}
     )
     assert comp_res.status_code == 200
     comp_id = comp_res.json()["id"]
+    headers = get_admin_headers(company_id=comp_id)
 
     # 2. Seed default rules / fetch rules
-    rules = client.get(f"/api/extraction-rules?company_id={comp_id}").json()
+    rules = client.get(f"/api/extraction-rules?company_id={comp_id}", headers=headers).json()
     assert len(rules) > 0
 
     # 3. Identify one default rule (e.g. Amount rule)
@@ -422,7 +425,7 @@ def test_exact_production_scenario_editing_and_deleting_default_rules_persists_a
     )
 
     # 6. Reload rules
-    rules_after_edit = client.get(f"/api/extraction-rules?company_id={comp_id}").json()
+    rules_after_edit = client.get(f"/api/extraction-rules?company_id={comp_id}", headers=headers).json()
     # 7. Verify changed values remain
     edited_rule = next(r for r in rules_after_edit if r["id"] == target_id)
     assert edited_rule["name"] == "Modified Amount Rule"
@@ -433,7 +436,7 @@ def test_exact_production_scenario_editing_and_deleting_default_rules_persists_a
         sync_default_data_if_needed(session)
 
     # 9. Verify changed values still remain after seed logic
-    rules_after_reseed = client.get(f"/api/extraction-rules?company_id={comp_id}").json()
+    rules_after_reseed = client.get(f"/api/extraction-rules?company_id={comp_id}", headers=headers).json()
     edited_rule_reseed = next(r for r in rules_after_reseed if r["id"] == target_id)
     assert edited_rule_reseed["name"] == "Modified Amount Rule"
     assert edited_rule_reseed["pattern"] == r"\$\d+\.\d{2}"
@@ -443,7 +446,7 @@ def test_exact_production_scenario_editing_and_deleting_default_rules_persists_a
     assert del_res.status_code == 200
 
     # 11. Reload rules
-    rules_after_del = client.get(f"/api/extraction-rules?company_id={comp_id}").json()
+    rules_after_del = client.get(f"/api/extraction-rules?company_id={comp_id}", headers=headers).json()
     # 12. Verify it is gone
     assert not any(r["id"] == target_id for r in rules_after_del)
 
@@ -452,7 +455,7 @@ def test_exact_production_scenario_editing_and_deleting_default_rules_persists_a
         sync_default_data_if_needed(session)
 
     # 14. Verify it does NOT return
-    rules_final = client.get(f"/api/extraction-rules?company_id={comp_id}").json()
+    rules_final = client.get(f"/api/extraction-rules?company_id={comp_id}", headers=headers).json()
     assert not any(r["id"] == target_id for r in rules_final)
 
 

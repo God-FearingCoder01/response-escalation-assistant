@@ -1,6 +1,7 @@
 import hashlib
 from datetime import datetime, timezone
 from typing import List
+import secrets
 from fastapi import APIRouter, HTTPException, Depends, Request, Header
 from sqlmodel import Session, select, col
 
@@ -14,6 +15,8 @@ from backend.models import (
 )
 from backend.security import (
     hash_pin,
+    hash_setup_pin,
+    is_setup_pin_hash,
     verify_pin_hash,
     generate_admin_token,
     require_admin,
@@ -26,12 +29,27 @@ from backend.security import (
     verify_agent_token,
     require_agent_session,
 )
+from backend.bootstrap import AGENT_BOOTSTRAP_PIN
 
 router = APIRouter(tags=["Agents"])
 
 
 class PinChangeRequest(PinVerifyRequest):
+    pin: str | None = None
     new_pin: str
+
+
+class AgentProvisioned(AgentRead):
+    setup_pin: str | None = None
+
+
+def _new_setup_pin(previous_pin_hash: str | None = None) -> str:
+    pin = f"{secrets.randbelow(10000):04d}"
+    while pin in {"0000", AGENT_BOOTSTRAP_PIN} or (
+        previous_pin_hash is not None and verify_pin_hash(pin, previous_pin_hash)
+    ):
+        pin = f"{secrets.randbelow(10000):04d}"
+    return pin
 
 
 @router.get("/agents", response_model=List[AgentRead])
@@ -43,10 +61,13 @@ def list_agents(company: Company = Depends(get_current_company)):
         ).all()
 
 
-@router.post("/agents", response_model=AgentRead, dependencies=[Depends(require_agent_session), Depends(require_admin)])
+@router.post("/agents", response_model=AgentProvisioned, dependencies=[Depends(require_agent_session), Depends(require_admin)])
 def create_agent(agent: AgentCreate, company: Company = Depends(get_current_company)):
     if agent.pin is not None and (not agent.pin.isdigit() or len(agent.pin) != 4):
         raise HTTPException(status_code=400, detail="PIN must be exactly 4 numeric digits")
+    if agent.pin in {"0000", AGENT_BOOTSTRAP_PIN}:
+        raise HTTPException(status_code=400, detail="The setup PIN cannot be used as an agent PIN")
+    setup_pin = None if agent.pin else _new_setup_pin()
     cid = company.id if company and company.id else 1
     with Session(engine) as session:
         now = datetime.now(timezone.utc)
@@ -56,7 +77,7 @@ def create_agent(agent: AgentCreate, company: Company = Depends(get_current_comp
             agent_initials=agent.agent_initials.upper(),
             is_admin=agent.is_admin,
             is_active=agent.is_active,
-            pin=hash_pin(agent.pin or "0000"),
+            pin=hash_pin(agent.pin) if agent.pin else hash_setup_pin(setup_pin),
             company_id=cid,
             created_at=now,
             updated_at=now,
@@ -64,13 +85,17 @@ def create_agent(agent: AgentCreate, company: Company = Depends(get_current_comp
         session.add(db_agent)
         session.commit()
         session.refresh(db_agent)
-        return db_agent
+        result = AgentRead.model_validate(db_agent).model_dump()
+        result["setup_pin"] = setup_pin
+        return result
 
 
 @router.put("/agents/{agent_id}", response_model=AgentRead, dependencies=[Depends(require_agent_session), Depends(require_admin)])
 def update_agent(agent_id: int, incoming: AgentUpdate, company: Company = Depends(get_current_company)):
     if incoming.pin is not None and incoming.pin and (not incoming.pin.isdigit() or len(incoming.pin) != 4):
         raise HTTPException(status_code=400, detail="PIN must be exactly 4 numeric digits")
+    if incoming.pin in {"0000", AGENT_BOOTSTRAP_PIN}:
+        raise HTTPException(status_code=400, detail="The setup PIN cannot be used as an agent PIN")
     cid = company.id if company and company.id else 1
     with Session(engine) as session:
         existing = session.get(Agent, agent_id)
@@ -141,12 +166,13 @@ def reset_agent_pin(agent_id: int, company: Company = Depends(get_current_compan
             raise HTTPException(status_code=404, detail="Active agent profile not found")
         if agent.is_admin:
             raise HTTPException(status_code=403, detail="Admins cannot reset another admin profile's PIN.")
-        agent.pin = hash_pin("0000")
+        setup_pin = _new_setup_pin(agent.pin)
+        agent.pin = hash_setup_pin(setup_pin)
         agent.updated_at = datetime.now(timezone.utc)
         session.add(agent)
         session.commit()
         session.refresh(agent)
-        return {"ok": True, "agent": AgentRead.model_validate(agent)}
+        return {"ok": True, "agent": AgentRead.model_validate(agent), "setup_pin": setup_pin}
 
 
 @router.post("/agents/verify-pin")
@@ -173,9 +199,13 @@ def verify_agent_pin(req: PinVerifyRequest, request: Request, company: Company =
             return {"valid": False, "detail": "Invalid profile or PIN"}
 
         if verify_pin_hash(req.pin, agent.pin):
+            if req.pin == "0000" and verify_pin_hash("0000", agent.pin):
+                record_failed_pin_attempt(rate_key)
+                record_failed_pin_attempt(ip_rate_key)
+                return {"valid": False, "detail": "This legacy setup PIN has been disabled. Ask an administrator to reset this profile."}
             clear_pin_attempts(rate_key)
             clear_pin_attempts(ip_rate_key)
-            if verify_pin_hash("0000", agent.pin):
+            if is_setup_pin_hash(agent.pin):
                 token = generate_agent_token(agent, cid, pin_setup=True)
                 return {
                     "valid": True,
@@ -203,10 +233,8 @@ def change_agent_pin(
     x_agent_token: str | None = Header(None, alias="X-Agent-Token"),
     company: Company = Depends(get_current_company),
 ):
-    if not req.pin.isdigit() or len(req.pin) != 4:
-        raise HTTPException(status_code=400, detail="Current PIN must be exactly 4 numeric digits")
-    if not req.new_pin.isdigit() or len(req.new_pin) != 4 or req.new_pin == "0000":
-        raise HTTPException(status_code=400, detail="Choose a new PIN of 4 numeric digits. 0000 cannot be used.")
+    if not req.new_pin.isdigit() or len(req.new_pin) != 4 or req.new_pin in {"0000", AGENT_BOOTSTRAP_PIN}:
+        raise HTTPException(status_code=400, detail="Choose a new PIN of 4 numeric digits; setup PINs cannot be reused.")
     claims = verify_agent_token(x_agent_token)
     if not claims or int(claims.get("cid", 0)) != int(company.id or 0):
         raise HTTPException(status_code=401, detail="PIN setup session expired. Please sign in again.")
@@ -228,12 +256,15 @@ def change_agent_pin(
         if not agent or claims.get("pin") != fingerprint:
             raise HTTPException(status_code=401, detail="PIN setup session is no longer valid.")
         if claims.get("setup"):
-            if not verify_pin_hash("0000", agent.pin):
+            if not is_setup_pin_hash(agent.pin) or verify_pin_hash(req.new_pin, agent.pin):
                 raise HTTPException(status_code=401, detail="This PIN setup session has already been used.")
-        elif not verify_pin_hash(req.pin, agent.pin):
-            record_failed_pin_attempt(rate_key)
-            record_failed_pin_attempt(ip_rate_key)
-            raise HTTPException(status_code=401, detail="Current PIN is incorrect.")
+        else:
+            if not req.pin or not req.pin.isdigit() or len(req.pin) != 4:
+                raise HTTPException(status_code=400, detail="Current PIN must be exactly 4 numeric digits")
+            if is_setup_pin_hash(agent.pin) or not verify_pin_hash(req.pin, agent.pin):
+                record_failed_pin_attempt(rate_key)
+                record_failed_pin_attempt(ip_rate_key)
+                raise HTTPException(status_code=401, detail="Current PIN is incorrect.")
         clear_pin_attempts(rate_key)
         clear_pin_attempts(ip_rate_key)
         agent.pin = hash_pin(req.new_pin)

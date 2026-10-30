@@ -1200,7 +1200,7 @@ export async function trackPrivateNoteUsageApi(id) {
 
 export async function fetchAgentUserDataApi(agentInitials) {
   if (!agentInitials) return null;
-  return await safeFetchJson(`${API_BASE}/api/agent-data?agent_initials=${encodeURIComponent(agentInitials)}`);
+  return await safeFetchJson(`${API_BASE}/api/agent-data`);
 }
 
 export async function saveAgentUserDataApi(payload) {

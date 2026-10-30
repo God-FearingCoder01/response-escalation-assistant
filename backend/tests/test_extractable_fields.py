@@ -3,8 +3,9 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select, SQLModel
 
-from backend.main import app, engine, generate_admin_token, sync_default_data_if_needed
+from backend.main import app, engine, sync_default_data_if_needed
 from backend.models import Company, Template, Agent
+from backend.tests.auth_helpers import get_agent_admin_headers, get_superadmin_headers
 from backend.extraction_engine import (
     validate_extraction_pattern,
     extract_values_from_pattern,
@@ -25,12 +26,7 @@ def setup_db():
 
 
 def get_admin_headers(company_id=1, initials="SA"):
-    token = generate_admin_token(initials)
-    return {
-        "X-Admin-Token": token,
-        "X-Admin-Initials": initials,
-        "X-Company-ID": str(company_id),
-    }
+    return get_agent_admin_headers(company_id, initials)
 
 
 def test_1_field_can_be_marked_extractable():
@@ -244,7 +240,12 @@ def test_15_invalid_bracket_configurations_are_rejected():
 
 def test_16_multi_tenant_isolation_is_preserved():
     headers1 = get_admin_headers(company_id=1, initials="SA")
-    headers2 = get_admin_headers(company_id=2, initials="SA")
+    superadmin_headers = get_superadmin_headers()
+    company_b = client.post(
+        "/companies",
+        headers=superadmin_headers,
+        json={"name": "Company B", "slug": "company-b", "is_active": True},
+    ).json()
 
     # Create template under company 1
     resp1 = client.post(
@@ -261,7 +262,7 @@ def test_16_multi_tenant_isolation_is_preserved():
     tpl1_id = resp1.json()["id"]
 
     # Company 2 should not be able to access Company 1's template
-    resp2 = client.get(f"/templates/{tpl1_id}", headers=headers2)
+    resp2 = client.get(f"/templates/{tpl1_id}", headers=get_admin_headers(company_id=company_b["id"], initials="SA"))
     assert resp2.status_code == 404
 
 

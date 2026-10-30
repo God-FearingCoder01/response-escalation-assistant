@@ -83,16 +83,31 @@ def clear_pin_attempts(key: str):
 
 
 def hash_pin(pin: str, salt: str | None = None) -> str:
-    clean_pin = (pin or "0000").strip()
+    clean_pin = (pin or "").strip()
+    if not clean_pin:
+        raise ValueError("PIN cannot be empty")
     salt = salt or secrets.token_hex(16)
     digest = hashlib.pbkdf2_hmac("sha256", clean_pin.encode("utf-8"), salt.encode("utf-8"), PBKDF2_ITERATIONS)
     return f"pbkdf2_v1:{salt}:{digest.hex()}"
+
+
+def hash_setup_pin(pin: str) -> str:
+    """Hash a one-time PIN and persist that it must be changed before use."""
+    if pin == "0000":
+        raise ValueError("The setup PIN cannot be 0000")
+    return f"setup_v1:{hash_pin(pin)}"
+
+
+def is_setup_pin_hash(stored_hash: str | None) -> bool:
+    return bool(stored_hash and stored_hash.startswith("setup_v1:"))
 
 
 def verify_pin_hash(pin: str, stored_hash: str | None) -> bool:
     if not pin:
         return False
     clean_pin = pin.strip()
+    if stored_hash is not None and stored_hash.startswith("setup_v1:"):
+        stored_hash = stored_hash[len("setup_v1:"):]
     if not stored_hash or stored_hash == "0000":
         return clean_pin == "0000"
     if stored_hash.startswith("pbkdf2_v1:"):

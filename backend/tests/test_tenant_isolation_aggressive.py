@@ -1,7 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import SQLModel, Session
-from backend.main import app, engine, generate_admin_token, Company, sync_default_data_if_needed
+from backend.main import app, engine, Company, sync_default_data_if_needed
+from backend.tests.auth_helpers import get_agent_admin_headers, get_superadmin_headers
 
 client = TestClient(app)
 
@@ -16,8 +17,7 @@ def setup_db():
 
 
 def setup_tenants_and_headers():
-    admin_token = generate_admin_token("SA")
-    admin_headers = {"X-Admin-Token": admin_token, "X-Admin-Initials": "SA"}
+    admin_headers = get_superadmin_headers()
 
     res_a = client.post(
         "/companies",
@@ -43,9 +43,9 @@ def setup_tenants_and_headers():
     assert res_g.status_code == 200
     comp_g = res_g.json()
 
-    headers_a = {"X-Company-ID": str(comp_a["id"]), **admin_headers}
-    headers_b = {"X-Company-ID": str(comp_b["id"]), **admin_headers}
-    headers_g = {"X-Company-ID": str(comp_g["id"]), **admin_headers}
+    headers_a = get_agent_admin_headers(comp_a["id"])
+    headers_b = get_agent_admin_headers(comp_b["id"])
+    headers_g = get_agent_admin_headers(comp_g["id"])
 
     return comp_a, comp_b, comp_g, headers_a, headers_b, headers_g
 
@@ -139,14 +139,15 @@ def test_agent_cross_tenant_isolation():
         headers=headers_b,
         json={"agent_initials": "AA", "pin": "1111"},
     )
-    assert verify_res.status_code == 404
+    assert verify_res.status_code == 200
+    assert verify_res.json()["valid"] is False
 
 
 def test_private_note_cross_tenant_isolation():
     _, _, _, headers_a, headers_b, _ = setup_tenants_and_headers()
 
-    headers_a_agent = {**headers_a, "X-Agent-Initials": "AA"}
-    headers_b_agent = {**headers_b, "X-Agent-Initials": "AA"}
+    headers_a_agent = headers_a
+    headers_b_agent = headers_b
 
     res_note = client.post(
         "/private-notes",
@@ -217,16 +218,16 @@ def test_favorites_and_history_cross_tenant_isolation():
     ).json()
 
     fav_res = client.post(f"/favorites/CW/{tpl_a['id']}", headers=headers_b)
-    assert fav_res.status_code == 404
+    assert fav_res.status_code == 403
 
     hist_res = client.post(f"/history/CW/{tpl_a['id']}", headers=headers_b)
-    assert hist_res.status_code == 404
+    assert hist_res.status_code == 403
 
-    fav_valid = client.post(f"/favorites/CW/{tpl_a['id']}", headers=headers_a)
+    fav_valid = client.post(f"/favorites/SA/{tpl_a['id']}", headers=headers_a)
     assert fav_valid.status_code == 200
     assert tpl_a["id"] in fav_valid.json()
 
-    fav_b = client.get("/favorites/CW", headers=headers_b).json()
+    fav_b = client.get("/favorites/SA", headers=headers_b).json()
     assert tpl_a["id"] not in fav_b
 
 
@@ -271,7 +272,7 @@ def test_sir_cross_tenant_isolation():
 
 
 def test_agent_user_data_cross_tenant_isolation():
-    _, _, _, headers_a, headers_b, _ = setup_tenants_and_headers()
+    _, comp_b, _, headers_a, headers_b, _ = setup_tenants_and_headers()
 
     save_a = client.post(
         "/api/agent-data",
@@ -284,7 +285,8 @@ def test_agent_user_data_cross_tenant_isolation():
     )
     assert save_a.status_code == 200
 
-    get_b = client.get("/api/agent-data?agent_initials=CW", headers=headers_b).json()
+    headers_b_cw = get_agent_admin_headers(comp_b["id"], "SA")
+    get_b = client.get("/api/agent-data", headers=headers_b_cw).json()
     assert get_b["favorites"] == []
     assert get_b["recently_used"] == []
 

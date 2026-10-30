@@ -3,8 +3,9 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select, SQLModel
 
-from backend.main import app, engine, generate_admin_token, sync_default_data_if_needed
+from backend.main import app, engine, sync_default_data_if_needed
 from backend.models import Template
+from backend.tests.auth_helpers import get_agent_admin_headers
 
 client = TestClient(app)
 
@@ -19,12 +20,7 @@ def setup_db():
 
 
 def get_admin_headers(company_id=1, initials="SA"):
-    token = generate_admin_token(initials)
-    return {
-        "X-Admin-Token": token,
-        "X-Admin-Initials": initials,
-        "X-Company-ID": str(company_id),
-    }
+    return get_agent_admin_headers(company_id, initials)
 
 
 def test_1to_m_and_silenced_mapping_template_creation():

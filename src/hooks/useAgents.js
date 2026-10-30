@@ -211,7 +211,7 @@ export function useAgents({ apiStatus, showToast }) {
     try {
       const agent = pendingAdminAgent;
       const setupToken = window.sessionStorage.getItem(AGENT_TOKEN_KEY);
-      const result = await changeAgentPinApi(agent.agent_initials, "0000", newPin, setupToken);
+      const result = await changeAgentPinApi(agent.agent_initials, "", newPin, setupToken);
       finishAgentLogin(result.agent || agent, result.token);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save your PIN.";
@@ -329,7 +329,11 @@ export function useAgents({ apiStatus, showToast }) {
           try {
             const created = await createAgentApi(payload);
             setAgents((curr) => [...curr, created]);
-            showToast("New agent added successfully! 👤");
+            if (created.setup_pin) {
+              window.alert(`One-time setup PIN for ${created.agent_name}: ${created.setup_pin}\n\nShare it with the agent privately. They must choose a new PIN at first sign-in.`);
+            } else {
+              showToast("New agent added successfully! 👤");
+            }
             handleResetAgentForm();
             return;
           } catch (err) {
@@ -397,7 +401,11 @@ export function useAgents({ apiStatus, showToast }) {
       if (result?.agent) {
         setAgents((curr) => curr.map((agent) => agent.id === agentId ? result.agent : agent));
       }
-      showToast(`PIN reset for ${targetAgent.agent_name}. They must set a new PIN at next sign-in.`);
+      if (result?.setup_pin) {
+        window.alert(`One-time setup PIN for ${targetAgent.agent_name}: ${result.setup_pin}\n\nShare it with the agent privately. They must choose a new PIN at next sign-in.`);
+      } else {
+        showToast(`PIN reset for ${targetAgent.agent_name}. They must set a new PIN at next sign-in.`);
+      }
     } catch (err) {
       showToast(`Error: ${err instanceof Error ? err.message : "Failed to reset agent PIN"} ⚠️`);
     }

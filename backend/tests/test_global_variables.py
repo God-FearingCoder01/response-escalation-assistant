@@ -2,9 +2,10 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import SQLModel, Session, select
 
-from backend.main import app, engine, generate_admin_token, Company, Template, sync_default_data_if_needed
+from backend.main import app, engine, Company, Template, sync_default_data_if_needed
 from backend.models import GlobalVariable
 from backend.services.template_resolution import resolve_global_variables_in_text
+from backend.tests.auth_helpers import get_agent_admin_headers, get_superadmin_headers
 
 client = TestClient(app)
 
@@ -19,8 +20,7 @@ def setup_db():
 
 
 def get_admin_headers(agent_initials="SA"):
-    token = generate_admin_token(agent_initials)
-    return {"X-Admin-Token": token, "X-Admin-Initials": agent_initials}
+    return get_agent_admin_headers(initials=agent_initials)
 
 
 # ============================================================
@@ -84,7 +84,7 @@ def test_read_and_update_global_variable():
     headers = get_admin_headers()
     
     # List variables
-    res_list = client.get("/api/global-variables?company_id=1")
+    res_list = client.get("/api/global-variables?company_id=1", headers=headers)
     assert res_list.status_code == 200
     variables = res_list.json()
     assert len(variables) >= 1
@@ -92,7 +92,7 @@ def test_read_and_update_global_variable():
     var_id = variables[0]["id"]
     
     # Get by ID
-    res_get = client.get(f"/api/global-variables/{var_id}?company_id=1")
+    res_get = client.get(f"/api/global-variables/{var_id}?company_id=1", headers=headers)
     assert res_get.status_code == 200
     assert res_get.json()["id"] == var_id
 
@@ -144,7 +144,7 @@ def test_company_tenant_isolation():
     # Create Company B
     comp_b = client.post(
         "/companies",
-        headers=headers,
+        headers=get_superadmin_headers(),
         json={"name": "Company B", "slug": "company-b", "is_active": True}
     ).json()
     company_b_id = comp_b["id"]
@@ -167,11 +167,12 @@ def test_company_tenant_isolation():
         "value": "Company B Secret",
         "category": "General",
     }
-    var_b = client.post("/api/global-variables", headers=headers, json=payload_b).json()
+    var_b = client.post("/api/global-variables", headers=get_agent_admin_headers(company_b_id), json=payload_b).json()
     assert var_a["id"] != var_b["id"]
 
     # Company B listing must not contain Company A's variables
-    res_b_list = client.get(f"/api/global-variables?company_id={company_b_id}").json()
+    headers_b = get_agent_admin_headers(company_b_id)
+    res_b_list = client.get(f"/api/global-variables?company_id={company_b_id}", headers=headers_b).json()
     values_b = [v["value"] for v in res_b_list]
     assert "Company A Secret" not in values_b
 
@@ -181,7 +182,7 @@ def test_company_tenant_isolation():
         headers=headers,
         json={"value": "Hacked Value"}
     )
-    assert res_cross_update.status_code == 404
+    assert res_cross_update.status_code == 403
 
 
 # ============================================================
@@ -220,7 +221,7 @@ def test_usage_tracking_and_delete_protection():
     ).json()
 
     # Fetch usage
-    res_usage = client.get(f"/api/global-variables/{var_id}/usage?company_id=1")
+    res_usage = client.get(f"/api/global-variables/{var_id}/usage?company_id=1", headers=headers)
     assert res_usage.status_code == 200
     usage_info = res_usage.json()
     assert usage_info["usage_count"] == 1
@@ -351,11 +352,11 @@ def test_template_migration_search_preview_and_apply():
     assert apply_data["updated_count"] == 1
 
     # Verify t1 was updated with {live_chat}
-    res_t1 = client.get(f"/templates/{t1['id']}").json()
+    res_t1 = client.get(f"/templates/{t1['id']}", headers=headers).json()
     assert "via {live_chat}" in res_t1["body"]
 
     # Verify t2 was NOT modified because it was not selected
-    res_t2 = client.get(f"/templates/{t2['id']}").json()
+    res_t2 = client.get(f"/templates/{t2['id']}", headers=headers).json()
     assert "WhatsApp at +263 77 999 8888" in res_t2["body"]
 
 
@@ -365,13 +366,13 @@ def test_migration_cross_company_safety():
     # Create Company B
     comp_b = client.post(
         "/companies",
-        headers=headers,
+        headers=get_superadmin_headers(),
         json={"name": "Company C", "slug": "company-c", "is_active": True}
     ).json()
     company_b_id = comp_b["id"]
 
     # Create template in Company B with shared text
-    headers_b = {**headers, "X-Company-ID": str(company_b_id)}
+    headers_b = get_agent_admin_headers(company_b_id)
     t_b = client.post(
         "/templates",
         headers=headers_b,

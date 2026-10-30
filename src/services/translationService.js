@@ -1,5 +1,5 @@
 // Translation Service for English <-> Shona (and vice versa)
-import { API_BASE } from "./api";
+import { API_BASE, getCompanyHeaders } from "./api";
 
 // Comprehensive domain-specific dictionary for fast & reliable ISP/Support translation
 const SUPPORT_DICTIONARY = {
@@ -189,7 +189,7 @@ export async function translateText(text, sourceLang = "en", targetLang = "sn") 
   try {
     const res = await fetch(`${API_BASE}/translate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getCompanyHeaders() },
       body: JSON.stringify({ text: cleanText, source_lang: src, target_lang: tgt }),
     });
 

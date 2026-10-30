@@ -2,7 +2,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import SQLModel, Session, select
 
-from backend.main import app, engine, generate_admin_token, Company, Template, Agent, sync_default_data_if_needed
+from backend.main import app, engine, Company, Template, Agent, sync_default_data_if_needed
+from backend.tests.auth_helpers import get_agent_admin_headers, get_superadmin_headers
 
 client = TestClient(app)
 
@@ -17,8 +18,7 @@ def setup_db():
 
 
 def test_company_creation_and_listing():
-    token = generate_admin_token("SA")
-    headers = {"X-Admin-Token": token, "X-Admin-Initials": "SA"}
+    headers = get_superadmin_headers()
 
     res_a = client.post(
         "/companies",
@@ -39,15 +39,14 @@ def test_company_creation_and_listing():
     comp_b = res_b.json()
     assert comp_b["slug"] == "company-b"
 
-    res_list = client.get("/companies")
+    res_list = client.get("/companies", headers=headers)
     assert res_list.status_code == 200
     companies = res_list.json()
     assert len(companies) >= 3
 
 
 def test_tenant_data_isolation():
-    token = generate_admin_token("SA")
-    headers_admin = {"X-Admin-Token": token, "X-Admin-Initials": "SA"}
+    headers_admin = get_superadmin_headers()
 
     comp_a = client.post(
         "/companies",
@@ -61,8 +60,8 @@ def test_tenant_data_isolation():
         json={"name": "Company Beta", "slug": "company-beta", "is_active": True}
     ).json()
 
-    headers_comp_a = {"X-Company-ID": str(comp_a["id"]), **headers_admin}
-    headers_comp_b = {"X-Company-ID": str(comp_b["id"]), **headers_admin}
+    headers_comp_a = get_agent_admin_headers(comp_a["id"])
+    headers_comp_b = get_agent_admin_headers(comp_b["id"])
 
     tpl_a = client.post(
         "/templates",
@@ -88,13 +87,13 @@ def test_tenant_data_isolation():
     )
     assert tpl_b.status_code == 200
 
-    get_a = client.get("/templates", headers={"X-Company-ID": str(comp_a["id"])})
+    get_a = client.get("/templates", headers=headers_comp_a)
     assert get_a.status_code == 200
     names_a = [t["name"] for t in get_a.json()]
     assert "Alpha Special Escalation" in names_a
     assert "Beta Special Escalation" not in names_a
 
-    get_b = client.get("/templates", headers={"X-Company-ID": str(comp_b["id"])})
+    get_b = client.get("/templates", headers=headers_comp_b)
     assert get_b.status_code == 200
     names_b = [t["name"] for t in get_b.json()]
     assert "Beta Special Escalation" in names_b
@@ -102,8 +101,7 @@ def test_tenant_data_isolation():
 
 
 def test_agent_isolation_per_company():
-    token = generate_admin_token("SA")
-    headers_admin = {"X-Admin-Token": token, "X-Admin-Initials": "SA"}
+    headers_admin = get_superadmin_headers()
 
     comp_a = client.post(
         "/companies",
@@ -113,7 +111,7 @@ def test_agent_isolation_per_company():
 
     res_agent = client.post(
         "/agents",
-        headers={"X-Company-ID": str(comp_a["id"]), **headers_admin},
+        headers=get_agent_admin_headers(comp_a["id"]),
         json={
             "agent": "Alice Alpha",
             "agent_name": "Alice",
@@ -124,10 +122,10 @@ def test_agent_isolation_per_company():
     )
     assert res_agent.status_code == 200
 
-    agents_a = client.get("/agents", headers={"X-Company-ID": str(comp_a["id"])}).json()
+    agents_a = client.get("/agents", headers=get_agent_admin_headers(comp_a["id"])).json()
     initials_a = [a["agent_initials"] for a in agents_a]
     assert "AA" in initials_a
 
-    agents_def = client.get("/agents", headers={"X-Company-ID": "1"}).json()
+    agents_def = client.get("/agents", headers=get_agent_admin_headers(1)).json()
     initials_def = [a["agent_initials"] for a in agents_def]
     assert "AA" not in initials_def

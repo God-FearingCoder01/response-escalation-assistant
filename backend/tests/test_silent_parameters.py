@@ -3,8 +3,9 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select, SQLModel
 
-from backend.main import app, engine, generate_admin_token, sync_default_data_if_needed
+from backend.main import app, engine, sync_default_data_if_needed
 from backend.models import Company, Template
+from backend.tests.auth_helpers import get_agent_admin_headers, get_superadmin_headers
 from backend.extraction_engine import (
     validate_extraction_pattern,
     extract_values_from_pattern,
@@ -25,12 +26,7 @@ def setup_db():
 
 
 def get_admin_headers(company_id=1, initials="SA"):
-    token = generate_admin_token(initials)
-    return {
-        "X-Admin-Token": token,
-        "X-Admin-Initials": initials,
-        "X-Company-ID": str(company_id),
-    }
+    return get_agent_admin_headers(company_id, initials)
 
 
 def test_1_required_parameter_can_be_marked_silent():
@@ -301,7 +297,12 @@ def test_15_multiple_silent_parameters_can_coexist():
 
 def test_16_multi_tenant_isolation_remains_intact():
     headers1 = get_admin_headers(company_id=1, initials="SA")
-    headers2 = get_admin_headers(company_id=2, initials="SA")
+    company_b = client.post(
+        "/companies",
+        headers=get_superadmin_headers(),
+        json={"name": "Company B", "slug": "company-b", "is_active": True},
+    ).json()
+    headers2 = get_admin_headers(company_id=company_b["id"], initials="SA")
 
     resp1 = client.post(
         "/templates",
