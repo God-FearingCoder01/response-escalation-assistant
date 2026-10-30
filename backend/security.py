@@ -6,6 +6,9 @@ import secrets
 import time
 from datetime import datetime, timedelta, timezone
 
+from typing import cast
+from sqlalchemy.sql.elements import ColumnElement
+
 from fastapi import Depends, Header, HTTPException, Request
 from pydantic import BaseModel
 from sqlmodel import Session, select
@@ -83,7 +86,10 @@ def record_failed_pin_attempt(key: str):
         window_started_at=now,
         blocked_until=None,
     )
-    expired = AuthAttemptState.window_started_at <= cutoff
+    expired = cast(
+        ColumnElement[bool],
+        AuthAttemptState.window_started_at <= cutoff,
+    )
     next_attempts = case(
         (expired, 1),
         else_=AuthAttemptState.failed_attempts + 1,
@@ -100,7 +106,7 @@ def record_failed_pin_attempt(key: str):
         },
     )
     with Session(engine) as session:
-        session.execute(statement)
+        session.exec(statement)
         session.commit()
 
 
@@ -312,7 +318,7 @@ def require_agent_session(
             Agent.agent_initials == initials,
             Agent.is_active == True,
         )).first()
-        if not agent or int(claims.get("tv", 0)) != int(agent.token_version or 1):
+        if not agent or int(claims.get("tv", 0)) != (agent.token_version or 1):
             raise HTTPException(status_code=401, detail="Agent session is no longer valid. Please sign in again.")
         return {
             "agent_initials": initials,
