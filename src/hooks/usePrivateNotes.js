@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   fetchPrivateNotesApi,
   createPrivateNoteApi,
@@ -37,22 +37,57 @@ function getTodayDateStr() {
   return new Date().toISOString().split("T")[0];
 }
 
+const NO_NOTES = [];
+const NO_CATEGORIES = [];
+const LOAD_ATTEMPTS = 3;
+
 export function usePrivateNotes({ currentAgent, showToast, refreshSuggestions }) {
-  const [privateNotes, setPrivateNotes] = useState([]);
-  const [dbCustomCategories, setDbCustomCategories] = useState([]);
+  const [rawNotes, setPrivateNotes] = useState([]);
+  const [rawCategories, setDbCustomCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [promptBannerNote, setPromptBannerNote] = useState(null);
+  // Which agent the notes/categories in state belong to. Anything not owned by the
+  // signed-in agent is hidden immediately, so one agent's data can never render
+  // for another agent, even for the single render before the reset effect runs.
+  const [dataOwner, setDataOwner] = useState("");
+  // Incremented on every load and every agent change; a response from an older
+  // request (e.g. the previous agent's slow fetch) is discarded.
+  const loadSeqRef = useRef(0);
 
-  const agentInitials = currentAgent?.agent_initials || "SA";
+  const agentInitials = currentAgent?.agent_initials || "";
+  const ownsData = !!agentInitials && dataOwner === agentInitials;
+  const privateNotes = ownsData ? rawNotes : NO_NOTES;
+  const dbCustomCategories = ownsData ? rawCategories : NO_CATEGORIES;
 
   const refreshPrivateNotes = useCallback(async () => {
-    if (!agentInitials) return;
+    const seq = ++loadSeqRef.current;
+    if (!agentInitials) {
+      setPrivateNotes([]);
+      setDbCustomCategories([]);
+      setPromptBannerNote(null);
+      setDataOwner("");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const [data, catsData] = await Promise.all([
-        fetchPrivateNotesApi(agentInitials),
-        fetchPrivateNoteCategoriesApi(agentInitials).catch(() => []),
-      ]);
+      let data = null;
+      let catsData = [];
+      // The API helper returns null on timeout or error (e.g. a cold server start).
+      // Retry a couple of times so a slow first request doesn't leave an empty list.
+      for (let attempt = 0; attempt < LOAD_ATTEMPTS; attempt++) {
+        [data, catsData] = await Promise.all([
+          fetchPrivateNotesApi(agentInitials),
+          fetchPrivateNoteCategoriesApi(agentInitials).catch(() => []),
+        ]);
+        // The agent changed (or a newer load started) while this request was in flight.
+        if (seq !== loadSeqRef.current) return;
+        if (Array.isArray(data)) break;
+        if (attempt < LOAD_ATTEMPTS - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+          if (seq !== loadSeqRef.current) return;
+        }
+      }
 
       if (Array.isArray(data)) {
         const today = getTodayDateStr();
@@ -73,11 +108,24 @@ export function usePrivateNotes({ currentAgent, showToast, refreshSuggestions })
         const names = catsData.map((c) => (typeof c === "string" ? c : c.name)).filter(Boolean);
         setDbCustomCategories(names);
       }
+      setDataOwner(agentInitials);
     } catch (e) {
       console.error("Failed to load private notes:", e);
     } finally {
-      setLoading(false);
+      // Only the latest request controls the loading flag.
+      if (seq === loadSeqRef.current) setLoading(false);
     }
+  }, [agentInitials]);
+
+  // Start every agent with a clean slate: drop the previous agent's notes, categories
+  // and prompt banner before their own data loads. This effect is declared before the
+  // load effect so it always runs first. A failed or slow load can therefore leave an
+  // agent with an empty list, but never with someone else's notes.
+  useEffect(() => {
+    setPrivateNotes([]);
+    setDbCustomCategories([]);
+    setPromptBannerNote(null);
+    setDataOwner(agentInitials);
   }, [agentInitials]);
 
   useEffect(() => {

@@ -1104,7 +1104,7 @@ export async function deleteSirIssueApi(id) {
 export async function fetchPrivateNotesApi(agentInitials) {
   const headers = { ...getCompanyHeaders() };
   if (agentInitials) headers["X-Agent-Initials"] = agentInitials;
-  return await safeFetchJson(`${API_BASE}/private-notes`, { headers });
+  return await safeFetchJson(`${API_BASE}/private-notes`, { headers, timeoutMs: 10000 });
 }
 
 export async function createPrivateNoteApi(payload, agentInitials) {
@@ -1154,7 +1154,7 @@ export async function deletePrivateNoteApi(id, agentInitials) {
 export async function fetchPrivateNoteCategoriesApi(agentInitials) {
   const headers = { ...getCompanyHeaders() };
   if (agentInitials) headers["X-Agent-Initials"] = agentInitials;
-  return await safeFetchJson(`${API_BASE}/private-notes/categories`, { headers });
+  return await safeFetchJson(`${API_BASE}/private-notes/categories`, { headers, timeoutMs: 10000 });
 }
 
 export async function createPrivateNoteCategoryApi(categoryName, agentInitials) {
@@ -1200,7 +1200,7 @@ export async function trackPrivateNoteUsageApi(id) {
 
 export async function fetchAgentUserDataApi(agentInitials) {
   if (!agentInitials) return null;
-  return await safeFetchJson(`${API_BASE}/api/agent-data`);
+  return await safeFetchJson(`${API_BASE}/api/agent-data`, { timeoutMs: 10000 });
 }
 
 export async function saveAgentUserDataApi(payload) {

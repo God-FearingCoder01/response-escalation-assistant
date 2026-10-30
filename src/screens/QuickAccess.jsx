@@ -63,6 +63,21 @@ export default function QuickAccess({
     }
   });
 
+  // The two lists above are only read from localStorage when this screen mounts.
+  // Reload them if the signed-in agent changes while the screen stays mounted.
+  const categoryAgentKey = currentAgent?.agent_initials || "default";
+  useEffect(() => {
+    try {
+      const custom = localStorage.getItem(`rea_custom_private_note_categories_${categoryAgentKey}`);
+      setCustomCategories(custom ? JSON.parse(custom) : []);
+      const deleted = localStorage.getItem(`rea_deleted_default_categories_${categoryAgentKey}`);
+      setDeletedDefaultCategories(deleted ? JSON.parse(deleted) : []);
+    } catch {
+      setCustomCategories([]);
+      setDeletedDefaultCategories([]);
+    }
+  }, [categoryAgentKey]);
+
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCustomCategoryName, setNewCustomCategoryName] = useState("");
   const [categoryError, setCategoryError] = useState("");

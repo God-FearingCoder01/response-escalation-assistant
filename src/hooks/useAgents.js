@@ -191,13 +191,16 @@ export function useAgents({ apiStatus, showToast }) {
 
   const finishAgentLogin = (agent, token) => {
     if (!token) throw new Error("The server did not establish an authenticated session.");
-    setCurrentAgent(agent);
+    // Store the new session first, then publish the agent to React. Hooks start
+    // loading this agent's data as soon as currentAgent changes, and those requests
+    // read the token from sessionStorage, so it must already be the new agent's.
     window.sessionStorage.setItem(AGENT_KEY, JSON.stringify(agent));
     window.sessionStorage.setItem(AGENT_TOKEN_KEY, token);
     window.sessionStorage.removeItem("rea_agent_setup_session_v1");
     window.localStorage.removeItem(AGENT_KEY);
     window.localStorage.removeItem(ADMIN_TOKEN_KEY);
     window.localStorage.removeItem(ADMIN_INITIALS_KEY);
+    setCurrentAgent(agent);
     setShowPinModal(false);
     setShowPinSetupModal(false);
     setPendingAdminAgent(null);

@@ -1,8 +1,9 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { translateText, getPresetPhrases } from "../services/translationService";
 import { fetchAgentUserDataApi, saveAgentUserDataApi } from "../services/api";
 
 const HISTORY_KEY = "rea_translator_history_v1";
+const NO_HISTORY = [];
 
 export function useTranslator({ currentAgent = null, showToast = () => {} } = {}) {
   const [sourceText, setSourceText] = useState("");
@@ -16,15 +17,26 @@ export function useTranslator({ currentAgent = null, showToast = () => {} } = {}
   const agentInitials = currentAgent?.agent_initials ? currentAgent.agent_initials.toUpperCase() : "GUEST";
   const historyKey = `rea_translator_history_${agentInitials}`;
 
-  // Persistent user-scoped translation history
-  const [history, setHistory] = useState([]);
+  // Persistent user-scoped translation history. The items are stored together with the
+  // agent they belong to, so history that is not owned by the current agent is never
+  // shown and can never be saved under a different agent's key.
+  const [historyState, setHistoryState] = useState({ owner: "", items: NO_HISTORY });
+  const history = historyState.owner === agentInitials ? historyState.items : NO_HISTORY;
 
-  const loadedAgentRef = useRef(agentInitials);
+  const setHistory = useCallback(
+    (updater) => {
+      setHistoryState((current) => {
+        const base = current.owner === agentInitials ? current.items : NO_HISTORY;
+        const items = typeof updater === "function" ? updater(base) : updater;
+        return { owner: agentInitials, items };
+      });
+    },
+    [agentInitials]
+  );
 
   // Load history whenever active agent changes (localStorage + backend server sync)
   useEffect(() => {
     if (!agentInitials) return;
-    loadedAgentRef.current = agentInitials;
 
     let localHistory = [];
     try {
@@ -41,11 +53,16 @@ export function useTranslator({ currentAgent = null, showToast = () => {} } = {}
     setSourceText("");
     setTranslatedText("");
 
+    // Nobody is signed in: there is no server session to sync with.
+    if (agentInitials === "GUEST") return;
+
     let mounted = true;
     async function syncHistory() {
       try {
         const serverData = await fetchAgentUserDataApi(agentInitials);
-        if (serverData && Array.isArray(serverData.translation_history) && mounted && loadedAgentRef.current === agentInitials) {
+        // `mounted` flips to false as soon as the agent changes, so a late response
+        // for the previous agent is ignored.
+        if (serverData && Array.isArray(serverData.translation_history) && mounted) {
           setHistory(serverData.translation_history);
           try { localStorage.setItem(historyKey, JSON.stringify(serverData.translation_history)); } catch (e) {}
         }
@@ -56,27 +73,26 @@ export function useTranslator({ currentAgent = null, showToast = () => {} } = {}
     return () => {
       mounted = false;
     };
-  }, [historyKey, agentInitials]);
+  }, [historyKey, agentInitials, setHistory]);
 
   // Save history updates per agent to localStorage & backend DB
   useEffect(() => {
     if (!agentInitials || agentInitials === "GUEST") return;
-    // Guard against saving stale history from a previous agent to a newly selected agent
-    if (loadedAgentRef.current !== agentInitials) {
-      return;
-    }
+    // Never save history that belongs to a previous agent under the newly selected one.
+    // In the render right after a switch the state still holds the old agent's items.
+    if (historyState.owner !== agentInitials) return;
 
     try {
-      localStorage.setItem(historyKey, JSON.stringify(history));
+      localStorage.setItem(historyKey, JSON.stringify(historyState.items));
     } catch (e) {}
 
-    if (history.length > 0) {
+    if (historyState.items.length > 0) {
       saveAgentUserDataApi({
         agent_initials: agentInitials,
-        translation_history: history,
+        translation_history: historyState.items,
       });
     }
-  }, [history, historyKey, agentInitials]);
+  }, [historyState, historyKey, agentInitials]);
 
   // Listen for admin preset phrases updates
   useEffect(() => {
@@ -110,7 +126,7 @@ export function useTranslator({ currentAgent = null, showToast = () => {} } = {}
           )
       ),
     ].slice(0, 25));
-  }, [sourceLang, targetLang]);
+  }, [sourceLang, targetLang, setHistory]);
 
   // Swap translation direction (e.g. EN -> ND <==> ND -> EN)
   const handleSwapLanguages = useCallback(() => {
@@ -189,7 +205,7 @@ export function useTranslator({ currentAgent = null, showToast = () => {} } = {}
       localStorage.removeItem(historyKey);
     } catch (e) {}
     showToast?.("Translation history cleared!");
-  }, [historyKey, showToast]);
+  }, [historyKey, showToast, setHistory]);
 
   return {
     sourceText,
