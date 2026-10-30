@@ -370,7 +370,7 @@ def require_admin(
                 Agent.agent_initials == initials,
                 Agent.is_active == True,
             )).first()
-            if agent and agent.is_admin and int(claims.get("tv", 0)) == int(agent.token_version or 1):
+            if agent and agent.is_admin and int(claims.get("tv", 0)) == agent.token_version or 1:
                 return True
 
     legacy = verify_admin_token(x_admin_token)
