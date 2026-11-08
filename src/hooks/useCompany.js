@@ -27,15 +27,23 @@ export function useCompany() {
   const loadCompanies = useCallback(async () => {
     try {
       const fixedCompanySlug = import.meta.env?.VITE_REA_COMPANY_SLUG?.toLowerCase();
-      const response = fixedCompanySlug
-        ? await fetchCompanyBySlugApi(fixedCompanySlug)
-        : await fetchCompaniesApi();
-      const data = Array.isArray(response) ? response : response ? [response] : [];
-      if (Array.isArray(data) && data.length > 0) {
+      const urlSlug = fixedCompanySlug || getSlugFromUrl();
+
+      // GET /companies is superadmin-only, so a normal visitor never gets the list back.
+      // The company named in the URL is therefore resolved through the public by-slug
+      // endpoint; the full list (superadmin only) is merged in when it is available.
+      const [slugResponse, listResponse] = await Promise.all([
+        urlSlug ? fetchCompanyBySlugApi(urlSlug) : null,
+        fixedCompanySlug ? null : fetchCompaniesApi(),
+      ]);
+      const data = Array.isArray(listResponse) ? [...listResponse] : [];
+      if (slugResponse && !Array.isArray(slugResponse) && !data.some((c) => c.id === slugResponse.id)) {
+        data.push(slugResponse);
+      }
+      if (data.length > 0) {
         setCompanies(data);
 
         // Check if URL specifies an organization slug
-        const urlSlug = fixedCompanySlug || getSlugFromUrl();
         let matched = false;
         if (urlSlug) {
           const matchedComp = data.find((c) => c.slug.toLowerCase() === urlSlug);
