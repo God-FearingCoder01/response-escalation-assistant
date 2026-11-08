@@ -44,7 +44,9 @@ jobs:
     env:
       DATABASE_URL: postgresql+psycopg://rea:rea@localhost:5432/rea_test
       SECRET_KEY: ci-only-secret-key-0123456789abcdef0123456789abcdef
-      PIN_PEPPER: ci-only-pin-pepper-0123456789abcdef
+      # Must equal the PIN_PEPPER set in backend/tests/conftest.py: the migration step
+      # below seeds PIN hashes with this value and the tests verify them with that one.
+      PIN_PEPPER: test-only-pin-pepper-0123456789abcdef
       SUPERADMIN_BOOTSTRAP_PIN: "7314"
       AGENT_BOOTSTRAP_PIN: "5826"
     steps:
