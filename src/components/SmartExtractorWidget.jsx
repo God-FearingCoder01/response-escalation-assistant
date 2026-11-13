@@ -307,8 +307,9 @@ export default function SmartExtractorWidget({
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-xs text-gray-400">
             <div className="flex items-center gap-2">
-              <span className="text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2.5 py-0.5 rounded-full font-bold text-[10px]">
-                ✨ Enhanced Cursive & Script OCR Active
+              <span className="inline-flex items-center gap-1 text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2.5 py-0.5 rounded-full font-bold text-[10px]">
+                <img src="/sparkling.png" alt="" className="h-3 w-3 shrink-0 object-contain" />
+                Enhanced Cursive & Script OCR Active
               </span>
               <span>
                 {extractor.loadingRules
@@ -328,13 +329,14 @@ export default function SmartExtractorWidget({
           <div className="flex rounded-xl bg-black/30 p-1 border border-white/10">
             <button
               onClick={() => extractor.setInputMode("image")}
-              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition ${
+              className={`flex flex-1 items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition ${
                 extractor.inputMode === "image"
                   ? "bg-[#4cd34c] text-black shadow-md"
                   : "text-gray-400 hover:text-white"
               }`}
             >
-              🖼️ Upload / Drag / Paste Screenshot (Ctrl+V)
+              <img src="/upload_picture.png" alt="" className="h-4 w-4 shrink-0 object-contain" />
+              Upload / Drag / Paste Screenshot (Ctrl+V)
             </button>
             <button
               onClick={() => extractor.setInputMode("text")}
@@ -370,9 +372,12 @@ export default function SmartExtractorWidget({
                   onDragOver={(e) => e.preventDefault()}
                   className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition border-white/20 hover:border-[#4cd34c]/50 bg-black/20"
                 >
-                  <span className="mb-3 text-4xl">📥</span>
+                  <img src="/upload_picture.png" alt="" className="mb-3 h-12 w-12 object-contain" />
                   <p className="text-sm font-semibold text-white">Drag & Drop Screenshot Here</p>
-                  <p className="text-xs text-[#4cd34c] mt-1 font-medium">✨ Or simply press Ctrl+V anywhere to paste screenshot from clipboard!</p>
+                  <p className="text-xs text-[#4cd34c] mt-1 font-medium flex items-center justify-center gap-1">
+                    <img src="/sparkling.png" alt="" className="h-3.5 w-3.5 shrink-0 object-contain" />
+                    Or simply press Ctrl+V anywhere to paste screenshot from clipboard!
+                  </p>
 
                   <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-[#4cd34c]/20 px-4 py-2 text-xs font-bold text-[#4cd34c] border border-[#4cd34c]/30 hover:bg-[#4cd34c]/30 transition">
                     📁 Browse Image File

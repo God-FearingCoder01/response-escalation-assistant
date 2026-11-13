@@ -351,7 +351,7 @@ Thank you!`
                       className="text-xs text-[#4cd34c] hover:underline flex items-center gap-1"
                     >
                       <span>Or open in email app</span>
-                      <img src="/out.png" alt="External" className="h-3 w-3 shrink-0 object-contain" />
+                      <img src={themeMode === "night" ? "/out-light.png" : "/out.png"} alt="External" className="h-3 w-3 shrink-0 object-contain" />
                     </a>
 
                     <div className="flex gap-2">
