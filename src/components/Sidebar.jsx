@@ -29,7 +29,9 @@ export default function Sidebar({
       }`}
       style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--sidebar-bg)" }}
     >
-      <div className="space-y-6">
+      {/* min-h-0 + overflow lets this part scroll on short windows (laptops, side panel) so the
+          footer below, which holds Sign Out / Switch, always stays on screen. */}
+      <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Logo / Header */}
         <div className="flex items-center gap-3 overflow-hidden px-1">
           <img src="/REA.png" alt="REA Logo" className="h-10 w-10 shrink-0 object-contain shadow-lg" />
@@ -235,7 +237,7 @@ export default function Sidebar({
       </div>
 
       {/* Sidebar Footer Controls */}
-      <div className="space-y-3 pt-4 border-t" style={{ borderColor: "var(--panel-border)" }}>
+      <div className="shrink-0 space-y-2 pt-2 border-t" style={{ borderColor: "var(--panel-border)" }}>
         {/* Theme Toggle */}
         <button
           onClick={() => setThemeMode((c) => (c === "night" ? "day" : "night"))}
