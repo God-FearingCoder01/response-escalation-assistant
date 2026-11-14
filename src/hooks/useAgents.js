@@ -376,7 +376,16 @@ export function useAgents({ apiStatus, showToast }) {
       return;
     }
 
-    if (!window.confirm("Are you sure you want to delete this agent?")) return;
+    const agentLabel = targetAgent
+      ? `${targetAgent.agent_name} (${targetAgent.agent_initials})`
+      : "this agent";
+    const confirmed = window.confirm(
+      `Permanently delete ${agentLabel}?\n\n` +
+      `This removes their profile and all of their personal data: private notes, ` +
+      `note categories, favorites, usage history and saved settings.\n\n` +
+      `This cannot be undone.`
+    );
+    if (!confirmed) return;
     try {
       if (apiStatus !== "offline") {
         try {

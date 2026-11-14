@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import List
 import secrets
 from fastapi import APIRouter, HTTPException, Depends, Request, Header
+from sqlalchemy import func
 from sqlmodel import Session, select, col
 
 from backend.database import engine
@@ -12,6 +13,11 @@ from backend.models import (
     AgentCreate,
     AgentRead,
     AgentUpdate,
+    AgentUserData,
+    Favorite,
+    PrivateNote,
+    PrivateNoteCategory,
+    UsageHistory,
 )
 from backend.security import (
     hash_pin,
@@ -33,6 +39,15 @@ from backend.security import (
 from backend.bootstrap import AGENT_BOOTSTRAP_PIN
 
 router = APIRouter(tags=["Agents"])
+
+# Per-agent personal data that must go when the agent's profile is deleted.
+_AGENT_PERSONAL_DATA_MODELS = (
+    ("favorites", Favorite),
+    ("history", UsageHistory),
+    ("private_notes", PrivateNote),
+    ("note_categories", PrivateNoteCategory),
+    ("saved_data", AgentUserData),
+)
 
 
 class PinChangeRequest(PinVerifyRequest):
@@ -169,9 +184,34 @@ def delete_agent(agent_id: int, company: Company = Depends(get_current_company))
                     status_code=400,
                     detail="Security Protection: Cannot delete the last remaining System Admin profile on the platform.",
                 )
+        initials = existing.agent_initials.upper()
+        # Personal data is keyed by (company_id, agent_initials). Only purge it when no
+        # other profile in this company shares the initials, so we never wipe the data
+        # that belongs to a different agent.
+        initials_shared = session.exec(
+            select(Agent).where(
+                Agent.company_id == cid,
+                Agent.id != existing.id,
+                func.upper(Agent.agent_initials) == initials,
+            )
+        ).first() is not None
+        removed = {}
+        if not initials_shared:
+            for label, model in _AGENT_PERSONAL_DATA_MODELS:
+                rows = session.exec(
+                    select(model).where(
+                        model.company_id == cid,
+                        func.upper(model.agent_initials) == initials,
+                    )
+                ).all()
+                for row in rows:
+                    session.delete(row)
+                removed[label] = len(rows)
+        # Profile row and personal data are removed in one transaction: if anything
+        # fails, nothing is deleted.
         session.delete(existing)
         session.commit()
-    return {"ok": True, "message": "Agent deleted"}
+    return {"ok": True, "message": "Agent deleted", "removed": removed}
 
 
 @router.post("/agents/{agent_id}/reset-pin", dependencies=[Depends(require_agent_session), Depends(require_admin)])
