@@ -37,11 +37,13 @@ DEFAULT_MODELS = {
     "openai": "gpt-4o-mini",
     "anthropic": "claude-haiku-5-5",
 }
+# Env var(s) holding each provider's key, in order of preference. OpenAI also accepts the
+# shorter OPEN_API_KEY name that some deployments already use.
 KEY_ENV = {
-    "gemini": "GEMINI_API_KEY",
-    "openrouter": "OPENROUTER_API_KEY",
-    "openai": "OPENAI_API_KEY",
-    "anthropic": "ANTHROPIC_API_KEY",
+    "gemini": ("GEMINI_API_KEY",),
+    "openrouter": ("OPENROUTER_API_KEY",),
+    "openai": ("OPENAI_API_KEY", "OPEN_API_KEY"),
+    "anthropic": ("ANTHROPIC_API_KEY",),
 }
 DISPLAY_NAMES = {"gemini": "Gemini", "openrouter": "OpenRouter", "openai": "OpenAI", "anthropic": "Claude"}
 
@@ -83,7 +85,7 @@ def configured_providers() -> List[ProviderConfig]:
     for name in order:
         if name not in KEY_ENV or any(p.name == name for p in providers):
             continue
-        key = os.environ.get(KEY_ENV[name], "").strip()
+        key = next((v for v in (os.environ.get(env, "").strip() for env in KEY_ENV[name]) if v), "")
         if not key:
             continue
         model = os.environ.get(f"{name.upper()}_MODEL", "").strip() or DEFAULT_MODELS[name]

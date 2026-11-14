@@ -91,6 +91,16 @@ def test_blank_provider_order_falls_back_to_default(providers, monkeypatch):
     assert providers["gemini"].calls[0]["model"] == ai_service.DEFAULT_MODELS["gemini"]
 
 
+def test_openai_accepts_open_api_key_name(monkeypatch):
+    for name in ("GEMINI_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("OPEN_API_KEY", "alias-key")
+    [cfg] = ai_service.configured_providers()
+    assert (cfg.name, cfg.api_key) == ("openai", "alias-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "primary-key")  # the standard name wins when both are set
+    assert ai_service.configured_providers()[0].api_key == "primary-key"
+
+
 def test_kill_switch(providers, monkeypatch):
     monkeypatch.setenv("ASK_REA_ENABLED", "false")
     assert ask().status_code == 503
