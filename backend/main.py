@@ -77,6 +77,7 @@ from backend.routers.agent_data import router as agent_data_router
 from backend.routers.global_variables import router as global_variables_router
 from backend.routers.extraction_rules import router as extraction_rules_router
 from backend.routers.timetables import router as timetables_router
+from backend.routers.ask_rea import router as ask_rea_router
 
 
 @asynccontextmanager
@@ -123,4 +124,5 @@ app.include_router(agent_data_router)
 app.include_router(global_variables_router)
 app.include_router(extraction_rules_router)
 app.include_router(timetables_router)
+app.include_router(ask_rea_router)
 

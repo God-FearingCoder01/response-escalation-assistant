@@ -91,8 +91,10 @@ backend/
 ├── security.py                 # PIN hashing, rate-limiting, token auth, require_admin & get_current_company
 ├── services/                   # Business logic & starter data
 │   ├── seed_service.py         # Default organization, starter templates & agent profile seeding
+│   ├── ai_service.py           # Ask REA: Gemini/OpenAI/Anthropic adapters, fallback & per-agent rate limit
+│   ├── redaction.py            # Ask REA: masks customer details before text reaches an AI provider
 │   └── translator_service.py   # Shona & Ndebele dictionaries & sentence translation engine
-├── routers/                    # 11 Modular FastAPI APIRouters
+├── routers/                    # Modular FastAPI APIRouters
 │   ├── health.py               # GET /health
 │   ├── superadmin.py           # /superadmin/* & /companies/*
 │   ├── templates.py            # /templates/*, /export, /import, /templates/deduplicate
@@ -102,6 +104,7 @@ backend/
 │   ├── support_requests.py     # /support-requests/*
 │   ├── favorites_history.py    # /favorites/* & /history/*
 │   ├── translator.py           # POST /translate
+│   ├── ask_rea.py              # GET /ask-rea/status & POST /ask-rea
 │   ├── sir.py                  # /sir/shifts, /sir/targets, /sir/issues
 │   └── agent_data.py           # /api/agent-data
 └── tests/                      # Pytest automated test package
@@ -191,6 +194,32 @@ REA is configured out-of-the-box for seamless Vercel deployment with serverless 
 3. Configure `DATABASE_URL` or `POSTGRES_URL` in Vercel environment variables pointing to your production PostgreSQL database (Neon, Supabase, Vercel Postgres, AWS RDS).
 4. Set `SECRET_KEY` to a unique cryptographically random value of at least 32 characters and optionally set `AGENT_SESSION_EXPIRE_HOURS`. Production startup rejects the example/default secret.
 5. Deploy! Vercel will automatically build the React Vite frontend and serve the FastAPI Python backend endpoints.
+
+---
+
+## ✨ Ask REA (AI assistant)
+
+Ask REA lets agents get help wording a customer reply, deciding what to do next, or drafting a
+technical escalation without leaving REA. It supports Gemini, OpenAI and Anthropic (Claude).
+
+**How it protects customers and keys**
+- Provider API keys live only in backend environment variables. The browser and the Chrome
+  extension never receive them; they call `POST /ask-rea` with the agent's normal session token.
+- Before anything is sent to a provider, `backend/services/redaction.py` replaces emails, phone
+  numbers, national IDs, card numbers and any token with six or more digits in a row (account,
+  ticket and transaction references) with placeholders such as `[EMAIL_1]`. Agents can also list
+  names to hide. The placeholders are swapped back in the reply the agent sees. Redaction is a
+  safety net, not a guarantee, so the screen says so and asks agents to review every answer.
+- Conversations are kept in memory only: nothing the customer said is stored in the database or
+  browser storage, and the chat clears when the agent signs out or switches profile.
+- Each agent has an hourly limit (`ASK_REA_HOURLY_LIMIT`, default 30), shared across serverless
+  instances. Provider errors are never passed through to the browser.
+
+**Turning it on**
+1. Set at least one of `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` (see
+   `.env.example`) in the untracked `.env` locally, or in the Vercel project settings.
+2. Optionally set `ASK_REA_PROVIDERS` (order and fallback) and the `*_MODEL` overrides.
+3. Redeploy. With no keys set, the Ask REA screen shows that it is not switched on.
 
 ---
 

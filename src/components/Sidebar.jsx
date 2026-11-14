@@ -154,6 +154,29 @@ export default function Sidebar({
 
           <button
             onClick={() => {
+              setActiveScreen("ask_rea");
+              setIsSidebarHovered(false);
+            }}
+            className={`flex w-full items-center justify-start rounded-2xl p-2.5 font-medium transition-all ${
+              activeScreen === "ask_rea"
+                ? "bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] shadow-md"
+                : "hover:bg-[var(--neutral-bg)] text-[var(--neutral-text)]"
+            }`}
+            title="Ask REA (AI assistant)"
+            aria-label="Open Ask REA"
+          >
+            <span className="flex h-6 w-6 items-center justify-center shrink-0">
+              <img src="/sparkling.png" alt="" className="h-5 w-5 object-contain" />
+            </span>
+            {isSidebarHovered ? (
+              <span className="ml-3 font-semibold text-sm whitespace-nowrap">
+                Ask REA
+              </span>
+            ) : null}
+          </button>
+
+          <button
+            onClick={() => {
               setActiveScreen("shift_register");
               setIsSidebarHovered(false);
             }}

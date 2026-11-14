@@ -51,7 +51,9 @@ export default function HeaderStatusBar({
                           ? "Template Suggestions Hub"
                           : activeScreen === "translator"
                             ? "Translator Center"
-                            : activeScreen === "shift_register"
+                            : activeScreen === "ask_rea"
+                              ? "Ask REA"
+                              : activeScreen === "shift_register"
                               ? "Shift Issue Register (SIR)"
                               : "System Admin Dashboard"}
             </h1>

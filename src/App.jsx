@@ -7,6 +7,7 @@ import { useUserInteractions } from "./hooks/useUserInteractions";
 import { useTemplates } from "./hooks/useTemplates";
 import { useSuggestions } from "./hooks/useSuggestions";
 import { useTranslator } from "./hooks/useTranslator";
+import { useAskRea } from "./hooks/useAskRea";
 import { useShiftRegister } from "./hooks/useShiftRegister";
 import { usePrivateNotes } from "./hooks/usePrivateNotes";
 import { useGlobalVariables } from "./hooks/useGlobalVariables";
@@ -30,6 +31,7 @@ import AdminDashboard from "./screens/AdminDashboard";
 import SuggestionsHub from "./screens/SuggestionsHub";
 import QuickAccess from "./screens/QuickAccess";
 import TranslatorScreen from "./screens/TranslatorScreen";
+import AskREAScreen from "./screens/AskREAScreen";
 import ShiftRegisterScreen from "./screens/ShiftRegisterScreen";
 import TimetableScreen from "./screens/TimetableScreen";
 import MonitorScreen from "./screens/MonitorScreen";
@@ -131,7 +133,7 @@ export default function App() {
         const parts = path.split("/").filter(Boolean);
         if (parts.length >= 2) {
           const subRoute = parts[1];
-          if (["tech-escalation", "customer-reply", "suggestions", "quick-access", "admin", "translator", "shift-register", "timetable"].includes(subRoute)) {
+          if (["tech-escalation", "customer-reply", "suggestions", "quick-access", "admin", "translator", "ask-rea", "shift-register", "timetable"].includes(subRoute)) {
             const mapRoute = subRoute.replace("-", "_");
             setActiveScreen(mapRoute);
           }
@@ -312,6 +314,9 @@ export default function App() {
 
   // 5. Translator hook
   const translatorState = useTranslator({ currentAgent, showToast });
+
+  // 5b. Ask REA (AI assistant) hook
+  const askReaState = useAskRea({ currentAgent });
 
   // 6. Shift Issue Register (SIR) hook
   const sirState = useShiftRegister({
@@ -751,6 +756,14 @@ export default function App() {
         {activeScreen === "translator" && (
           <TranslatorScreen
             translatorState={translatorState}
+            copyText={copyText}
+            showToast={showToast}
+          />
+        )}
+
+        {activeScreen === "ask_rea" && (
+          <AskREAScreen
+            askReaState={askReaState}
             copyText={copyText}
             showToast={showToast}
           />
