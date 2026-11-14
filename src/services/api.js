@@ -770,6 +770,11 @@ export async function fetchAgentsApi() {
   return await safeFetchJson(`${API_BASE}/agents`);
 }
 
+// Admin only: includes deactivated profiles so they can be seen and reactivated.
+export async function fetchAllAgentsApi() {
+  return await safeFetchJson(`${API_BASE}/agents/all`, { headers: getAdminHeaders() });
+}
+
 export async function fetchTimetableArchiveApi(agentInitials) {
   return await safeFetchJson(`${API_BASE}/timetables/archive`, {
     headers: { "X-Agent-Initials": agentInitials || "" },

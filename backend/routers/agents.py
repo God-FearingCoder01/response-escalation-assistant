@@ -62,6 +62,22 @@ def list_agents(company: Company = Depends(get_current_company)):
         ).all()
 
 
+@router.get(
+    "/agents/all",
+    response_model=List[AgentRead],
+    dependencies=[Depends(require_agent_session), Depends(require_admin)],
+)
+def list_all_agents(company: Company = Depends(get_current_company)):
+    """Every profile of the organization, including deactivated ones (admin only).
+
+    The public /agents list feeds the Welcome screen and so hides deactivated profiles.
+    Admins need the full list to see a deactivated profile and reactivate it.
+    """
+    cid = company.id if company and company.id else 1
+    with Session(engine) as session:
+        return session.exec(select(Agent).where(Agent.company_id == cid).order_by(col(Agent.id).asc())).all()
+
+
 @router.post("/agents", response_model=AgentProvisioned, dependencies=[Depends(require_agent_session), Depends(require_admin)])
 def create_agent(agent: AgentCreate, company: Company = Depends(get_current_company)):
     if agent.pin is not None and (not agent.pin.isdigit() or len(agent.pin) != 4):

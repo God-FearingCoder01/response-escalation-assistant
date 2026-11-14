@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   AGENT_KEY,
   AGENT_TOKEN_KEY,
@@ -6,6 +6,7 @@ import {
   ADMIN_INITIALS_KEY,
   DEFAULT_AGENTS,
   fetchAgentsApi,
+  fetchAllAgentsApi,
   createAgentApi,
   updateAgentApi,
   deleteAgentApi,
@@ -85,20 +86,26 @@ export function useAgents({ apiStatus, showToast }) {
     }
   }, [editAgentFullName, userCustomizedInitials]);
 
+  // A signed-in admin also needs deactivated profiles: without them a deactivated agent vanishes
+  // from Agent Profile Control on the next load and can no longer be found or reactivated. The
+  // Welcome screen (and other pickers) already filter out profiles with is_active === false.
+  const adminSessionKey = currentAgent?.is_admin ? currentAgent.agent_initials : "";
+  const agentsRequestRef = useRef(0);
+
   const loadAgents = async () => {
+    const requestId = ++agentsRequestRef.current;
+    let data = null;
     try {
-      const data = await fetchAgentsApi();
-      if (Array.isArray(data) && data.length > 0) {
-        setAgents(data);
-        return;
-      }
+      if (adminSessionKey) data = await fetchAllAgentsApi();
+      if (!Array.isArray(data)) data = await fetchAgentsApi();
     } catch (e) {}
-    setAgents(DEFAULT_AGENTS);
+    if (requestId !== agentsRequestRef.current) return; // a newer load superseded this one
+    setAgents(Array.isArray(data) && data.length > 0 ? data : DEFAULT_AGENTS);
   };
 
   useEffect(() => {
     loadAgents();
-  }, [apiStatus]);
+  }, [apiStatus, adminSessionKey]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
