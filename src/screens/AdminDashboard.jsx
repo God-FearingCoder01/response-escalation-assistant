@@ -466,6 +466,17 @@ export default function AdminDashboard({
     }
   };
 
+  // Clears the whole Template Migration Tool: search text, results, selection, replacement and preview.
+  const handleResetMigration = () => {
+    setMigrationSearchText("");
+    setMigrationSearchResults(null);
+    setSelectedTemplateIdsForMigration([]);
+    setMigrationTargetKey("live_chat");
+    setMigrationReplaceText("{live_chat}");
+    setMigrationPreviews([]);
+    setShowMigrationPreviewModal(false);
+  };
+
   const handlePreviewMigration = async () => {
     if (!migrationSearchText.trim() || !migrationReplaceText.trim() || selectedTemplateIdsForMigration.length === 0) {
       alert("Please select at least one template and enter a replacement string.");
@@ -2200,7 +2211,8 @@ export default function AdminDashboard({
         <div className="pt-6 border-t space-y-4" style={{ borderColor: "var(--field-border)" }}>
           <div>
             <h4 className="text-sm font-bold text-[#4cd34c] flex items-center gap-2">
-              <span>🔄 Convert Existing Information (Template Migration Tool)</span>
+              <img src="/refresh.png" alt="" className="h-4 w-4 shrink-0 object-contain" />
+              <span>Convert Existing Information (Template Migration Tool)</span>
             </h4>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">
               Find repeated hard-coded text across customer templates (e.g. old WhatsApp contact numbers) and convert them to reusable variables with preview before applying.
@@ -2224,6 +2236,18 @@ export default function AdminDashboard({
             >
               {isSearchingMigration ? "Searching..." : "🔍 Search Templates"}
             </button>
+            {(migrationSearchText || migrationSearchResults) ? (
+              <button
+                type="button"
+                onClick={handleResetMigration}
+                className="px-4 py-2.5 rounded-xl border text-xs font-semibold transition hover:bg-[#b83838]/10 hover:border-[#b83838]/40 flex items-center justify-center gap-1.5 whitespace-nowrap"
+                style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)", backgroundColor: "var(--neutral-bg)" }}
+                title="Clear the search, results and replacement"
+              >
+                <img src="/refresh.png" alt="" className="h-3.5 w-3.5 object-contain shrink-0" />
+                Reset
+              </button>
+            ) : null}
           </form>
 
           {/* Migration Search Results */}
@@ -2574,7 +2598,7 @@ export default function AdminDashboard({
                   Review BEFORE vs AFTER text for each selected template before applying.
                 </p>
               </div>
-              <button onClick={() => setShowMigrationPreviewModal(false)} className="text-xs text-[var(--text-muted)] hover:text-white">
+              <button onClick={() => setShowMigrationPreviewModal(false)} className="text-xs text-[var(--text-muted)] hover:text-[#4cd34c]">
                 ✕
               </button>
             </div>
@@ -2587,14 +2611,14 @@ export default function AdminDashboard({
                   </span>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
-                    <div className="p-3 rounded-xl border bg-red-500/5 border-red-500/30 space-y-1">
-                      <span className="text-[10px] font-bold text-red-400 uppercase block">BEFORE (Original)</span>
-                      <p className="text-red-200 whitespace-pre-wrap">{p.original_body}</p>
+                    <div className="p-3 rounded-xl border bg-red-500/10 border-red-500/40 space-y-1">
+                      <span className="text-[10px] font-bold text-red-500 uppercase block">BEFORE (Original)</span>
+                      <p className="whitespace-pre-wrap" style={{ color: "var(--app-text)" }}>{p.original_body}</p>
                     </div>
 
-                    <div className="p-3 rounded-xl border bg-green-500/5 border-green-500/30 space-y-1">
-                      <span className="text-[10px] font-bold text-green-400 uppercase block">AFTER (Proposed)</span>
-                      <p className="text-green-200 whitespace-pre-wrap">{p.proposed_body}</p>
+                    <div className="p-3 rounded-xl border bg-green-500/10 border-green-500/40 space-y-1">
+                      <span className="text-[10px] font-bold text-green-600 uppercase block">AFTER (Proposed)</span>
+                      <p className="whitespace-pre-wrap" style={{ color: "var(--app-text)" }}>{p.proposed_body}</p>
                     </div>
                   </div>
                 </div>
