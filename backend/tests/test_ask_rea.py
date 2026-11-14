@@ -29,6 +29,7 @@ def keys(monkeypatch):
     for name in ("ASK_REA_ENABLED", "ASK_REA_PROVIDERS", "ASK_REA_HOURLY_LIMIT"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("GEMINI_API_KEY", SECRET)
+    monkeypatch.setenv("OPENROUTER_API_KEY", SECRET)
     monkeypatch.setenv("OPENAI_API_KEY", SECRET)
     monkeypatch.setenv("ANTHROPIC_API_KEY", SECRET)
 
@@ -48,7 +49,7 @@ class FakeProvider:
 
 @pytest.fixture
 def providers(monkeypatch, keys):
-    fakes = {name: FakeProvider() for name in ("gemini", "openai", "anthropic")}
+    fakes = {name: FakeProvider() for name in ("gemini", "openrouter", "openai", "anthropic")}
     for name, fake in fakes.items():
         monkeypatch.setitem(ai_service.PROVIDER_CALLS, name, fake)
     return fakes
@@ -149,11 +150,11 @@ def test_system_prompt_reflects_mode_and_channel(providers):
 
 def test_falls_back_to_next_provider(providers):
     providers["gemini"].error = ai_service.ProviderError("gemini", 503)
-    providers["openai"].reply = "From OpenAI"
+    providers["openrouter"].reply = "From OpenRouter"
     res = ask()
     assert res.status_code == 200
-    assert res.json()["provider"] == "OpenAI"
-    assert res.json()["reply"] == "From OpenAI"
+    assert res.json()["provider"] == "OpenRouter"
+    assert res.json()["reply"] == "From OpenRouter"
 
 
 def test_provider_order_is_configurable_and_skips_unconfigured(providers, monkeypatch):
@@ -175,7 +176,7 @@ def test_all_providers_failing_returns_generic_503(providers):
 
 def test_empty_answer_falls_through(providers):
     providers["gemini"].reply = ""
-    providers["openai"].reply = "Second"
+    providers["openrouter"].reply = "Second"
     assert ask().json()["reply"] == "Second"
 
 
@@ -279,6 +280,7 @@ def test_adapters_put_keys_in_headers_not_urls(monkeypatch):
         seen.append((provider, url, headers, body))
         return {
             "gemini": {"candidates": [{"content": {"parts": [{"text": "g-ok"}]}}]},
+            "openrouter": {"choices": [{"message": {"content": "r-ok"}}]},
             "openai": {"choices": [{"message": {"content": "o-ok"}}]},
             "anthropic": {"content": [{"type": "text", "text": "a-ok"}]},
         }[provider]
@@ -286,16 +288,19 @@ def test_adapters_put_keys_in_headers_not_urls(monkeypatch):
     monkeypatch.setattr(ai_service, "_post_json", fake_post)
     msgs = [{"role": "user", "content": "hi"}, {"role": "assistant", "content": "yo"}, {"role": "user", "content": "go"}]
     results = {}
-    for name, fn in (("gemini", ai_service._call_gemini), ("openai", ai_service._call_openai), ("anthropic", ai_service._call_anthropic)):
+    for name, fn in (("gemini", ai_service._call_gemini), ("openrouter", ai_service._call_openrouter), ("openai", ai_service._call_openai), ("anthropic", ai_service._call_anthropic)):
         cfg = ai_service.ProviderConfig(name, SECRET, ai_service.DEFAULT_MODELS[name])
         results[name] = fn(cfg, "SYS", msgs, 100, 5)
-    assert results == {"gemini": "g-ok", "openai": "o-ok", "anthropic": "a-ok"}
+    assert results == {"gemini": "g-ok", "openrouter": "r-ok", "openai": "o-ok", "anthropic": "a-ok"}
 
     for provider, url, headers, body in seen:
         assert SECRET not in url
         assert SECRET in " ".join(headers.values())
     gemini_body = next(b for p, _, _, b in seen if p == "gemini")
     assert [c["role"] for c in gemini_body["contents"]] == ["user", "model", "user"]
+    router_url, router_body = next((u, b) for p, u, _, b in seen if p == "openrouter")
+    assert router_url == "https://openrouter.ai/api/v1/chat/completions"
+    assert router_body["model"] == "google/gemini-2.5-flash" and router_body["messages"][0]["role"] == "system"
     openai_body = next(b for p, _, _, b in seen if p == "openai")
     assert openai_body["messages"][0] == {"role": "system", "content": "SYS"}
     anthropic_body = next(b for p, _, _, b in seen if p == "anthropic")

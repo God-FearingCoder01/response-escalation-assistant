@@ -28,20 +28,22 @@ from backend.models import AuthAttemptState
 
 logger = logging.getLogger("rea_ask_rea")
 
-DEFAULT_PROVIDER_ORDER = "gemini,openai,anthropic"
+DEFAULT_PROVIDER_ORDER = "gemini,openrouter,openai,anthropic"
 # Model names are overridable per provider (GEMINI_MODEL, OPENAI_MODEL, ANTHROPIC_MODEL)
 # because providers retire models; check these defaults against current provider docs.
 DEFAULT_MODELS = {
     "gemini": "gemini-2.5-flash",
+    "openrouter": "google/gemini-2.5-flash",
     "openai": "gpt-4o-mini",
     "anthropic": "claude-haiku-5-5",
 }
 KEY_ENV = {
     "gemini": "GEMINI_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
     "openai": "OPENAI_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
 }
-DISPLAY_NAMES = {"gemini": "Gemini", "openai": "OpenAI", "anthropic": "Claude"}
+DISPLAY_NAMES = {"gemini": "Gemini", "openrouter": "OpenRouter", "openai": "OpenAI", "anthropic": "Claude"}
 
 
 class AIUnavailable(Exception):
@@ -188,6 +190,26 @@ def _call_gemini(cfg: ProviderConfig, system: str, messages: Messages, max_token
         raise ProviderError("gemini", None) from None
 
 
+def _call_openrouter(cfg: ProviderConfig, system: str, messages: Messages, max_tokens: int, timeout: float) -> str:
+    # OpenRouter exposes an OpenAI-compatible chat API; the model is a "vendor/model" id.
+    body = {
+        "model": cfg.model,
+        "messages": [{"role": "system", "content": system}, *messages],
+        "max_tokens": max_tokens,
+    }
+    data = _post_json(
+        "openrouter",
+        "https://openrouter.ai/api/v1/chat/completions",
+        {"Authorization": f"Bearer {cfg.api_key}", "X-Title": "REA"},
+        body,
+        timeout,
+    )
+    try:
+        return (data["choices"][0]["message"]["content"] or "").strip()
+    except (KeyError, IndexError, TypeError):
+        raise ProviderError("openrouter", None) from None
+
+
 def _call_openai(cfg: ProviderConfig, system: str, messages: Messages, max_tokens: int, timeout: float) -> str:
     body = {
         "model": cfg.model,
@@ -232,6 +254,7 @@ def _call_anthropic(cfg: ProviderConfig, system: str, messages: Messages, max_to
 # Looked up by name at call time so tests can swap individual providers.
 PROVIDER_CALLS: Dict[str, Callable[..., str]] = {
     "gemini": _call_gemini,
+    "openrouter": _call_openrouter,
     "openai": _call_openai,
     "anthropic": _call_anthropic,
 }

@@ -91,7 +91,7 @@ backend/
 ├── security.py                 # PIN hashing, rate-limiting, token auth, require_admin & get_current_company
 ├── services/                   # Business logic & starter data
 │   ├── seed_service.py         # Default organization, starter templates & agent profile seeding
-│   ├── ai_service.py           # Ask REA: Gemini/OpenAI/Anthropic adapters, fallback & per-agent rate limit
+│   ├── ai_service.py           # Ask REA: Gemini/OpenRouter/OpenAI/Anthropic adapters, fallback & per-agent rate limit
 │   ├── redaction.py            # Ask REA: masks customer details before text reaches an AI provider
 │   └── translator_service.py   # Shona & Ndebele dictionaries & sentence translation engine
 ├── routers/                    # Modular FastAPI APIRouters
@@ -200,7 +200,7 @@ REA is configured out-of-the-box for seamless Vercel deployment with serverless 
 ## ✨ Ask REA (AI assistant)
 
 Ask REA lets agents get help wording a customer reply, deciding what to do next, or drafting a
-technical escalation without leaving REA. It supports Gemini, OpenAI and Anthropic (Claude).
+technical escalation without leaving REA. It supports Gemini, OpenRouter, OpenAI and Anthropic (Claude).
 
 **How it protects customers and keys**
 - Provider API keys live only in backend environment variables. The browser and the Chrome
@@ -216,7 +216,7 @@ technical escalation without leaving REA. It supports Gemini, OpenAI and Anthrop
   instances. Provider errors are never passed through to the browser.
 
 **Turning it on**
-1. Set at least one of `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` (see
+1. Set at least one of `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` (see
    `.env.example`) in the untracked `.env` locally, or in the Vercel project settings.
 2. Optionally set `ASK_REA_PROVIDERS` (order and fallback) and the `*_MODEL` overrides.
 3. Redeploy. With no keys set, the Ask REA screen shows that it is not switched on.
