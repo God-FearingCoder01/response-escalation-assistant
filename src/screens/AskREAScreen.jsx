@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ASK_REA_LIMITS } from "../services/askReaService";
+import { ASK_REA_LIMITS, diagnoseAskRea } from "../services/askReaService";
+import { IMAGE_LIMITS, imagesFromClipboardEvent, isImageFile } from "../utils/imageAttachments";
 
 const MODES = [
   { id: "reply", label: "Draft reply", hint: "A message you can send to the customer" },
@@ -32,7 +33,7 @@ function describeRedactions(redactions = {}) {
   return `${total} private detail${total === 1 ? "" : "s"} hidden from the AI (${kinds})`;
 }
 
-export default function AskREAScreen({ askReaState, copyText, showToast }) {
+export default function AskREAScreen({ askReaState, copyText, showToast, isAdmin = false }) {
   const {
     messages = [],
     mode,
@@ -45,14 +46,21 @@ export default function AskREAScreen({ askReaState, copyText, showToast }) {
     error,
     status,
     remaining,
+    attachments = [],
+    isPreparingImage,
+    addImages,
+    removeAttachment,
     send,
     clearConversation,
   } = askReaState || {};
 
   const [input, setInput] = useState("");
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const [dragging, setDragging] = useState(false);
+  const [check, setCheck] = useState({ running: false, error: "", data: null });
   const endRef = useRef(null);
   const inputRef = useRef(null);
+  const fileRef = useRef(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView?.({ behavior: "smooth", block: "end" });
@@ -60,11 +68,14 @@ export default function AskREAScreen({ askReaState, copyText, showToast }) {
 
   const disabled = status?.enabled === false;
   const tooLong = input.length > ASK_REA_LIMITS.maxMessageChars;
-  const canSend = !disabled && !isLoading && input.trim().length > 0 && !tooLong;
+  const hasAttachments = attachments.length > 0;
+  const canSend =
+    !disabled && !isLoading && !isPreparingImage && (input.trim().length > 0 || hasAttachments) && !tooLong;
+  const canAttach = !disabled && !isLoading && attachments.length < IMAGE_LIMITS.maxImages;
 
   const submit = async (override) => {
     const text = typeof override === "string" ? override : input;
-    if (!text.trim() || disabled || isLoading) return;
+    if ((!text.trim() && !hasAttachments) || disabled || isLoading || isPreparingImage) return;
     setInput("");
     const ok = await send?.(text);
     if (!ok) setInput((current) => current || text); // give the text back so it can be retried
@@ -75,6 +86,35 @@ export default function AskREAScreen({ askReaState, copyText, showToast }) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       if (canSend) submit();
+    }
+  };
+
+  const handlePaste = (event) => {
+    const files = imagesFromClipboardEvent(event);
+    if (!files.length) return; // ordinary text paste continues as normal
+    event.preventDefault();
+    if (canAttach) addImages?.(files);
+  };
+
+  const handleDrop = (event) => {
+    event.preventDefault();
+    setDragging(false);
+    const files = Array.from(event.dataTransfer?.files || []).filter(isImageFile);
+    if (files.length && canAttach) addImages?.(files);
+  };
+
+  const handlePick = (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = ""; // allows picking the same file again
+    if (files.length) addImages?.(files);
+  };
+
+  const runCheck = async () => {
+    setCheck({ running: true, error: "", data: null });
+    try {
+      setCheck({ running: false, error: "", data: await diagnoseAskRea() });
+    } catch (err) {
+      setCheck({ running: false, error: err instanceof Error ? err.message : "The check could not run.", data: null });
     }
   };
 
@@ -124,11 +164,51 @@ export default function AskREAScreen({ askReaState, copyText, showToast }) {
       >
         🔒 Emails, phone numbers, ID, card and reference numbers are hidden before anything leaves REA.
         Names are only hidden if you list them below. This chat is not saved and clears when you sign out.
+        <strong className="font-semibold text-[var(--text-main,inherit)]">
+          {" "}Screenshots cannot be hidden automatically: cover or crop names, numbers and account details before you attach one.
+        </strong>
       </p>
 
       {disabled ? (
         <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm" role="alert">
           Ask REA is not switched on for this workspace yet. Please ask your administrator to enable it.
+        </div>
+      ) : null}
+
+      {isAdmin ? (
+        <div className="rounded-2xl border px-3 py-2 text-xs" style={panelStyle}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[var(--text-muted)]">Administrator tool: test the AI connections.</span>
+            <button
+              type="button"
+              onClick={runCheck}
+              disabled={check.running}
+              className="rounded-lg bg-[var(--neutral-bg)] px-3 py-1 font-bold text-[var(--neutral-text)] transition hover:opacity-80 disabled:opacity-50"
+            >
+              {check.running ? "Checking…" : "Check AI connection"}
+            </button>
+          </div>
+          {check.error ? <p className="mt-2 text-red-500">{check.error}</p> : null}
+          {check.data ? (
+            <div className="mt-2 space-y-1">
+              {check.data.configured?.length ? (
+                <p className="text-[var(--text-muted)]">Keys found for: {check.data.configured.join(", ")}</p>
+              ) : (
+                <p className="font-semibold text-amber-500">
+                  No AI keys were found by the server. Add them in Vercel, then redeploy.
+                </p>
+              )}
+              {(check.data.results || []).map((row, index) => (
+                <p key={`${row.provider}-${row.model}-${index}`}>
+                  <span className={row.ok ? "font-bold text-green-500" : "font-bold text-red-500"}>
+                    {row.ok ? "✓" : "✗"}
+                  </span>{" "}
+                  {row.provider} · {row.model}
+                  {row.ok ? "" : ` — ${row.reason || "failed"}${row.status ? ` (${row.status})` : ""}`}
+                </p>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -225,6 +305,18 @@ export default function AskREAScreen({ askReaState, copyText, showToast }) {
                   }`}
                   style={isUser ? undefined : { borderColor: "var(--panel-border)", backgroundColor: "var(--app-bg)" }}
                 >
+                  {isUser && message.images?.length ? (
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {message.images.map((image) => (
+                        <img
+                          key={image.id}
+                          src={image.previewUrl}
+                          alt="Attached screenshot"
+                          className="max-h-40 max-w-full rounded-lg border border-black/20 object-contain"
+                        />
+                      ))}
+                    </div>
+                  ) : null}
                   <p className="whitespace-pre-wrap break-words">{message.content}</p>
                   {!isUser ? (
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[var(--text-muted)]">
@@ -267,18 +359,53 @@ export default function AskREAScreen({ askReaState, copyText, showToast }) {
       ) : null}
 
       {/* Composer */}
-      <div className="space-y-2 rounded-3xl border p-4 shadow-xl backdrop-blur-xl" style={panelStyle}>
+      <div
+        className={`space-y-2 rounded-3xl border p-4 shadow-xl backdrop-blur-xl ${dragging ? "ring-2 ring-green-500" : ""}`}
+        style={panelStyle}
+        onDragOver={(event) => {
+          if (canAttach) {
+            event.preventDefault();
+            setDragging(true);
+          }
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+      >
+        {hasAttachments ? (
+          <div className="flex flex-wrap gap-2" aria-label="Attached screenshots">
+            {attachments.map((image) => (
+              <div key={image.id} className="relative">
+                <img
+                  src={image.previewUrl}
+                  alt="Screenshot to send"
+                  className="h-20 w-auto max-w-[9rem] rounded-xl border object-cover"
+                  style={{ borderColor: "var(--panel-border)" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeAttachment?.(image.id)}
+                  aria-label="Remove screenshot"
+                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white shadow"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {isPreparingImage ? <p className="text-[11px] text-[var(--text-muted)]">Preparing screenshot…</p> : null}
         <textarea
           ref={inputRef}
           value={input}
           onChange={(event) => setInput(event.target.value)}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           rows={4}
           disabled={disabled}
           placeholder={
             disabled
               ? "Ask REA is not available."
-              : "Describe the issue and what you need. Press Enter to send, Shift+Enter for a new line."
+              : "Describe the issue and what you need. You can paste a screenshot here (Ctrl+V). Press Enter to send, Shift+Enter for a new line."
           }
           className="w-full resize-y rounded-2xl border px-3 py-2 text-sm outline-none disabled:opacity-50"
           style={fieldStyle}
@@ -289,6 +416,27 @@ export default function AskREAScreen({ askReaState, copyText, showToast }) {
             {input.length}/{ASK_REA_LIMITS.maxMessageChars}
             {remaining !== null && remaining !== undefined ? ` · ${remaining} asks left this hour` : ""}
           </span>
+          <div className="flex items-center gap-2">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif,image/bmp"
+            multiple
+            className="hidden"
+            onChange={handlePick}
+            aria-label="Attach screenshots"
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={!canAttach}
+            title={`Attach a screenshot (up to ${IMAGE_LIMITS.maxImages}). You can also paste or drop one.`}
+            className="flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition hover:bg-[var(--neutral-bg)] disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ borderColor: "var(--panel-border)" }}
+          >
+            <img src="/upload_picture.png" alt="" className="h-4 w-4 object-contain" />
+            Screenshot
+          </button>
           <button
             type="button"
             onClick={() => submit()}
@@ -297,6 +445,7 @@ export default function AskREAScreen({ askReaState, copyText, showToast }) {
           >
             {isLoading ? "Sending…" : "Ask REA"}
           </button>
+          </div>
         </div>
         <p className="text-[11px] text-[var(--text-muted)]">
           AI can get things wrong. Check every reply, and confirm facts such as policy or amounts, before you send it.

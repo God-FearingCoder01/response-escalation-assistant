@@ -1,3 +1,4 @@
+import base64
 import io
 import urllib.error
 
@@ -300,3 +301,219 @@ def test_adapters_put_keys_in_headers_not_urls(monkeypatch):
     assert openai_body["messages"][0] == {"role": "system", "content": "SYS"}
     anthropic_body = next(b for p, _, _, b in seen if p == "anthropic")
     assert anthropic_body["system"] == "SYS" and anthropic_body["messages"] == msgs
+
+
+# --- OpenRouter and model fallback --------------------------------------------
+
+def test_openrouter_is_used_when_configured(providers, monkeypatch):
+    monkeypatch.setenv("ASK_REA_PROVIDERS", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", SECRET)
+    fake = FakeProvider(reply="From OpenRouter")
+    monkeypatch.setitem(ai_service.PROVIDER_CALLS, "openrouter", fake)
+    res = ask()
+    assert res.status_code == 200
+    assert res.json()["provider"] == "OpenRouter"
+    assert res.json()["reply"] == "From OpenRouter"
+
+
+def test_openrouter_is_in_the_default_order(providers, monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", SECRET)
+    names = [p.name for p in ai_service.configured_providers()]
+    assert names == ["gemini", "openai", "openrouter", "anthropic"]
+
+
+def test_next_model_is_tried_when_a_model_is_unavailable(providers, monkeypatch):
+    monkeypatch.setenv("ASK_REA_PROVIDERS", "gemini")
+    monkeypatch.setenv("GEMINI_MODEL", "retired-model,current-model")
+    seen = []
+
+    def fake(cfg, system, messages, max_tokens, timeout):
+        seen.append(cfg.model)
+        if cfg.model == "retired-model":
+            raise ai_service.ProviderError("gemini", 404)
+        return "worked"
+
+    monkeypatch.setitem(ai_service.PROVIDER_CALLS, "gemini", fake)
+    assert ask().json()["reply"] == "worked"
+    assert seen == ["retired-model", "current-model"]
+
+
+def test_bad_key_does_not_try_other_models_of_the_same_provider(providers, monkeypatch):
+    monkeypatch.setenv("ASK_REA_PROVIDERS", "gemini")
+    monkeypatch.setenv("GEMINI_MODEL", "first-model,second-model")
+    seen = []
+
+    def fake(cfg, system, messages, max_tokens, timeout):
+        seen.append(cfg.model)
+        raise ai_service.ProviderError("gemini", 401)
+
+    monkeypatch.setitem(ai_service.PROVIDER_CALLS, "gemini", fake)
+    assert ask().status_code == 503
+    assert seen == ["first-model"]
+
+
+# --- screenshots --------------------------------------------------------------
+
+PNG_B64 = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"x" * 48).decode()
+JPEG_B64 = base64.b64encode(b"\xff\xd8\xff\xe0" + b"x" * 48).decode()
+WEBP_B64 = base64.b64encode(b"RIFF\x00\x00\x00\x00WEBP" + b"x" * 48).decode()
+
+
+def with_image(*images, content="Why is this bet still unsettled?"):
+    return [{"role": "user", "content": content, "images": list(images)}]
+
+
+def test_screenshot_reaches_the_provider_with_vision_guidance(providers):
+    res = ask(messages=with_image({"mime": "image/png", "data": PNG_B64}))
+    assert res.status_code == 200
+    call = providers["gemini"].calls[0]
+    assert call["messages"][-1]["images"] == [{"mime": "image/png", "data": PNG_B64}]
+    assert "screenshot" in call["system"].lower()
+
+
+def test_text_only_requests_are_unchanged(providers):
+    ask()
+    call = providers["gemini"].calls[0]
+    assert "images" not in call["messages"][-1]
+    assert "screenshot" not in call["system"].lower()
+
+
+def test_all_supported_image_types_are_accepted(providers):
+    for mime, data in (("image/png", PNG_B64), ("image/jpeg", JPEG_B64), ("image/webp", WEBP_B64)):
+        assert ask(messages=with_image({"mime": mime, "data": data})).status_code == 200
+
+
+@pytest.mark.parametrize(
+    "image",
+    [
+        {"mime": "image/png", "data": "not base64 !!!!!!!!!!!!!!!!"},
+        {"mime": "image/png", "data": JPEG_B64},  # claims PNG, is JPEG
+        {"mime": "image/gif", "data": PNG_B64},  # unsupported type
+        {"mime": "image/png", "data": "AAAA"},  # far too small to be an image
+    ],
+)
+def test_bad_images_are_rejected(providers, image):
+    res = ask(messages=with_image(image))
+    assert res.status_code == 422
+    assert providers["gemini"].calls == []
+
+
+def test_too_many_images_are_rejected(providers):
+    image = {"mime": "image/png", "data": PNG_B64}
+    assert ask(messages=with_image(image, image, image, image)).status_code == 422
+    two = [
+        {"role": "user", "content": "one", "images": [image, image]},
+        {"role": "assistant", "content": "ok"},
+        {"role": "user", "content": "two", "images": [image, image]},
+    ]
+    assert ask(messages=two).status_code == 422
+
+
+def test_oversized_screenshot_is_rejected(providers):
+    huge = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"x" * 1_100_000).decode()
+    assert len(huge) > 1_400_000
+    assert ask(messages=with_image({"mime": "image/png", "data": huge})).status_code == 422
+
+
+def test_assistant_messages_cannot_carry_images(providers):
+    messages = [
+        {"role": "user", "content": "hi"},
+        {"role": "assistant", "content": "hello", "images": [{"mime": "image/png", "data": PNG_B64}]},
+        {"role": "user", "content": "go"},
+    ]
+    assert ask(messages=messages).status_code == 422
+
+
+def test_adapters_send_images_in_each_providers_format(monkeypatch):
+    seen = {}
+
+    def fake_post(provider, url, headers, body, timeout):
+        seen[provider] = body
+        return {
+            "gemini": {"candidates": [{"content": {"parts": [{"text": "g"}]}}]},
+            "openai": {"choices": [{"message": {"content": "o"}}]},
+            "openrouter": {"choices": [{"message": {"content": "r"}}]},
+            "anthropic": {"content": [{"type": "text", "text": "a"}]},
+        }[provider]
+
+    monkeypatch.setattr(ai_service, "_post_json", fake_post)
+    msgs = [{"role": "user", "content": "look", "images": [{"mime": "image/png", "data": PNG_B64}]}]
+    calls = (
+        ("gemini", ai_service._call_gemini),
+        ("openai", ai_service._call_openai),
+        ("openrouter", ai_service._call_openrouter),
+        ("anthropic", ai_service._call_anthropic),
+    )
+    for name, fn in calls:
+        assert fn(ai_service.ProviderConfig(name, SECRET, "m"), "SYS", msgs, 100, 5) in {"g", "o", "r", "a"}
+
+    parts = seen["gemini"]["contents"][0]["parts"]
+    assert parts[0] == {"text": "look"}
+    assert parts[1] == {"inline_data": {"mime_type": "image/png", "data": PNG_B64}}
+    for name in ("openai", "openrouter"):
+        content = seen[name]["messages"][1]["content"]
+        assert content[0] == {"type": "text", "text": "look"}
+        assert content[1] == {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{PNG_B64}"}}
+    block = seen["anthropic"]["messages"][0]["content"]
+    assert block[0] == {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": PNG_B64}}
+    assert block[1] == {"type": "text", "text": "look"}
+
+
+def test_openrouter_adapter_uses_bearer_header_not_url(monkeypatch):
+    seen = {}
+
+    def fake_post(provider, url, headers, body, timeout):
+        seen.update(url=url, headers=headers)
+        return {"choices": [{"message": {"content": "ok"}}]}
+
+    monkeypatch.setattr(ai_service, "_post_json", fake_post)
+    cfg = ai_service.ProviderConfig("openrouter", SECRET, "some/model")
+    ai_service._call_openrouter(cfg, "SYS", [{"role": "user", "content": "hi"}], 100, 5)
+    assert SECRET not in seen["url"]
+    assert seen["headers"]["Authorization"] == f"Bearer {SECRET}"
+
+
+# --- error messages and the admin connection check -------------------------------
+
+def test_provider_error_message_is_captured_without_the_key(monkeypatch):
+    body = io.BytesIO(('{"error": {"message": "Incorrect API key provided: %s"}}' % SECRET).encode())
+
+    def boom(req, timeout=None):
+        raise urllib.error.HTTPError(req.full_url, 401, "bad key", {}, body)
+
+    monkeypatch.setattr(ai_service.urllib.request, "urlopen", boom)
+    with pytest.raises(ai_service.ProviderError) as exc:
+        ai_service._post_json("openai", "https://example.invalid", {"Authorization": f"Bearer {SECRET}"}, {}, 1)
+    assert exc.value.status == 401
+    assert "Incorrect API key provided" in exc.value.detail
+    assert SECRET not in exc.value.detail
+    assert SECRET not in str(exc.value)
+
+
+def test_diagnose_requires_an_admin(providers):
+    assert client.post("/ask-rea/diagnose").status_code in (401, 403)
+    admin = get_agent_admin_headers(1, "SA")
+    created = client.post(
+        "/agents",
+        headers=admin,
+        json={"agent": "Plain Agent", "agent_name": "Plain", "agent_initials": "PA", "is_admin": False},
+    )
+    assert created.status_code == 200
+    assert client.post("/ask-rea/diagnose", headers=get_agent_admin_headers(1, "PA")).status_code in (401, 403)
+
+
+def test_diagnose_reports_why_each_provider_fails(providers):
+    providers["openai"].error = ai_service.ProviderError("openai", 401, "Incorrect API key provided")
+    providers["anthropic"].error = ai_service.ProviderError("anthropic", 404, "model not found")
+    res = client.post("/ask-rea/diagnose", headers=get_agent_admin_headers(1, "SA"))
+    assert res.status_code == 200
+    data = res.json()
+    assert data["configured"] == ["Gemini", "OpenAI", "Claude"]
+    rows = {(r["provider"], r["model"]): r for r in data["results"]}
+    assert any(r["provider"] == "Gemini" and r["ok"] for r in data["results"])
+    openai_rows = [r for r in data["results"] if r["provider"] == "OpenAI"]
+    assert openai_rows and not any(r["ok"] for r in openai_rows)
+    assert openai_rows[0]["status"] == 401
+    assert openai_rows[0]["reason"] == "Incorrect API key provided"
+    assert SECRET not in res.text
+    assert rows

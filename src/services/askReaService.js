@@ -8,9 +8,11 @@ export const ASK_REA_LIMITS = {
   maxTotalChars: 16000,
   maxMessages: 12,
   maxHideTerms: 10,
+  maxImages: 3,
 };
 
-const REQUEST_TIMEOUT_MS = 60000;
+// Screenshots make answers slower, and the server may try several AI models in turn.
+const REQUEST_TIMEOUT_MS = 90000;
 
 export async function fetchAskReaStatus() {
   try {
@@ -20,6 +22,19 @@ export async function fetchAskReaStatus() {
   } catch {
     return { enabled: false, hourly_limit: null };
   }
+}
+
+// Administrators only: asks the server to try each AI provider once and say why one fails.
+export async function diagnoseAskRea() {
+  const res = await fetch(`${API_BASE}/ask-rea/diagnose`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getCompanyHeaders() },
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "The connection check could not run."));
+  }
+  return res.json();
 }
 
 export async function askRea({ mode, channel, messages, hideTerms }) {

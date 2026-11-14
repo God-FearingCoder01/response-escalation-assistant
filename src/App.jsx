@@ -766,6 +766,7 @@ export default function App() {
             askReaState={askReaState}
             copyText={copyText}
             showToast={showToast}
+            isAdmin={Boolean(currentAgent?.is_admin)}
           />
         )}
 
