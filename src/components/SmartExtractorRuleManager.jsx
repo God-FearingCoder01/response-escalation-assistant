@@ -159,12 +159,12 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
   return (
     <div className="space-y-8">
       {/* SECTION HEADER & ADD BUTTON */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4 border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
         <div>
-          <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            <span>⚙️</span> Smart Extractor Rules
+          <h3 className="text-lg font-bold" style={{ color: "var(--app-text)" }}>
+            8. Smart Extractor Rules
           </h3>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
             Configure rules for extracting reference numbers, amounts, dates, and custom fields from screenshots & text.
           </p>
         </div>
@@ -183,19 +183,20 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search extraction rules by name, field key, or pattern..."
-          className="flex-1 rounded-xl border bg-black/30 px-4 py-2.5 text-xs text-white placeholder-gray-500 border-white/10 focus:outline-none focus:ring-2 focus:ring-[#4cd34c]/50"
+          className="flex-1 rounded-xl border px-4 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#4cd34c]/50"
+          style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
         />
       </div>
 
       {/* RULES LIST */}
       {loading ? (
-        <div className="p-8 text-center text-xs text-gray-400">Loading extraction rules...</div>
+        <div className="p-8 text-center text-xs" style={{ color: "var(--text-muted)" }}>Loading extraction rules...</div>
       ) : loadError ? (
-        <div className="rounded-2xl border p-8 text-center bg-black/20 border-red-500/20 text-red-300 text-xs">
+        <div className="rounded-2xl border p-8 text-center text-xs" style={{ borderColor: "var(--error-border)", backgroundColor: "var(--error-bg)", color: "var(--error-text)" }}>
           {loadError}. Check the production database connection and try again.
         </div>
       ) : filteredRules.length === 0 ? (
-        <div className="rounded-2xl border p-8 text-center bg-black/20 border-white/10 text-gray-400 text-xs">
+        <div className="rounded-2xl border p-8 text-center text-xs" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)", color: "var(--text-muted)" }}>
           No extraction rules found matching your filter.
         </div>
       ) : (
@@ -203,12 +204,13 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
           {filteredRules.map((rule) => (
             <div
               key={rule.id}
-              className={`rounded-2xl border p-5 transition space-y-3 bg-black/30 border-white/10 hover:border-white/20 ${!rule.is_enabled ? "opacity-60" : ""
+              className={`rounded-2xl border p-5 transition space-y-3 ${!rule.is_enabled ? "opacity-70" : ""
                 }`}
+              style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-bold text-white">{rule.name}</h4>
+                  <h4 className="text-sm font-bold" style={{ color: "var(--app-text)" }}>{rule.name}</h4>
                   <span className="text-[11px] font-mono text-[#4cd34c]">{`{${rule.result_field}}`}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -216,7 +218,7 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
                     onClick={() => handleToggleRuleStatus(rule)}
                     className={`text-[10px] uppercase font-bold px-2.5 py-1 rounded-full border transition ${rule.is_enabled
                         ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                        : "border-gray-500/30 bg-gray-500/10 text-gray-400"
+                        : "border-gray-500/40 bg-gray-500/10 text-gray-500"
                       }`}
                   >
                     {rule.is_enabled ? "Enabled ✓" : "Disabled"}
@@ -224,19 +226,20 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
                 </div>
               </div>
 
-              {rule.description && <p className="text-xs text-gray-400 line-clamp-2">{rule.description}</p>}
+              {rule.description && <p className="text-xs line-clamp-2" style={{ color: "var(--text-muted)" }}>{rule.description}</p>}
 
-              <div className="rounded-xl bg-black/50 p-2.5 border border-white/10 font-mono text-xs text-amber-300 break-all">
+              <div className="rounded-xl bg-[#14141c] p-2.5 border border-[#32324a] font-mono text-xs text-amber-300 break-all">
                 {rule.pattern}
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-white/10">
+              <div className="flex items-center justify-between pt-2 border-t" style={{ borderColor: "var(--panel-border)" }}>
                 <button
                   onClick={() => {
                     setTestPattern(rule.pattern);
                     showToast(`Loaded pattern for rule '${rule.name}' into Rule Tester below.`);
                   }}
-                  className="text-xs text-gray-400 hover:text-[#4cd34c] transition"
+                  className="text-xs hover:text-[#4cd34c] transition"
+                  style={{ color: "var(--text-muted)" }}
                 >
                   🧪 Test Pattern
                 </button>
@@ -244,13 +247,14 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleOpenEditModal(rule)}
-                    className="rounded-lg border px-2.5 py-1 text-xs text-gray-300 hover:bg-white/10 border-white/10"
+                    className="rounded-lg border px-2.5 py-1 text-xs hover:bg-[#4cd34c]/10"
+                    style={{ borderColor: "var(--badge-border)", color: "var(--neutral-text)" }}
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDeleteRule(rule.id)}
-                    className="rounded-lg border border-red-500/30 px-2.5 py-1 text-xs text-red-400 hover:bg-red-500/10"
+                    className="rounded-lg border border-red-500/40 px-2.5 py-1 text-xs text-red-500 hover:bg-red-500/10"
                   >
                     Delete
                   </button>
@@ -262,32 +266,34 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
       )}
 
       {/* RULE TESTER PANEL */}
-      <div className="rounded-2xl border p-6 bg-black/30 border-white/10 space-y-4">
-        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+      <div className="rounded-2xl border p-6 space-y-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
+        <h4 className="text-sm font-bold flex items-center gap-2" style={{ color: "var(--app-text)" }}>
           <span>🧪</span> Live Extraction Rule Tester
         </h4>
-        <p className="text-xs text-gray-400">Test regex extraction rules against sample customer text before enabling them in production.</p>
+        <p className="text-xs" style={{ color: "var(--text-muted)" }}>Test regex extraction rules against sample customer text before enabling them in production.</p>
 
         <form onSubmit={handleRunTest} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1">Regex Pattern to Test:</label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: "var(--text-muted)" }}>Regex Pattern to Test:</label>
             <input
               type="text"
               value={testPattern}
               onChange={(e) => setTestPattern(e.target.value)}
               placeholder="e.g. MP\d{6}\.\d{4}\.T\d{7}"
-              className="w-full rounded-xl border bg-black/40 px-3 py-2 text-xs font-mono text-amber-300 border-white/10 focus:outline-none focus:ring-1 focus:ring-[#4cd34c]"
+              className="w-full rounded-xl border px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-[#4cd34c]"
+              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1">Sample Test Input Text:</label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: "var(--text-muted)" }}>Sample Test Input Text:</label>
             <textarea
               rows={3}
               value={testInput}
               onChange={(e) => setTestInput(e.target.value)}
               placeholder="Paste sample receipt text or customer ticket text..."
-              className="w-full rounded-xl border bg-black/40 p-3 text-xs text-white border-white/10 focus:outline-none focus:ring-1 focus:ring-[#4cd34c]"
+              className="w-full rounded-xl border p-3 text-xs focus:outline-none focus:ring-1 focus:ring-[#4cd34c]"
+              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--app-bg)", color: "var(--app-text)" }}
             />
           </div>
 
@@ -303,13 +309,13 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
         {testResult && (
           <div
             className={`rounded-xl border p-4 text-xs space-y-1 ${testResult.matched
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                : "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600"
+                : "border-amber-500/40 bg-amber-500/10 text-amber-700"
               }`}
           >
             <p className="font-bold">{testResult.matched ? "✓ Pattern Matched Successfully!" : "❌ No Match Found"}</p>
             {testResult.matched && (
-              <p className="font-mono text-sm text-white">Extracted Match: <span className="text-[#4cd34c]">{testResult.value}</span></p>
+              <p className="font-mono text-sm" style={{ color: "var(--app-text)" }}>Extracted Match: <span className="text-[#4cd34c]">{testResult.value}</span></p>
             )}
             {testResult.error && <p className="text-red-400">{testResult.error}</p>}
           </div>

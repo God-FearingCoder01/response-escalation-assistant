@@ -22,16 +22,41 @@ from backend.security import get_current_company, require_admin, require_agent_s
 
 router = APIRouter(tags=["Shift Issue Register"], dependencies=[Depends(require_agent_session)])
 
+# Starting configuration for an organization that has not defined its own yet. The seed
+# service only creates these rows for the default organization, so any other company
+# (e.g. WinBucks) would otherwise have an empty table while the UI showed placeholder
+# defaults that have no database row behind them: edits and deletes of those placeholders
+# failed with 404 and everything reverted on the next load.
+DEFAULT_SHIFTS = [
+    ("Morning Shift", "07:00", "15:00"),
+    ("Afternoon Shift", "15:00", "23:00"),
+    ("Night Shift (Graveyard)", "23:00", "07:00"),
+]
+DEFAULT_TARGETS = [
+    "Technical Support Team",
+    "Billing & Accounts Team",
+    "Network Engineering",
+    "Level 2 Support Manager",
+    "ISP Provider",
+]
+
 
 @router.get("/sir/shifts", response_model=List[ShiftConfigRead])
 def list_sir_shifts(company: Company = Depends(get_current_company)):
     cid = company.id if company and company.id else 1
     with Session(engine) as session:
-        return session.exec(
-            select(ShiftConfig)
-            .where(ShiftConfig.company_id == cid)
-            .order_by(col(ShiftConfig.id).asc())
-        ).all()
+        query = select(ShiftConfig).where(ShiftConfig.company_id == cid).order_by(col(ShiftConfig.id).asc())
+        rows = session.exec(query).all()
+        if not rows:
+            now = datetime.now(timezone.utc)
+            for name, start, end in DEFAULT_SHIFTS:
+                session.add(ShiftConfig(
+                    name=name, start_time=start, end_time=end, is_active=True,
+                    company_id=cid, created_at=now, updated_at=now,
+                ))
+            session.commit()
+            rows = session.exec(query).all()
+        return rows
 
 
 @router.post("/sir/shifts", response_model=ShiftConfigRead, dependencies=[Depends(require_admin)])
@@ -92,11 +117,15 @@ def delete_sir_shift(shift_id: int, company: Company = Depends(get_current_compa
 def list_sir_targets(company: Company = Depends(get_current_company)):
     cid = company.id if company and company.id else 1
     with Session(engine) as session:
-        return session.exec(
-            select(EscalationTarget)
-            .where(EscalationTarget.company_id == cid)
-            .order_by(col(EscalationTarget.id).asc())
-        ).all()
+        query = select(EscalationTarget).where(EscalationTarget.company_id == cid).order_by(col(EscalationTarget.id).asc())
+        rows = session.exec(query).all()
+        if not rows:
+            now = datetime.now(timezone.utc)
+            for name in DEFAULT_TARGETS:
+                session.add(EscalationTarget(name=name, company_id=cid, created_at=now, updated_at=now))
+            session.commit()
+            rows = session.exec(query).all()
+        return rows
 
 
 @router.post("/sir/targets", response_model=EscalationTargetRead, dependencies=[Depends(require_admin)])

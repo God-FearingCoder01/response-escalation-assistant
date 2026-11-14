@@ -29,8 +29,14 @@ const DEFAULT_TARGETS = [
 
 export function useShiftRegister({ currentAgent, activeCompanyId, apiStatus, showToast }) {
   const [issues, setIssues] = useState([]);
-  const [shifts, setShifts] = useState(DEFAULT_SHIFTS);
-  const [escalationTargets, setEscalationTargets] = useState(DEFAULT_TARGETS);
+  // Start empty: the real lists come from the server. DEFAULT_* are only an offline
+  // fallback, because placeholder rows have no database record behind them.
+  const [shifts, setShifts] = useState([]);
+  const [escalationTargets, setEscalationTargets] = useState([]);
+  // Which company's data is currently in state. Nothing is cached to localStorage until
+  // the load for that company has finished, so the empty/placeholder state can never
+  // overwrite a good cached copy.
+  const [hydratedPrefix, setHydratedPrefix] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeShiftName, setActiveShiftName] = useState("");
 
@@ -90,29 +96,32 @@ export function useShiftRegister({ currentAgent, activeCompanyId, apiStatus, sho
     let loadedFromApi = false;
 
     if (apiStatus !== "offline") {
-      try {
-        const [shiftsData, targetsData, issuesData] = await Promise.all([
-          fetchSirShiftsApi(),
-          fetchSirTargetsApi(),
-          fetchSirIssuesApi(),
-        ]);
+      // These helpers return null (they do not throw) when the server cannot be reached
+      // or rejects the request, so a non-array means "not loaded", never "empty".
+      const [shiftsData, targetsData, issuesData] = await Promise.all([
+        fetchSirShiftsApi(),
+        fetchSirTargetsApi(),
+        fetchSirIssuesApi(),
+      ]);
 
-        if (Array.isArray(shiftsData) && shiftsData.length > 0) setShifts(shiftsData);
-        if (Array.isArray(targetsData) && targetsData.length > 0) setEscalationTargets(targetsData);
+      if (Array.isArray(shiftsData) && Array.isArray(targetsData)) {
+        // Trust the server even when a list is empty.
+        setShifts(shiftsData);
+        setEscalationTargets(targetsData);
         if (Array.isArray(issuesData)) setIssues(issuesData);
         loadedFromApi = true;
-      } catch (err) {
-        console.warn("API fetch failed for SIR, loading from local storage:", err);
+      } else {
+        console.warn("SIR data could not be loaded from the server; using the cached copy.");
       }
     }
 
     if (!loadedFromApi) {
       try {
         const localShifts = localStorage.getItem(`REA_SIR_SHIFTS_${companyPrefix}`);
-        if (localShifts) setShifts(JSON.parse(localShifts));
+        setShifts(localShifts ? JSON.parse(localShifts) : DEFAULT_SHIFTS);
 
         const localTargets = localStorage.getItem(`REA_SIR_TARGETS_${companyPrefix}`);
-        if (localTargets) setEscalationTargets(JSON.parse(localTargets));
+        setEscalationTargets(localTargets ? JSON.parse(localTargets) : DEFAULT_TARGETS);
 
         const localIssues = localStorage.getItem(`REA_SIR_ISSUES_${companyPrefix}`);
         if (localIssues) setIssues(JSON.parse(localIssues));
@@ -121,6 +130,7 @@ export function useShiftRegister({ currentAgent, activeCompanyId, apiStatus, sho
       }
     }
 
+    setHydratedPrefix(companyPrefix);
     setLoading(false);
   }, [apiStatus, companyPrefix]);
 
@@ -128,8 +138,9 @@ export function useShiftRegister({ currentAgent, activeCompanyId, apiStatus, sho
     loadSirData();
   }, [loadSirData, activeCompanyId]);
 
-  // Save to local storage sync
+  // Save to local storage sync (only once this company's data has been loaded)
   useEffect(() => {
+    if (hydratedPrefix !== companyPrefix) return;
     try {
       localStorage.setItem(`REA_SIR_ISSUES_${companyPrefix}`, JSON.stringify(issues));
       localStorage.setItem(`REA_SIR_SHIFTS_${companyPrefix}`, JSON.stringify(shifts));
@@ -137,7 +148,7 @@ export function useShiftRegister({ currentAgent, activeCompanyId, apiStatus, sho
     } catch (e) {
       console.error("Local storage error for SIR", e);
     }
-  }, [issues, shifts, escalationTargets, companyPrefix]);
+  }, [issues, shifts, escalationTargets, companyPrefix, hydratedPrefix]);
 
   // Handle Issue CRUD
   const handleCreateIssue = async (payload) => {
@@ -209,6 +220,9 @@ export function useShiftRegister({ currentAgent, activeCompanyId, apiStatus, sho
   };
 
   // Handle Shift Config CRUD (Admin Control)
+  // When the server is reachable a failed change is reported and the list is re-synced from
+  // the server; it is never applied on screen only, because that is what made changes
+  // "disappear" on the next load. Local-only changes are limited to offline mode.
   const handleCreateShift = async (payload) => {
     if (apiStatus !== "offline") {
       try {
@@ -217,7 +231,9 @@ export function useShiftRegister({ currentAgent, activeCompanyId, apiStatus, sho
         showToast?.(`Shift '${created.name}' created`);
         return created;
       } catch (err) {
-        showToast?.(err.message || "Failed to create shift online");
+        showToast?.(err.message || "Failed to create shift");
+        loadSirData();
+        return null;
       }
     }
 
@@ -235,12 +251,16 @@ export function useShiftRegister({ currentAgent, activeCompanyId, apiStatus, sho
         showToast?.(`Shift '${updated.name}' updated`);
         return updated;
       } catch (err) {
-        showToast?.(err.message || "Failed to update shift online");
+        showToast?.(err.message || "Failed to update shift");
+        loadSirData();
+        return null;
       }
     }
 
-    setShifts((prev) => prev.map((s) => (s.id === id ? { ...s, ...payload } : s)));
+    let merged = null;
+    setShifts((prev) => prev.map((s) => (s.id === id ? (merged = { ...s, ...payload }) : s)));
     showToast?.("Shift updated locally");
+    return merged || { id, ...payload };
   };
 
   const handleDeleteShift = async (id) => {
@@ -248,12 +268,15 @@ export function useShiftRegister({ currentAgent, activeCompanyId, apiStatus, sho
       try {
         await deleteSirShiftApi(id);
       } catch (err) {
-        console.warn("Shift delete API error", err);
+        showToast?.(err.message || "Failed to delete shift");
+        loadSirData();
+        return false;
       }
     }
 
     setShifts((prev) => prev.filter((s) => s.id !== id));
     showToast?.("Shift configuration deleted");
+    return true;
   };
 
   // Handle Escalation Target CRUD (Admin Control)
@@ -265,7 +288,9 @@ export function useShiftRegister({ currentAgent, activeCompanyId, apiStatus, sho
         showToast?.(`Escalation target '${name}' added`);
         return created;
       } catch (err) {
-        showToast?.(err.message || "Failed to add target online");
+        showToast?.(err.message || "Failed to add escalation target");
+        loadSirData();
+        return null;
       }
     }
 
@@ -280,12 +305,15 @@ export function useShiftRegister({ currentAgent, activeCompanyId, apiStatus, sho
       try {
         await deleteSirTargetApi(id);
       } catch (err) {
-        console.warn("Target delete API error", err);
+        showToast?.(err.message || "Failed to delete escalation target");
+        loadSirData();
+        return false;
       }
     }
 
     setEscalationTargets((prev) => prev.filter((t) => t.id !== id));
     showToast?.("Escalation target deleted");
+    return true;
   };
 
   return {

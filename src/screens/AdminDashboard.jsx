@@ -153,20 +153,24 @@ export default function AdminDashboard({
     e.preventDefault();
     if (!shiftName.trim()) return;
 
+    let saved;
     if (editShiftId) {
-      await handleUpdateShift(editShiftId, {
+      saved = await handleUpdateShift(editShiftId, {
         name: shiftName.trim(),
         start_time: shiftStart,
         end_time: shiftEnd,
       });
     } else {
-      await handleCreateShift({
+      saved = await handleCreateShift({
         name: shiftName.trim(),
         start_time: shiftStart,
         end_time: shiftEnd,
         is_active: true,
       });
     }
+
+    // The hook reports failures with a message and returns null: keep what was typed.
+    if (!saved) return;
 
     setEditShiftId(null);
     setShiftName("");
@@ -184,8 +188,8 @@ export default function AdminDashboard({
   const handleAddTargetSubmit = async (e) => {
     e.preventDefault();
     if (!newTargetName.trim()) return;
-    await handleCreateTarget(newTargetName.trim());
-    setNewTargetName("");
+    const created = await handleCreateTarget(newTargetName.trim());
+    if (created) setNewTargetName("");
   };
 
   const handleSavePreset = (e) => {
@@ -1443,15 +1447,15 @@ export default function AdminDashboard({
         </form>
 
         {/* Agent List */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,21rem),1fr))]">
           {(agents || []).map((agent) => (
-            <div key={agent.id} className="rounded-2xl border p-4 flex items-center justify-between" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
-              <div className="flex items-center gap-3">
+            <div key={agent.id} className="min-w-0 rounded-2xl border p-4 flex flex-col gap-3" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
+              <div className="flex min-w-0 items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#32324a_0%,#11111e_100%)] text-sm font-bold text-[#4cd34c] border" style={{ borderColor: "var(--badge-border)" }}>
                   {agent.agent_initials}
                 </div>
-                <div>
-                  <div className="font-bold text-sm flex items-center gap-1.5">
+                <div className="min-w-0">
+                  <div className="font-bold text-sm flex flex-wrap items-center gap-1.5">
                     <span>{agent.agent_name}</span>
                     {agent.is_active === false ? (
                       <span className="text-[10px] font-extrabold text-[#ff6b6b] bg-[#ff6b6b]/10 border border-[#ff6b6b]/30 px-2 py-0.5 rounded-full">
@@ -1469,7 +1473,7 @@ export default function AdminDashboard({
                   <div className="text-[11px] text-[#4cd34c] mt-0.5">{agent.is_admin ? "System Admin" : "Support Agent"}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5 [&>button]:whitespace-nowrap">
                 <button
                   onClick={() => handleEditAgentClick(agent)}
                   className="px-2.5 py-1.5 rounded-xl border text-xs font-semibold"
@@ -1969,21 +1973,19 @@ export default function AdminDashboard({
           </div>
         </div>
 
-        {/* SECTION 6: ORGANIZATION REPORTING SETTINGS (REPORTING WEEK START) */}
-        <div className="rounded-3xl border p-6 shadow-md backdrop-blur space-y-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
-          <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
-            <div>
-              <h3 className="text-[#4cd34c] text-[11px] font-extrabold uppercase tracking-wider">
-                Section 6 · Organization Reporting Settings
-              </h3>
-              <p className="text-[13px] font-bold mt-0.5" style={{ color: "var(--app-text)" }}>
-                Configure Company SIR Reporting Period & Week Cycle
-              </p>
-            </div>
+        {/* SUBSECTION C: ORGANIZATION REPORTING SETTINGS (REPORTING WEEK START) */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-[#4cd34c]">
+              C. Organization Reporting Settings
+            </h4>
             <span className="text-xs font-bold text-[#4cd34c] bg-[#4cd34c]/10 border border-[#4cd34c]/30 px-2.5 py-1 rounded-full">
               Organization Setting
             </span>
           </div>
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            Configure Company SIR Reporting Period & Week Cycle
+          </p>
 
           <form
             onSubmit={(e) => {
@@ -2064,620 +2066,620 @@ export default function AdminDashboard({
             </div>
           </form>
         </div>
+      </div>
 
-        {/* SECTION 8: REUSABLE INFORMATION & TEMPLATE MIGRATION TOOL */}
-        <div className="rounded-3xl border p-6 shadow-md backdrop-blur space-y-6" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: "var(--field-border)" }}>
-            <div>
-              <h3 className="text-[#4cd34c] text-[11px] font-extrabold uppercase tracking-wider">
-                Section 8 · Reusable Information & Global Template Variables
-              </h3>
-              <p className="text-[14px] font-bold mt-0.5" style={{ color: "var(--app-text)" }}>
-                Centrally Manage Shared Information & Migrate Existing Hard-Coded Template Contact Data
-              </p>
-            </div>
-            <button
-              onClick={handleOpenAddVariable}
-              className="px-4 py-2 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-bold shadow-md transition hover:scale-105 flex items-center gap-1.5 w-fit"
-            >
-              + Add Reusable Information
-            </button>
+      {/* SECTION 7: REUSABLE INFORMATION & TEMPLATE MIGRATION TOOL */}
+      <div className="rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur space-y-6" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
+          <div>
+            <h3 className="text-lg font-bold" style={{ color: "var(--app-text)" }}>
+              7. Reusable Information & Global Template Variables
+            </h3>
+            <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+              Centrally manage shared information & migrate existing hard-coded template contact data.
+            </p>
           </div>
-
-          {/* SUBSECTION A: REUSABLE INFORMATION CENTRAL */}
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <input
-                type="text"
-                value={varSearch}
-                onChange={(e) => setVarSearch(e.target.value)}
-                placeholder="Search reusable variables by name, key, value, or category..."
-                className="w-full max-w-sm rounded-xl border p-2.5 text-xs font-medium outline-none focus:border-[#4cd34c]"
-                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-              />
-              <span className="text-xs font-semibold text-[var(--text-muted)]">
-                Total Variables: {filteredGlobalVars.length}
-              </span>
-            </div>
-
-            {filteredGlobalVars.length === 0 ? (
-              <div className="p-8 text-center rounded-2xl border text-xs font-medium text-[var(--text-muted)] bg-[var(--field-bg)] border-[var(--field-border)]">
-                No reusable information variables found. Click "+ Add Reusable Information" to create one.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredGlobalVars.map((v) => (
-                  <div
-                    key={v.id}
-                    className="rounded-2xl border p-4 flex flex-col justify-between space-y-3 transition bg-[var(--field-bg)] shadow-sm hover:border-[#4cd34c]/50"
-                    style={{ borderColor: "var(--field-border)" }}
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-bold" style={{ color: "var(--app-text)" }}>
-                          {v.name}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-[var(--neutral-bg)] text-[#4cd34c] border border-[#4cd34c]/30 font-semibold">
-                            {"{" + v.key + "}"}
-                          </span>
-                          {v.is_active !== false ? (
-                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 border border-green-500/30">
-                              Active ✓
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                              Inactive ⏸
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="p-2.5 rounded-xl border bg-[var(--panel-bg)] space-y-1" style={{ borderColor: "var(--field-border)" }}>
-                        <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block">Value</span>
-                        <p className="text-xs font-mono font-semibold break-all" style={{ color: "var(--app-text)" }}>
-                          "{v.value}"
-                        </p>
-                      </div>
-
-                      {v.description && (
-                        <p className="text-[11px] text-[var(--text-muted)] italic">
-                          {v.description}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2 border-t" style={{ borderColor: "var(--panel-border)" }}>
-                      <button
-                        type="button"
-                        onClick={() => handleViewUsage(v)}
-                        className="text-xs font-semibold text-[#4cd34c] hover:underline flex items-center gap-1"
-                      >
-                        <span>🔗</span>
-                        <span>View Template Usage</span>
-                      </button>
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleVariableActive(v)}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
-                            v.is_active !== false
-                              ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                              : "bg-green-500/10 border-green-500/30 text-green-400"
-                          }`}
-                        >
-                          {v.is_active !== false ? "Deactivate" : "Activate"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleEditVariableClick(v)}
-                          className="px-2.5 py-1 rounded-lg border text-xs font-semibold hover:bg-[var(--neutral-bg)] transition"
-                          style={{ borderColor: "var(--badge-border)", color: "var(--app-text)" }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteVariableClick(v)}
-                          className="px-2.5 py-1 rounded-lg border text-xs font-semibold hover:bg-red-500/10 transition"
-                          style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* SUBSECTION B: CONVERT EXISTING INFORMATION (TEMPLATE MIGRATION TOOL) */}
-          <div className="pt-6 border-t space-y-4" style={{ borderColor: "var(--field-border)" }}>
-            <div>
-              <h4 className="text-sm font-bold text-[#4cd34c] flex items-center gap-2">
-                <span>🔄 Convert Existing Information (Template Migration Tool)</span>
-              </h4>
-              <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                Find repeated hard-coded text across customer templates (e.g. old WhatsApp contact numbers) and convert them to reusable variables with preview before applying.
-              </p>
-            </div>
-
-            <form onSubmit={handleSearchMigration} className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="text"
-                required
-                value={migrationSearchText}
-                onChange={(e) => setMigrationSearchText(e.target.value)}
-                placeholder='Search exact string across templates e.g. "+263 77 123 4567" or "WhatsApp"'
-                className="flex-1 rounded-xl border p-2.5 text-xs font-mono outline-none focus:border-[#4cd34c]"
-                style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-              />
-              <button
-                type="submit"
-                disabled={isSearchingMigration || !migrationSearchText.trim()}
-                className="px-5 py-2.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-bold shadow-md transition disabled:opacity-50 whitespace-nowrap"
-              >
-                {isSearchingMigration ? "Searching..." : "🔍 Search Templates"}
-              </button>
-            </form>
-
-            {/* Migration Search Results */}
-            {migrationSearchResults && (
-              <div className="p-4 rounded-2xl border space-y-4 bg-[var(--field-bg)] border-[var(--field-border)]">
-                <div className="flex items-center justify-between border-b pb-2" style={{ borderColor: "var(--panel-border)" }}>
-                  <span className="text-xs font-bold text-[#4cd34c]">
-                    Search Results for "{migrationSearchResults.query}": {migrationSearchResults.total_templates} matching template(s)
-                  </span>
-                  {migrationSearchResults.matches?.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (selectedTemplateIdsForMigration.length === migrationSearchResults.matches.length) {
-                          setSelectedTemplateIdsForMigration([]);
-                        } else {
-                          setSelectedTemplateIdsForMigration(migrationSearchResults.matches.map((m) => m.id));
-                        }
-                      }}
-                      className="text-xs font-semibold text-[var(--text-muted)] hover:text-[#4cd34c]"
-                    >
-                      {selectedTemplateIdsForMigration.length === migrationSearchResults.matches.length ? "Deselect All" : "Select All"}
-                    </button>
-                  )}
-                </div>
-
-                {migrationSearchResults.matches?.length === 0 ? (
-                  <p className="text-xs text-[var(--text-muted)] italic text-center py-4">
-                    No templates found containing "{migrationSearchResults.query}".
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {/* Matching Templates Checkbox List */}
-                    <div className="max-h-60 overflow-y-auto space-y-2 border rounded-xl p-3 bg-[var(--panel-bg)]" style={{ borderColor: "var(--field-border)" }}>
-                      {migrationSearchResults.matches.map((m) => {
-                        const isChecked = selectedTemplateIdsForMigration.includes(m.id);
-                        return (
-                          <label
-                            key={m.id}
-                            className="flex items-start gap-3 p-2 rounded-lg hover:bg-[var(--neutral-bg)] cursor-pointer text-xs transition"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => {
-                                if (isChecked) {
-                                  setSelectedTemplateIdsForMigration((prev) => prev.filter((id) => id !== m.id));
-                                } else {
-                                  setSelectedTemplateIdsForMigration((prev) => [...prev, m.id]);
-                                }
-                              }}
-                              className="mt-0.5 h-4 w-4 rounded accent-[#4cd34c]"
-                            />
-                            <div className="flex-1 space-y-0.5">
-                              <span className="font-bold block" style={{ color: "var(--app-text)" }}>
-                                {m.name} <span className="text-[10px] text-[var(--text-muted)] font-normal">({m.category || m.category_type})</span>
-                              </span>
-                              <p className="font-mono text-[11px] text-[var(--text-muted)] line-clamp-2">
-                                {m.body}
-                              </p>
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </div>
-
-                    {/* Replacement Target Config */}
-                    <div className="flex flex-col sm:flex-row items-end gap-3 pt-2">
-                      <div className="flex-1 space-y-1 w-full">
-                        <label className="text-[11px] font-bold block text-[var(--text-muted)]">
-                          Select Target Variable or Enter Replacement Phrase:
-                        </label>
-                        <div className="flex gap-2">
-                          <select
-                            value={migrationTargetKey}
-                            onChange={(e) => {
-                              const key = e.target.value;
-                              setMigrationTargetKey(key);
-                              if (key) setMigrationReplaceText(`{${key}}`);
-                            }}
-                            className="rounded-xl border p-2 text-xs font-semibold outline-none"
-                            style={{ borderColor: "var(--field-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
-                          >
-                            <option value="">Custom Replacement</option>
-                            {globalVarsList.map((v) => (
-                              <option key={v.id} value={v.key}>
-                                {"{" + v.key + "}"} ({v.name})
-                              </option>
-                            ))}
-                          </select>
-
-                          <input
-                            type="text"
-                            required
-                            value={migrationReplaceText}
-                            onChange={(e) => setMigrationReplaceText(e.target.value)}
-                            placeholder="e.g. {live_chat} or Contact us via {live_chat}"
-                            className="flex-1 rounded-xl border p-2 text-xs font-mono outline-none"
-                            style={{ borderColor: "var(--field-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
-                          />
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handlePreviewMigration}
-                        disabled={selectedTemplateIdsForMigration.length === 0 || !migrationReplaceText.trim()}
-                        className="px-5 py-2.5 rounded-xl bg-[#4cd34c]/20 hover:bg-[#4cd34c]/30 text-[#4cd34c] border border-[#4cd34c]/40 font-bold text-xs transition disabled:opacity-50 whitespace-nowrap"
-                      >
-                        👁️ Preview Changes ({selectedTemplateIdsForMigration.length})
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <button
+            onClick={handleOpenAddVariable}
+            className="px-4 py-2 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-bold shadow-md transition hover:scale-105 flex items-center gap-1.5 w-fit"
+          >
+            + Add Reusable Information
+          </button>
         </div>
 
-        {/* SECTION 9: SMART EXTRACTOR RULES */}
-        <div
-          className="rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur transition-all"
-          style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}
-        >
-          <SmartExtractorRuleManager companyId={companyId} showToast={showToast} />
-        </div>
-
-        {/* MODAL 1: ADD / EDIT GLOBAL VARIABLE */}
-        {showVarModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
-            <div
-              className="w-full max-w-lg rounded-3xl border p-6 shadow-2xl space-y-5"
-              style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
-            >
-              <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
-                <h3 className="text-base font-bold text-[#4cd34c]">
-                  {editVarId ? "Edit Reusable Information" : "Create Reusable Information"}
-                </h3>
-                <button onClick={() => setShowVarModal(false)} className="text-xs text-[var(--text-muted)] hover:text-white">
-                  ✕
-                </button>
-              </div>
-
-              <form onSubmit={handleSaveVariable} className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
-                    Variable Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={varName}
-                    onChange={(e) => handleVarNameChange(e.target.value)}
-                    placeholder="e.g. Live Chat"
-                    className="w-full rounded-xl border p-2.5 text-xs font-semibold outline-none focus:border-[#4cd34c]"
-                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
-                    Variable Key (Placeholder string) *
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-mono font-bold text-[#4cd34c]">{"{"}</span>
-                    <input
-                      type="text"
-                      required
-                      value={varKey}
-                      onChange={(e) => setVarKey(e.target.value.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, ""))}
-                      placeholder="live_chat"
-                      className="flex-1 rounded-xl border p-2.5 text-xs font-mono font-semibold outline-none focus:border-[#4cd34c]"
-                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                    />
-                    <span className="text-sm font-mono font-bold text-[#4cd34c]">{"}"}</span>
-                  </div>
-                  <p className="text-[11px] text-[var(--text-muted)] mt-1">
-                    Placeholder key used in templates. Must be lowercase letters, numbers, or underscores.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
-                    Centralized Value *
-                  </label>
-                  <textarea
-                    rows={2}
-                    required
-                    value={varValue}
-                    onChange={(e) => setVarValue(e.target.value)}
-                    placeholder="e.g. Live Chat"
-                    className="w-full rounded-xl border p-2.5 text-xs font-mono outline-none focus:border-[#4cd34c]"
-                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                  />
-                  <p className="text-[11px] text-[var(--text-muted)] mt-1">
-                    Value that will automatically resolve wherever {"{" + (varKey || "key") + "}"} is referenced.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
-                      Category
-                    </label>
-                    <input
-                      type="text"
-                      value={varCategory}
-                      onChange={(e) => setVarCategory(e.target.value)}
-                      placeholder="e.g. Contact Information"
-                      className="w-full rounded-xl border p-2.5 text-xs font-semibold outline-none"
-                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
-                      Value Type
-                    </label>
-                    <select
-                      value={varValueType}
-                      onChange={(e) => setVarValueType(e.target.value)}
-                      className="w-full rounded-xl border p-2.5 text-xs font-bold outline-none"
-                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                    >
-                      <option value="text">Plain Text</option>
-                      <option value="phone">Phone Number</option>
-                      <option value="email">Email Address</option>
-                      <option value="url">Website URL</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
-                    Description (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={varDescription}
-                    onChange={(e) => setVarDescription(e.target.value)}
-                    placeholder="Internal note explaining what this variable is used for"
-                    className="w-full rounded-xl border p-2.5 text-xs outline-none"
-                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 pt-1">
-                  <input
-                    type="checkbox"
-                    id="varActive"
-                    checked={varIsActive}
-                    onChange={(e) => setVarIsActive(e.target.checked)}
-                    className="h-4 w-4 rounded accent-[#4cd34c]"
-                  />
-                  <label htmlFor="varActive" className="text-xs font-bold cursor-pointer">
-                    Active Status
-                  </label>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-3 border-t" style={{ borderColor: "var(--field-border)" }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowVarModal(false)}
-                    className="px-4 py-2 rounded-xl bg-[var(--neutral-bg)] text-xs font-bold"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-bold shadow-md"
-                  >
-                    Save Variable
-                  </button>
-                </div>
-              </form>
-            </div>
+        {/* SUBSECTION A: REUSABLE INFORMATION CENTRAL */}
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <input
+              type="text"
+              value={varSearch}
+              onChange={(e) => setVarSearch(e.target.value)}
+              placeholder="Search reusable variables by name, key, value, or category..."
+              className="w-full max-w-sm rounded-xl border p-2.5 text-xs font-medium outline-none focus:border-[#4cd34c]"
+              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+            />
+            <span className="text-xs font-semibold text-[var(--text-muted)]">
+              Total Variables: {filteredGlobalVars.length}
+            </span>
           </div>
-        )}
 
-        {/* MODAL 2: USAGE DETAILS MODAL */}
-        {showUsageModal && usageDetails && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
-            <div
-              className="w-full max-w-lg rounded-3xl border p-6 shadow-2xl space-y-4"
-              style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
-            >
-              <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
-                <div>
-                  <h3 className="text-base font-bold text-[#4cd34c]">
-                    Variable Usage Details
-                  </h3>
-                  <p className="text-xs text-[var(--text-muted)]">
-                    Templates referencing {"{" + usageDetails.key + "}"} ({usageDetails.usage_count} templates)
-                  </p>
-                </div>
-                <button onClick={() => setShowUsageModal(false)} className="text-xs text-[var(--text-muted)] hover:text-white">
-                  ✕
-                </button>
-              </div>
-
-              {usageDetails.templates.length === 0 ? (
-                <p className="text-xs text-[var(--text-muted)] italic text-center py-6">
-                  This variable is not currently referenced in any template.
-                </p>
-              ) : (
-                <div className="max-h-72 overflow-y-auto space-y-2">
-                  {usageDetails.templates.map((t) => (
-                    <div
-                      key={t.id}
-                      className="p-3 rounded-2xl border space-y-1 bg-[var(--field-bg)] border-[var(--field-border)]"
-                    >
-                      <span className="text-xs font-bold block" style={{ color: "var(--app-text)" }}>
-                        {t.name} <span className="text-[10px] text-[var(--text-muted)] font-normal">({t.category || t.category_type})</span>
+          {filteredGlobalVars.length === 0 ? (
+            <div className="p-8 text-center rounded-2xl border text-xs font-medium text-[var(--text-muted)] bg-[var(--field-bg)] border-[var(--field-border)]">
+              No reusable information variables found. Click "+ Add Reusable Information" to create one.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredGlobalVars.map((v) => (
+                <div
+                  key={v.id}
+                  className="rounded-2xl border p-4 flex flex-col justify-between space-y-3 transition bg-[var(--field-bg)] shadow-sm hover:border-[#4cd34c]/50"
+                  style={{ borderColor: "var(--field-border)" }}
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-bold" style={{ color: "var(--app-text)" }}>
+                        {v.name}
                       </span>
-                      <p className="text-[11px] font-mono text-[var(--text-muted)] line-clamp-2">
-                        {t.body_snippet}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-[var(--neutral-bg)] text-[#4cd34c] border border-[#4cd34c]/30 font-semibold">
+                          {"{" + v.key + "}"}
+                        </span>
+                        {v.is_active !== false ? (
+                          <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 border border-green-500/30">
+                            Active ✓
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                            Inactive ⏸
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl border bg-[var(--panel-bg)] space-y-1" style={{ borderColor: "var(--field-border)" }}>
+                      <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block">Value</span>
+                      <p className="text-xs font-mono font-semibold break-all" style={{ color: "var(--app-text)" }}>
+                        "{v.value}"
                       </p>
                     </div>
-                  ))}
-                </div>
-              )}
 
-              <div className="flex justify-end pt-3 border-t" style={{ borderColor: "var(--field-border)" }}>
-                <button
-                  onClick={() => setShowUsageModal(false)}
-                  className="px-4 py-2 rounded-xl bg-[var(--neutral-bg)] text-xs font-bold"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+                    {v.description && (
+                      <p className="text-[11px] text-[var(--text-muted)] italic">
+                        {v.description}
+                      </p>
+                    )}
+                  </div>
 
-        {/* MODAL 3: MIGRATION INTERACTIVE PREVIEW MODAL (BEFORE vs AFTER) */}
-        {showMigrationPreviewModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
-            <div
-              className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden"
-              style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
-            >
-              <div className="flex items-center justify-between p-5 border-b shrink-0" style={{ borderColor: "var(--field-border)" }}>
-                <div>
-                  <h3 className="text-base font-bold text-[#4cd34c]">
-                    👁️ Preview Migration Transformations ({migrationPreviews.length})
-                  </h3>
-                  <p className="text-xs text-[var(--text-muted)]">
-                    Review BEFORE vs AFTER text for each selected template before applying.
-                  </p>
-                </div>
-                <button onClick={() => setShowMigrationPreviewModal(false)} className="text-xs text-[var(--text-muted)] hover:text-white">
-                  ✕
-                </button>
-              </div>
+                  <div className="flex items-center justify-between pt-2 border-t" style={{ borderColor: "var(--panel-border)" }}>
+                    <button
+                      type="button"
+                      onClick={() => handleViewUsage(v)}
+                      className="text-xs font-semibold text-[#4cd34c] hover:underline flex items-center gap-1"
+                    >
+                      <span>🔗</span>
+                      <span>View Template Usage</span>
+                    </button>
 
-              <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                {migrationPreviews.map((p, idx) => (
-                  <div key={idx} className="p-4 rounded-2xl border space-y-3 bg-[var(--field-bg)] border-[var(--field-border)]">
-                    <span className="text-xs font-bold text-[#4cd34c] uppercase tracking-wider block">
-                      Template: {p.name}
-                    </span>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
-                      <div className="p-3 rounded-xl border bg-red-500/5 border-red-500/30 space-y-1">
-                        <span className="text-[10px] font-bold text-red-400 uppercase block">BEFORE (Original)</span>
-                        <p className="text-red-200 whitespace-pre-wrap">{p.original_body}</p>
-                      </div>
-
-                      <div className="p-3 rounded-xl border bg-green-500/5 border-green-500/30 space-y-1">
-                        <span className="text-[10px] font-bold text-green-400 uppercase block">AFTER (Proposed)</span>
-                        <p className="text-green-200 whitespace-pre-wrap">{p.proposed_body}</p>
-                      </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleVariableActive(v)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
+                          v.is_active !== false
+                            ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                            : "bg-green-500/10 border-green-500/30 text-green-400"
+                        }`}
+                      >
+                        {v.is_active !== false ? "Deactivate" : "Activate"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEditVariableClick(v)}
+                        className="px-2.5 py-1 rounded-lg border text-xs font-semibold hover:bg-[var(--neutral-bg)] transition"
+                        style={{ borderColor: "var(--badge-border)", color: "var(--app-text)" }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteVariableClick(v)}
+                        className="px-2.5 py-1 rounded-lg border text-xs font-semibold hover:bg-red-500/10 transition"
+                        style={{ borderColor: "var(--error-border)", color: "var(--error-text)" }}
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
-
-              <div className="p-4 border-t flex justify-end gap-3 shrink-0" style={{ borderColor: "var(--field-border)" }}>
-                <button
-                  type="button"
-                  onClick={() => setShowMigrationPreviewModal(false)}
-                  className="px-4 py-2.5 rounded-xl bg-[var(--neutral-bg)] text-xs font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleApplyMigration}
-                  disabled={isApplyingMigration}
-                  className="px-6 py-2.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-bold shadow-md transition disabled:opacity-50"
-                >
-                  {isApplyingMigration ? "Applying..." : `Apply Changes to ${migrationPreviews.length} Template(s)`}
-                </button>
-              </div>
+                </div>
+              ))}
             </div>
+          )}
+        </div>
+
+        {/* SUBSECTION B: CONVERT EXISTING INFORMATION (TEMPLATE MIGRATION TOOL) */}
+        <div className="pt-6 border-t space-y-4" style={{ borderColor: "var(--field-border)" }}>
+          <div>
+            <h4 className="text-sm font-bold text-[#4cd34c] flex items-center gap-2">
+              <span>🔄 Convert Existing Information (Template Migration Tool)</span>
+            </h4>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">
+              Find repeated hard-coded text across customer templates (e.g. old WhatsApp contact numbers) and convert them to reusable variables with preview before applying.
+            </p>
           </div>
-        )}
 
-        {/* MODAL 4: VARIABLE PICKER FOR TEMPLATE EDITOR */}
-        {showVarPickerModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
-            <div
-              className="w-full max-w-md rounded-3xl border p-6 shadow-2xl space-y-4"
-              style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
+          <form onSubmit={handleSearchMigration} className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="text"
+              required
+              value={migrationSearchText}
+              onChange={(e) => setMigrationSearchText(e.target.value)}
+              placeholder='Search exact string across templates e.g. "+263 77 123 4567" or "WhatsApp"'
+              className="flex-1 rounded-xl border p-2.5 text-xs font-mono outline-none focus:border-[#4cd34c]"
+              style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+            />
+            <button
+              type="submit"
+              disabled={isSearchingMigration || !migrationSearchText.trim()}
+              className="px-5 py-2.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-bold shadow-md transition disabled:opacity-50 whitespace-nowrap"
             >
-              <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
-                <h3 className="text-base font-bold text-[#4cd34c]">
-                  Insert Reusable Information
-                </h3>
-                <button onClick={() => setShowVarPickerModal(false)} className="text-xs text-[var(--text-muted)] hover:text-white">
-                  ✕
-                </button>
-              </div>
+              {isSearchingMigration ? "Searching..." : "🔍 Search Templates"}
+            </button>
+          </form>
 
-              <div className="max-h-72 overflow-y-auto space-y-2">
-                {globalVarsList.length === 0 ? (
-                  <p className="text-xs text-[var(--text-muted)] italic text-center py-4">
-                    No global variables available yet.
-                  </p>
-                ) : (
-                  globalVarsList.map((v) => (
-                    <button
-                      key={v.id}
-                      type="button"
-                      onClick={() => insertVariableIntoTemplateBody(v.key)}
-                      className="w-full text-left p-3 rounded-2xl border transition hover:border-[#4cd34c] hover:bg-[#4cd34c]/10 flex items-center justify-between gap-2"
-                      style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}
-                    >
-                      <div>
-                        <span className="text-xs font-bold block" style={{ color: "var(--app-text)" }}>
-                          {v.name} <span className="text-[10px] text-[var(--text-muted)] font-normal">({v.category})</span>
-                        </span>
-                        <span className="text-[11px] font-mono text-[#4cd34c]">
-                          Value: "{v.value}"
-                        </span>
-                      </div>
-                      <span className="text-xs font-mono font-bold px-2 py-1 rounded-lg bg-[var(--neutral-bg)] text-[#4cd34c] border border-[#4cd34c]/30">
-                        {"{" + v.key + "}"}
-                      </span>
-                    </button>
-                  ))
+          {/* Migration Search Results */}
+          {migrationSearchResults && (
+            <div className="p-4 rounded-2xl border space-y-4 bg-[var(--field-bg)] border-[var(--field-border)]">
+              <div className="flex items-center justify-between border-b pb-2" style={{ borderColor: "var(--panel-border)" }}>
+                <span className="text-xs font-bold text-[#4cd34c]">
+                  Search Results for "{migrationSearchResults.query}": {migrationSearchResults.total_templates} matching template(s)
+                </span>
+                {migrationSearchResults.matches?.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedTemplateIdsForMigration.length === migrationSearchResults.matches.length) {
+                        setSelectedTemplateIdsForMigration([]);
+                      } else {
+                        setSelectedTemplateIdsForMigration(migrationSearchResults.matches.map((m) => m.id));
+                      }
+                    }}
+                    className="text-xs font-semibold text-[var(--text-muted)] hover:text-[#4cd34c]"
+                  >
+                    {selectedTemplateIdsForMigration.length === migrationSearchResults.matches.length ? "Deselect All" : "Select All"}
+                  </button>
                 )}
               </div>
 
-              <div className="flex justify-end pt-3 border-t" style={{ borderColor: "var(--field-border)" }}>
+              {migrationSearchResults.matches?.length === 0 ? (
+                <p className="text-xs text-[var(--text-muted)] italic text-center py-4">
+                  No templates found containing "{migrationSearchResults.query}".
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {/* Matching Templates Checkbox List */}
+                  <div className="max-h-60 overflow-y-auto space-y-2 border rounded-xl p-3 bg-[var(--panel-bg)]" style={{ borderColor: "var(--field-border)" }}>
+                    {migrationSearchResults.matches.map((m) => {
+                      const isChecked = selectedTemplateIdsForMigration.includes(m.id);
+                      return (
+                        <label
+                          key={m.id}
+                          className="flex items-start gap-3 p-2 rounded-lg hover:bg-[var(--neutral-bg)] cursor-pointer text-xs transition"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setSelectedTemplateIdsForMigration((prev) => prev.filter((id) => id !== m.id));
+                              } else {
+                                setSelectedTemplateIdsForMigration((prev) => [...prev, m.id]);
+                              }
+                            }}
+                            className="mt-0.5 h-4 w-4 rounded accent-[#4cd34c]"
+                          />
+                          <div className="flex-1 space-y-0.5">
+                            <span className="font-bold block" style={{ color: "var(--app-text)" }}>
+                              {m.name} <span className="text-[10px] text-[var(--text-muted)] font-normal">({m.category || m.category_type})</span>
+                            </span>
+                            <p className="font-mono text-[11px] text-[var(--text-muted)] line-clamp-2">
+                              {m.body}
+                            </p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  {/* Replacement Target Config */}
+                  <div className="flex flex-col sm:flex-row items-end gap-3 pt-2">
+                    <div className="flex-1 space-y-1 w-full">
+                      <label className="text-[11px] font-bold block text-[var(--text-muted)]">
+                        Select Target Variable or Enter Replacement Phrase:
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          value={migrationTargetKey}
+                          onChange={(e) => {
+                            const key = e.target.value;
+                            setMigrationTargetKey(key);
+                            if (key) setMigrationReplaceText(`{${key}}`);
+                          }}
+                          className="rounded-xl border p-2 text-xs font-semibold outline-none"
+                          style={{ borderColor: "var(--field-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
+                        >
+                          <option value="">Custom Replacement</option>
+                          {globalVarsList.map((v) => (
+                            <option key={v.id} value={v.key}>
+                              {"{" + v.key + "}"} ({v.name})
+                            </option>
+                          ))}
+                        </select>
+
+                        <input
+                          type="text"
+                          required
+                          value={migrationReplaceText}
+                          onChange={(e) => setMigrationReplaceText(e.target.value)}
+                          placeholder="e.g. {live_chat} or Contact us via {live_chat}"
+                          className="flex-1 rounded-xl border p-2 text-xs font-mono outline-none"
+                          style={{ borderColor: "var(--field-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handlePreviewMigration}
+                      disabled={selectedTemplateIdsForMigration.length === 0 || !migrationReplaceText.trim()}
+                      className="px-5 py-2.5 rounded-xl bg-[#4cd34c]/20 hover:bg-[#4cd34c]/30 text-[#4cd34c] border border-[#4cd34c]/40 font-bold text-xs transition disabled:opacity-50 whitespace-nowrap"
+                    >
+                      👁️ Preview Changes ({selectedTemplateIdsForMigration.length})
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* SECTION 8: SMART EXTRACTOR RULES */}
+      <div
+        className="rounded-3xl border p-6 shadow-[var(--panel-shadow)] backdrop-blur transition-all"
+        style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}
+      >
+        <SmartExtractorRuleManager companyId={companyId} showToast={showToast} />
+      </div>
+
+      {/* MODAL 1: ADD / EDIT GLOBAL VARIABLE */}
+      {showVarModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
+          <div
+            className="w-full max-w-lg rounded-3xl border p-6 shadow-2xl space-y-5"
+            style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
+          >
+            <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
+              <h3 className="text-base font-bold text-[#4cd34c]">
+                {editVarId ? "Edit Reusable Information" : "Create Reusable Information"}
+              </h3>
+              <button onClick={() => setShowVarModal(false)} className="text-xs text-[var(--text-muted)] hover:text-white">
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveVariable} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
+                  Variable Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={varName}
+                  onChange={(e) => handleVarNameChange(e.target.value)}
+                  placeholder="e.g. Live Chat"
+                  className="w-full rounded-xl border p-2.5 text-xs font-semibold outline-none focus:border-[#4cd34c]"
+                  style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
+                  Variable Key (Placeholder string) *
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-mono font-bold text-[#4cd34c]">{"{"}</span>
+                  <input
+                    type="text"
+                    required
+                    value={varKey}
+                    onChange={(e) => setVarKey(e.target.value.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, ""))}
+                    placeholder="live_chat"
+                    className="flex-1 rounded-xl border p-2.5 text-xs font-mono font-semibold outline-none focus:border-[#4cd34c]"
+                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                  />
+                  <span className="text-sm font-mono font-bold text-[#4cd34c]">{"}"}</span>
+                </div>
+                <p className="text-[11px] text-[var(--text-muted)] mt-1">
+                  Placeholder key used in templates. Must be lowercase letters, numbers, or underscores.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
+                  Centralized Value *
+                </label>
+                <textarea
+                  rows={2}
+                  required
+                  value={varValue}
+                  onChange={(e) => setVarValue(e.target.value)}
+                  placeholder="e.g. Live Chat"
+                  className="w-full rounded-xl border p-2.5 text-xs font-mono outline-none focus:border-[#4cd34c]"
+                  style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                />
+                <p className="text-[11px] text-[var(--text-muted)] mt-1">
+                  Value that will automatically resolve wherever {"{" + (varKey || "key") + "}"} is referenced.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
+                    Category
+                  </label>
+                  <input
+                    type="text"
+                    value={varCategory}
+                    onChange={(e) => setVarCategory(e.target.value)}
+                    placeholder="e.g. Contact Information"
+                    className="w-full rounded-xl border p-2.5 text-xs font-semibold outline-none"
+                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
+                    Value Type
+                  </label>
+                  <select
+                    value={varValueType}
+                    onChange={(e) => setVarValueType(e.target.value)}
+                    className="w-full rounded-xl border p-2.5 text-xs font-bold outline-none"
+                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                  >
+                    <option value="text">Plain Text</option>
+                    <option value="phone">Phone Number</option>
+                    <option value="email">Email Address</option>
+                    <option value="url">Website URL</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold block mb-1" style={{ color: "var(--text-muted)" }}>
+                  Description (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={varDescription}
+                  onChange={(e) => setVarDescription(e.target.value)}
+                  placeholder="Internal note explaining what this variable is used for"
+                  className="w-full rounded-xl border p-2.5 text-xs outline-none"
+                  style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="varActive"
+                  checked={varIsActive}
+                  onChange={(e) => setVarIsActive(e.target.checked)}
+                  className="h-4 w-4 rounded accent-[#4cd34c]"
+                />
+                <label htmlFor="varActive" className="text-xs font-bold cursor-pointer">
+                  Active Status
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t" style={{ borderColor: "var(--field-border)" }}>
                 <button
                   type="button"
-                  onClick={() => setShowVarPickerModal(false)}
+                  onClick={() => setShowVarModal(false)}
                   className="px-4 py-2 rounded-xl bg-[var(--neutral-bg)] text-xs font-bold"
                 >
                   Cancel
                 </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-bold shadow-md"
+                >
+                  Save Variable
+                </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: USAGE DETAILS MODAL */}
+      {showUsageModal && usageDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
+          <div
+            className="w-full max-w-lg rounded-3xl border p-6 shadow-2xl space-y-4"
+            style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
+          >
+            <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
+              <div>
+                <h3 className="text-base font-bold text-[#4cd34c]">
+                  Variable Usage Details
+                </h3>
+                <p className="text-xs text-[var(--text-muted)]">
+                  Templates referencing {"{" + usageDetails.key + "}"} ({usageDetails.usage_count} templates)
+                </p>
+              </div>
+              <button onClick={() => setShowUsageModal(false)} className="text-xs text-[var(--text-muted)] hover:text-white">
+                ✕
+              </button>
+            </div>
+
+            {usageDetails.templates.length === 0 ? (
+              <p className="text-xs text-[var(--text-muted)] italic text-center py-6">
+                This variable is not currently referenced in any template.
+              </p>
+            ) : (
+              <div className="max-h-72 overflow-y-auto space-y-2">
+                {usageDetails.templates.map((t) => (
+                  <div
+                    key={t.id}
+                    className="p-3 rounded-2xl border space-y-1 bg-[var(--field-bg)] border-[var(--field-border)]"
+                  >
+                    <span className="text-xs font-bold block" style={{ color: "var(--app-text)" }}>
+                      {t.name} <span className="text-[10px] text-[var(--text-muted)] font-normal">({t.category || t.category_type})</span>
+                    </span>
+                    <p className="text-[11px] font-mono text-[var(--text-muted)] line-clamp-2">
+                      {t.body_snippet}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-end pt-3 border-t" style={{ borderColor: "var(--field-border)" }}>
+              <button
+                onClick={() => setShowUsageModal(false)}
+                className="px-4 py-2 rounded-xl bg-[var(--neutral-bg)] text-xs font-bold"
+              >
+                Close
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* MODAL 3: MIGRATION INTERACTIVE PREVIEW MODAL (BEFORE vs AFTER) */}
+      {showMigrationPreviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
+          <div
+            className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden"
+            style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
+          >
+            <div className="flex items-center justify-between p-5 border-b shrink-0" style={{ borderColor: "var(--field-border)" }}>
+              <div>
+                <h3 className="text-base font-bold text-[#4cd34c]">
+                  👁️ Preview Migration Transformations ({migrationPreviews.length})
+                </h3>
+                <p className="text-xs text-[var(--text-muted)]">
+                  Review BEFORE vs AFTER text for each selected template before applying.
+                </p>
+              </div>
+              <button onClick={() => setShowMigrationPreviewModal(false)} className="text-xs text-[var(--text-muted)] hover:text-white">
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {migrationPreviews.map((p, idx) => (
+                <div key={idx} className="p-4 rounded-2xl border space-y-3 bg-[var(--field-bg)] border-[var(--field-border)]">
+                  <span className="text-xs font-bold text-[#4cd34c] uppercase tracking-wider block">
+                    Template: {p.name}
+                  </span>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
+                    <div className="p-3 rounded-xl border bg-red-500/5 border-red-500/30 space-y-1">
+                      <span className="text-[10px] font-bold text-red-400 uppercase block">BEFORE (Original)</span>
+                      <p className="text-red-200 whitespace-pre-wrap">{p.original_body}</p>
+                    </div>
+
+                    <div className="p-3 rounded-xl border bg-green-500/5 border-green-500/30 space-y-1">
+                      <span className="text-[10px] font-bold text-green-400 uppercase block">AFTER (Proposed)</span>
+                      <p className="text-green-200 whitespace-pre-wrap">{p.proposed_body}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-4 border-t flex justify-end gap-3 shrink-0" style={{ borderColor: "var(--field-border)" }}>
+              <button
+                type="button"
+                onClick={() => setShowMigrationPreviewModal(false)}
+                className="px-4 py-2.5 rounded-xl bg-[var(--neutral-bg)] text-xs font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyMigration}
+                disabled={isApplyingMigration}
+                className="px-6 py-2.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-bold shadow-md transition disabled:opacity-50"
+              >
+                {isApplyingMigration ? "Applying..." : `Apply Changes to ${migrationPreviews.length} Template(s)`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: VARIABLE PICKER FOR TEMPLATE EDITOR */}
+      {showVarPickerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
+          <div
+            className="w-full max-w-md rounded-3xl border p-6 shadow-2xl space-y-4"
+            style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}
+          >
+            <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
+              <h3 className="text-base font-bold text-[#4cd34c]">
+                Insert Reusable Information
+              </h3>
+              <button onClick={() => setShowVarPickerModal(false)} className="text-xs text-[var(--text-muted)] hover:text-white">
+                ✕
+              </button>
+            </div>
+
+            <div className="max-h-72 overflow-y-auto space-y-2">
+              {globalVarsList.length === 0 ? (
+                <p className="text-xs text-[var(--text-muted)] italic text-center py-4">
+                  No global variables available yet.
+                </p>
+              ) : (
+                globalVarsList.map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => insertVariableIntoTemplateBody(v.key)}
+                    className="w-full text-left p-3 rounded-2xl border transition hover:border-[#4cd34c] hover:bg-[#4cd34c]/10 flex items-center justify-between gap-2"
+                    style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" }}
+                  >
+                    <div>
+                      <span className="text-xs font-bold block" style={{ color: "var(--app-text)" }}>
+                        {v.name} <span className="text-[10px] text-[var(--text-muted)] font-normal">({v.category})</span>
+                      </span>
+                      <span className="text-[11px] font-mono text-[#4cd34c]">
+                        Value: "{v.value}"
+                      </span>
+                    </div>
+                    <span className="text-xs font-mono font-bold px-2 py-1 rounded-lg bg-[var(--neutral-bg)] text-[#4cd34c] border border-[#4cd34c]/30">
+                      {"{" + v.key + "}"}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+
+            <div className="flex justify-end pt-3 border-t" style={{ borderColor: "var(--field-border)" }}>
+              <button
+                type="button"
+                onClick={() => setShowVarPickerModal(false)}
+                className="px-4 py-2 rounded-xl bg-[var(--neutral-bg)] text-xs font-bold"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </section>
   );
