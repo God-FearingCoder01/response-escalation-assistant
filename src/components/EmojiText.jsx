@@ -33,9 +33,6 @@ export const EMOJI_ICONS = {
   "🔴": "/red_circle.png",
   "🟢": "/green_circle.png",
   "🔥": "/fire.png",
-  "⏸": "/pause.png",
-  "⏸️": "/pause.png",
-  "⏯️": "/pause.png",
 };
 
 const PATTERN = new RegExp(`(${Object.keys(EMOJI_ICONS).sort((a, b) => b.length - a.length).join("|")})`, "g");
