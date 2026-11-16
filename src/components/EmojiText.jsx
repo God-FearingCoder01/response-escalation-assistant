@@ -26,6 +26,13 @@ export const EMOJI_ICONS = {
   "✏️": "/edit.png",
   "🔍": "/search.png",
   "☑️": "/batch.png",
+  "🚀": "/rocket.png",
+  "📄": "/page.png",
+  "📊": "/bar_chart.png",
+  "🧪": "/test_tube.png",
+  "🔴": "/red_circle.png",
+  "🟢": "/green_circle.png",
+  "🔥": "/fire.png",
 };
 
 const PATTERN = new RegExp(`(${Object.keys(EMOJI_ICONS).sort((a, b) => b.length - a.length).join("|")})`, "g");

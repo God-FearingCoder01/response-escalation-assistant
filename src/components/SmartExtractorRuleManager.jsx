@@ -242,7 +242,7 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
                   className="text-xs hover:text-[#4cd34c] transition"
                   style={{ color: "var(--text-muted)" }}
                 >
-                  🧪 Test Pattern
+                  <EmojiText text="🧪" /> Test Pattern
                 </button>
 
                 <div className="flex gap-2">
@@ -269,7 +269,7 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
       {/* RULE TESTER PANEL */}
       <div className="rounded-2xl border p-6 space-y-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
         <h4 className="text-sm font-bold flex items-center gap-2" style={{ color: "var(--app-text)" }}>
-          <span>🧪</span> Live Extraction Rule Tester
+          <EmojiText text="🧪" /> Live Extraction Rule Tester
         </h4>
         <p className="text-xs" style={{ color: "var(--text-muted)" }}>Test regex extraction rules against sample customer text before enabling them in production.</p>
 

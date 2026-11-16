@@ -5,6 +5,7 @@ import { parseNotesFile } from "../hooks/usePrivateNotes";
 import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
 import { sortTemplatesBySearchRelevance } from "../utils/searchUtils";
 import Icon from "../components/Icon";
+import EmojiText from "../components/EmojiText";
 
 export default function QuickAccess({
   activeScreen,
@@ -474,7 +475,7 @@ export default function QuickAccess({
               onClick={() => promoteToSuggestion(promptBannerNote)}
               className="px-3.5 py-1.5 rounded-xl bg-[#4cd34c] text-black font-extrabold text-xs shadow-sm hover:opacity-90 transition flex items-center gap-1.5"
             >
-              🚀 Submit to Team Suggestions
+              <EmojiText text="🚀" /> Submit to Team Suggestions
             </button>
             <button
               type="button"
@@ -573,7 +574,7 @@ export default function QuickAccess({
                       }}
                       className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-[#4cd34c]/20 text-[var(--app-text)] transition flex items-center gap-2 cursor-pointer"
                     >
-                      <span>📄</span>
+                      <Icon src="/page.png" fallback="📄" className="h-4 w-4" />
                       <span>JSON (.json)</span>
                     </button>
                     <button
@@ -584,7 +585,7 @@ export default function QuickAccess({
                       }}
                       className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-[#4cd34c]/20 text-[var(--app-text)] transition flex items-center gap-2 cursor-pointer"
                     >
-                      <span>📊</span>
+                      <Icon src="/bar_chart.png" fallback="📊" className="h-4 w-4" />
                       <span>CSV (.csv)</span>
                     </button>
                   </div>
@@ -1262,7 +1263,7 @@ export default function QuickAccess({
                         className="px-2 py-1 rounded-lg bg-[#4cd34c]/20 text-[#4cd34c] text-[10px] font-bold border border-[#4cd34c]/40 hover:bg-[#4cd34c] hover:text-black transition cursor-pointer"
                         title="Submit this high-frequency note (150+ daily uses) as a Team Suggestion"
                       >
-                        🚀 Suggest
+                        <EmojiText text="🚀" /> Suggest
                       </button>
                     )}
 

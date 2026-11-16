@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import Icon from "../components/Icon";
+import EmojiText from "../components/EmojiText";
 
 // Utility helpers for issue age and shifts affected calculation
 function calculateIssueAge(createdAt) {
@@ -745,7 +746,7 @@ export default function ShiftRegisterScreen({
 
                       <div className="flex items-center gap-1.5">
                         {issue.status === "Ongoing" ? (
-                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.3)]">🔴 Ongoing</span>
+                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.3)]"><EmojiText text="🔴" /> Ongoing</span>
                         ) : (
                           <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">🟠 Monitoring</span>
                         )}
@@ -771,7 +772,7 @@ export default function ShiftRegisterScreen({
                       </span>
                       {isPersistent && (
                         <span className="text-red-400 font-extrabold flex items-center gap-1">
-                          🔥 {shiftsAffected} shifts affected
+                          <EmojiText text="🔥" /> {shiftsAffected} shifts affected
                         </span>
                       )}
                     </div>
@@ -1371,7 +1372,7 @@ export default function ShiftRegisterScreen({
                   className={`p-3 rounded-2xl border text-center transition flex flex-col items-center justify-center gap-1 ${exportFormat === "excel" ? "bg-[#4cd34c]/20 border-[#4cd34c] text-[#4cd34c]" : "hover:border-[#4cd34c]"}`}
                   style={exportFormat !== "excel" ? { borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" } : {}}
                 >
-                  <span className="text-lg">📊</span>
+                  <Icon src="/bar_chart.png" fallback="📊" className="h-6 w-6" />
                   <span className="text-xs font-black">Excel (.xlsx)</span>
                   <span className="text-[9px] opacity-75 font-medium">Multi-Sheet</span>
                 </button>
@@ -1381,7 +1382,7 @@ export default function ShiftRegisterScreen({
                   className={`p-3 rounded-2xl border text-center transition flex flex-col items-center justify-center gap-1 ${exportFormat === "pdf" ? "bg-[#4cd34c]/20 border-[#4cd34c] text-[#4cd34c]" : "hover:border-[#4cd34c]"}`}
                   style={exportFormat !== "pdf" ? { borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" } : {}}
                 >
-                  <span className="text-lg">📄</span>
+                  <Icon src="/page.png" fallback="📄" className="h-6 w-6" />
                   <span className="text-xs font-black">PDF Report</span>
                   <span className="text-[9px] opacity-75 font-medium">Executive</span>
                 </button>

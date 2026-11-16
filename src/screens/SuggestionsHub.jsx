@@ -1,4 +1,5 @@
 import { useState } from "react";
+import EmojiText from "../components/EmojiText";
 
 function getSuggestionDateBucket(sug) {
   if (!sug) return "Long time ago";
@@ -162,7 +163,7 @@ export default function SuggestionsHub({
                   onClick={() => promoteToSuggestion(note)}
                   className="w-full py-1.5 rounded-xl bg-[#4cd34c] text-black font-extrabold text-xs shadow-sm hover:opacity-90 transition flex items-center justify-center gap-1"
                 >
-                  🚀 Submit as Team Suggestion
+                  <EmojiText text="🚀" /> Submit as Team Suggestion
                 </button>
               </div>
             ))}
