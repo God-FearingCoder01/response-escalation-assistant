@@ -563,7 +563,6 @@ export default function App() {
           activeCompanyId={activeCompanyId}
           handleNavigate={handleNavigate}
           checkHealth={checkHealth}
-          onOpenSmartExtractor={() => setShowSmartExtractor(true)}
         />
 
         {activeScreen === "monitor" && isSuperAdminAuth && (

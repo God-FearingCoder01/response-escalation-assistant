@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchMyTimetableApi, fetchShiftMatesApi, fetchTimetableArchiveApi } from "../services/api";
+import Icon from "../components/Icon";
 
 const monthLabel = (year, month) => new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
 const isoDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -152,7 +153,7 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
           </div>}
 
           <div className="flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
-            <span className="font-bold mr-1">Legend</span><span className="rounded-md bg-lime-400 px-2 py-1 font-bold text-slate-950">☀ Morning shift</span><span className="rounded-md bg-fuchsia-500 px-2 py-1 font-bold text-slate-950">☾ Afternoon / evening</span><span className="rounded-md bg-slate-300 px-2 py-1 font-bold text-slate-950">◷ Off</span><span className="rounded-md bg-cyan-300 px-2 py-1 font-bold text-slate-950">Leave</span>
+            <span className="font-bold mr-1">Legend</span><span className="rounded-md bg-lime-400 px-2 py-1 font-bold text-slate-950"><Icon src="/sun.png" fallback="☀" className="h-3.5 w-3.5 mr-1" />Morning shift</span><span className="rounded-md bg-fuchsia-500 px-2 py-1 font-bold text-slate-950">☾ Afternoon / evening</span><span className="rounded-md bg-slate-300 px-2 py-1 font-bold text-slate-950">◷ Off</span><span className="rounded-md bg-cyan-300 px-2 py-1 font-bold text-slate-950">Leave</span>
           </div>
         </>}
       </>}

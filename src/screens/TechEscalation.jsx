@@ -2,6 +2,7 @@ import { useState } from "react";
 import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString, sanitizeAccountNumber, toHTMLDateValue, toHTMLTimeValue } from "../services/api";
 import { processExtractableFields } from "../services/extractableFieldService";
 import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
+import Icon from "../components/Icon";
 
 export default function TechEscalation({
   activeScreen,
@@ -473,7 +474,7 @@ export default function TechEscalation({
           />
 
           <p className="text-xs italic mt-2" style={{ color: "var(--text-muted)" }}>
-            💡 Tech Escalation messages automatically end with signature <code className="text-[#4cd34c]">#{currentAgent?.agent_name || ""}</code>.
+            <Icon src="/bulb.png" fallback="💡" className="h-4 w-4 mr-1" />Tech Escalation messages automatically end with signature <code className="text-[#4cd34c]">#{currentAgent?.agent_name || ""}</code>.
           </p>
         </div>
 
