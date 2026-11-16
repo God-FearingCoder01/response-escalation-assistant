@@ -10,9 +10,20 @@ export default function PinModal({
 }) {
   if (!showPinModal) return null;
 
-  const handleVerifyPinSubmit = (e) => {
+  // After a failed attempt the boxes are cleared (or only partly filled), so put the cursor
+  // in the first empty box. Nothing is found if the modal closed because the PIN was right.
+  const focusFirstEmptyBox = () => {
+    window.requestAnimationFrame(() => {
+      const boxes = [0, 1, 2, 3].map((idx) => document.getElementById(`pin-box-${idx}`));
+      const target = boxes.find((box) => box && !box.value) || boxes[0];
+      target?.focus();
+    });
+  };
+
+  const handleVerifyPinSubmit = async (e) => {
     e.preventDefault();
-    verifyPin();
+    await verifyPin();
+    focusFirstEmptyBox();
   };
 
   return (
@@ -39,6 +50,7 @@ export default function PinModal({
               <input
                 key={idx}
                 id={`pin-box-${idx}`}
+                autoFocus={idx === 0}
                 type="password"
                 maxLength={1}
                 value={pinDigits[idx] || ""}
