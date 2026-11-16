@@ -15,6 +15,10 @@
   ],
   "routes": [
     {
+      "src": "/([^/]+\\.(png|jpg|jpeg|svg|ico|webp))",
+      "dest": "/$1"
+    },
+    {
       "src": "/(health|companies|superadmin|templates|agents|suggestions|support-requests|sir|favorites|history|export|import|translate|private-notes|timetables|ask-rea|api)(.*)",
       "dest": "backend/main.py"
     },
