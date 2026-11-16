@@ -18,7 +18,7 @@ export const EMOJI_ICONS = {
   "✓": "/tick.png",
   "✔️": "/tick.png",
   "✅": "/tick.png",
-  "⚠️": "/exclamation.png",
+  "⚠️": "/warning.png",
   "🎯": "/dart.png",
   "👤": "/person.png",
   "🗑️": "/bin.png",
