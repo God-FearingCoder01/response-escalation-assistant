@@ -10,7 +10,6 @@ export default function HeaderStatusBar({
   activeCompanyId = 1,
   handleNavigate = () => {},
   checkHealth = () => {},
-  onOpenSmartExtractor = () => {},
 }) {
   return (
     <>
@@ -96,16 +95,6 @@ export default function HeaderStatusBar({
                   : "Backend Connected"}
             </span>
           </button>
-
-          {currentAgent && activeScreen !== "welcome" && activeScreen !== "monitor" ? (
-            <button
-              onClick={() => onOpenSmartExtractor()}
-              title="Open Smart Extractor to scan screenshots or paste customer text"
-              className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold text-[#4cd34c] border-[#4cd34c]/40 bg-[#4cd34c]/10 hover:bg-[#4cd34c]/20 transition cursor-pointer"
-            >
-              <span>🔍 Smart Extractor</span>
-            </button>
-          ) : null}
 
           {currentAgent ? (
             <div className="flex items-center gap-2">

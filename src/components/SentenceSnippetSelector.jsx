@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { splitIntoSentences } from "../services/api";
+import Icon from "./Icon";
 
 export default function SentenceSnippetSelector({
   generatedMsg = "",
@@ -282,7 +283,10 @@ export default function SentenceSnippetSelector({
                   <span>Copy Message Text (Unsigned)</span>
                 </>
               ) : (
-                <span>Copy Message Text 📋</span>
+                <>
+                  <span>Copy Message Text</span>
+                  <Icon src="/clipboard.png" fallback="📋" className="h-5 w-5" />
+                </>
               )}
 
               {!isFullMessage && sentences.length > 1 && checkedIndexes.length < sentences.length && (
@@ -375,7 +379,8 @@ export default function SentenceSnippetSelector({
             onClick={openSaveModal}
             className="w-full rounded-xl border border-[#4cd34c]/40 bg-[#4cd34c]/10 py-2.5 text-xs font-bold text-[#4cd34c] hover:bg-[#4cd34c] hover:text-[#071007] transition flex items-center justify-center gap-1.5"
           >
-            <span>💾 Save Selection as Private Snippet</span>
+            <Icon src="/save.png" fallback="💾" className="h-4 w-4" />
+            <span>Save Selection as Private Snippet</span>
           </button>
         )}
       </div>
@@ -390,7 +395,7 @@ export default function SentenceSnippetSelector({
           >
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--field-border)" }}>
               <div className="flex items-center gap-2">
-                <span className="text-xl">💾</span>
+                <Icon src="/save.png" fallback="💾" className="h-6 w-6" />
                 <h3 className="font-bold text-base text-[var(--app-text)]">Save Selection as Snippet</h3>
               </div>
               <button

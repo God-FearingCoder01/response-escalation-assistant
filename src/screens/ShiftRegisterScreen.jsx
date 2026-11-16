@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import Icon from "../components/Icon";
 
 // Utility helpers for issue age and shifts affected calculation
 function calculateIssueAge(createdAt) {
@@ -462,7 +463,7 @@ export default function ShiftRegisterScreen({
 
   const getShiftIcon = (name = "") => {
     const lower = name.toLowerCase();
-    if (lower.includes("morning")) return "☀️";
+    if (lower.includes("morning")) return <Icon src="/sun.png" fallback="☀️" className="h-4 w-4" />;
     if (lower.includes("afternoon") || lower.includes("day")) return "🌆";
     if (lower.includes("night") || lower.includes("graveyard")) return "🌙";
     return "⏰";

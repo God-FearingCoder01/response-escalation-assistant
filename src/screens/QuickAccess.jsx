@@ -4,6 +4,7 @@ import { processExtractableFields } from "../services/extractableFieldService";
 import { parseNotesFile } from "../hooks/usePrivateNotes";
 import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
 import { sortTemplatesBySearchRelevance } from "../utils/searchUtils";
+import Icon from "../components/Icon";
 
 export default function QuickAccess({
   activeScreen,
@@ -526,8 +527,8 @@ export default function QuickAccess({
                 className="px-3 py-1.5 rounded-xl border border-[#4cd34c]/40 text-[#4cd34c] font-bold text-xs hover:bg-[#4cd34c]/10 transition flex items-center gap-1 shrink-0 cursor-pointer"
                 title="Create a new custom category for private notes"
               >
-                <span>📁+</span>
-                <span>Add Category</span>
+                <Icon src="/folder.png" fallback="📁" className="h-4 w-4" />
+                <span>+ Add Category</span>
               </button>
 
               {/* Import Notes Button */}
@@ -537,7 +538,7 @@ export default function QuickAccess({
                 className="px-3 py-1.5 rounded-xl border border-[#4cd34c]/40 text-[#4cd34c] font-bold text-xs hover:bg-[#4cd34c]/10 transition flex items-center gap-1 shrink-0 cursor-pointer"
                 title="Import personal notes from JSON or CSV file"
               >
-                <span>📥</span>
+                <Icon src="/import.png" fallback="📥" className="h-4 w-4" />
                 <span>Import Notes</span>
               </button>
               <input
@@ -556,7 +557,7 @@ export default function QuickAccess({
                   className="px-3 py-1.5 rounded-xl border border-[#4cd34c]/40 text-[#4cd34c] font-bold text-xs hover:bg-[#4cd34c]/10 transition flex items-center gap-1 cursor-pointer"
                   title="Export personal notes to JSON or CSV file"
                 >
-                  <span>📤</span>
+                  <Icon src="/export.png" fallback="📤" className="h-4 w-4" />
                   <span>Export Notes ▾</span>
                 </button>
                 {showExportMenu && (
@@ -662,7 +663,7 @@ export default function QuickAccess({
           <div className="p-4 rounded-2xl border bg-[var(--field-bg)] space-y-3 shadow-md border-[#4cd34c]/60 animate-fade-in">
             <div className="flex items-center justify-between font-bold text-xs text-[#4cd34c]">
               <span className="flex items-center gap-1.5">
-                <span className="text-base">📁</span> Create New Custom Private Note Category
+                <Icon src="/folder.png" fallback="📁" className="h-5 w-5" /> Create New Custom Private Note Category
               </span>
               <button
                 type="button"
@@ -728,7 +729,14 @@ export default function QuickAccess({
         {showCreateNote && (
           <form onSubmit={handleSavePrivateNote} className="p-4 rounded-2xl border bg-[var(--field-bg)] space-y-3 shadow-md" style={{ borderColor: "#4cd34c" }}>
             <div className="font-bold text-xs text-[#4cd34c] flex items-center justify-between">
-              <span>{editingNote ? "✏️ Edit Private Agent Template" : "🔒 Create Private Agent Template"}</span>
+              <span className="flex items-center gap-1.5">
+                {editingNote ? "✏️ Edit Private Agent Template" : (
+                  <>
+                    <Icon src="/locked.png" fallback="🔒" className="h-4 w-4" />
+                    Create Private Agent Template
+                  </>
+                )}
+              </span>
               {editingNote && (
                 <span className="text-[10px] bg-[#4cd34c]/20 px-2 py-0.5 rounded-full">Editing ID: {editingNote.id}</span>
               )}
@@ -799,7 +807,11 @@ export default function QuickAccess({
                       : "bg-[var(--app-bg)] text-[var(--text-muted)] border-[var(--field-border)] hover:opacity-100"
                   }`}
                 >
-                  {allCustomCategories.includes(preset) ? `✨ ${preset}` : preset}
+                  {allCustomCategories.includes(preset) ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Icon src="/sparkling.png" fallback="✨" className="h-3.5 w-3.5" /> {preset}
+                    </span>
+                  ) : preset}
                 </button>
               ))}
               <button
@@ -858,7 +870,7 @@ export default function QuickAccess({
             }`}
             style={{ borderColor: quickTab === "favorites" ? "#4cd34c" : "var(--field-border)" }}
           >
-            <span>⭐ Favorites</span>
+            <span className="flex items-center gap-1.5"><Icon src="/favorites.png" fallback="⭐" className="h-4 w-4" /> Favorites</span>
             <span className="text-[10px] rounded-full px-1.5 py-0.2 bg-[#4cd34c]/20 font-bold">{favList.length}</span>
           </button>
 
@@ -906,7 +918,7 @@ export default function QuickAccess({
             }`}
             style={{ borderColor: quickTab === "private_notes" ? "#4cd34c" : "var(--field-border)" }}
           >
-            <span>🔒 Private Notes</span>
+            <span className="flex items-center gap-1.5"><Icon src="/locked.png" fallback="🔒" className="h-4 w-4" /> Private Notes</span>
             <span className="text-[10px] rounded-full px-1.5 py-0.2 bg-[#4cd34c]/20 font-bold">{privList.length}</span>
           </button>
         </div>
@@ -926,10 +938,10 @@ export default function QuickAccess({
             >
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#4cd34c] flex items-center gap-1.5">
-                  <span>📁</span> Category Filter
+                  <Icon src="/folder.png" fallback="📁" className="h-4 w-4" /> Category Filter
                 </span>
                 <span className="text-[10px] px-2.5 py-0.5 rounded-full border bg-[var(--app-bg)] text-[var(--app-text)] font-bold border-[#4cd34c]/40 flex items-center gap-1 truncate max-w-full">
-                  Active: {selectedNoteCategory === "All" ? "🏷️ All Notes" : `📁 ${selectedNoteCategory}`}
+                  Active: {selectedNoteCategory === "All" ? (<><Icon src="/tag.png" fallback="🏷️" className="h-3.5 w-3.5" /> All Notes</>) : (<><Icon src="/folder.png" fallback="📁" className="h-3.5 w-3.5" /> {selectedNoteCategory}</>)}
                 </span>
               </div>
               <div className="flex items-center gap-1.5 text-[10px] font-bold text-[var(--text-muted)] hover:text-[#4cd34c] transition">
@@ -961,7 +973,15 @@ export default function QuickAccess({
                             : "bg-[var(--app-bg)] text-[var(--text-muted)] border-[var(--field-border)] hover:border-[#4cd34c]/40 hover:text-[var(--app-text)]"
                         }`}
                       >
-                        <span>{cat === "All" ? "🏷️ All Notes" : isCustom ? `✨ ${cat}` : `📁 ${cat}`}</span>
+                        <span className="inline-flex items-center gap-1">
+                          {cat === "All" ? (
+                            <><Icon src="/tag.png" fallback="🏷️" className="h-3.5 w-3.5" /> All Notes</>
+                          ) : isCustom ? (
+                            <><Icon src="/sparkling.png" fallback="✨" className="h-3.5 w-3.5" /> {cat}</>
+                          ) : (
+                            <><Icon src="/folder.png" fallback="📁" className="h-3.5 w-3.5" /> {cat}</>
+                          )}
+                        </span>
                         <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${isSelected ? "bg-black/20 text-black" : "bg-[#4cd34c]/20 text-[#4cd34c]"}`}>
                           {count}
                         </span>
@@ -1053,7 +1073,7 @@ export default function QuickAccess({
                 className="p-6 text-center rounded-2xl border backdrop-blur space-y-2"
                 style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--text-muted)" }}
               >
-                <div className="text-2xl">⭐</div>
+                <div className="flex justify-center"><Icon src="/favorites.png" fallback="⭐" className="h-8 w-8" /></div>
                 <div className="font-bold text-sm text-[var(--app-text)]">
                   {quickTab === "favorites"
                     ? "No Starred Favorites Yet"
@@ -1066,7 +1086,7 @@ export default function QuickAccess({
                 <p className="text-xs max-w-sm mx-auto">
                   {quickTab === "private_notes"
                     ? "Create private response templates that are visible only to you. High-frequency notes can be shared with the team!"
-                    : "Click the ⭐ Star icon on any template below or across Tech Escalation and Customer Reply to add it to your Favorites list!"}
+                    : (<>Click the <Icon src="/favorites.png" fallback="⭐" className="h-4 w-4" /> Star icon on any template below or across Tech Escalation and Customer Reply to add it to your Favorites list!</>)}
                 </p>
                 {quickTab === "private_notes" && (
                   <button
@@ -1082,7 +1102,7 @@ export default function QuickAccess({
               {quickTab !== "private_notes" && (
                 <div className="space-y-2">
                   <label className="text-[11px] font-semibold uppercase tracking-wider block" style={{ color: "var(--text-muted)" }}>
-                    All Templates Library (Click ⭐ to add to Favorites):
+                    All Templates Library (Click <Icon src="/favorites.png" fallback="⭐" className="h-3.5 w-3.5" /> to add to Favorites):
                   </label>
                   {allTemplates.map((t) => (
                     <div
@@ -1122,7 +1142,11 @@ export default function QuickAccess({
                         className="p-1 rounded-lg text-sm hover:scale-125 transition shrink-0 ml-1"
                         title={favIds.includes(t.id) ? "Remove from Favorites" : "Add to Favorites"}
                       >
-                        {favIds.includes(t.id) ? "⭐" : "☆"}
+                        {favIds.includes(t.id) ? (
+                          <Icon src="/favorites.png" fallback="⭐" className="h-5 w-5" />
+                        ) : (
+                          <Icon src="/favorites.png" fallback="☆" className="h-5 w-5 opacity-40 grayscale" />
+                        )}
                       </button>
                     </div>
                   ))}
@@ -1182,13 +1206,13 @@ export default function QuickAccess({
                       <span className="font-bold truncate max-w-full">{t.name}</span>
                       {t.category && !allSameCategory && (
                         <span className="text-[10px] shrink-0 rounded-full border px-2 py-0.5 font-semibold bg-[#4cd34c]/10 text-[#4cd34c] border-[#4cd34c]/30 flex items-center gap-1 max-w-full truncate">
-                          📁 {t.category}
+                          <Icon src="/folder.png" fallback="📁" className="h-3 w-3" /> {t.category}
                         </span>
                       )}
                       {!allSameGroupType && (
                         quickTab !== "private_notes" && isPrivateNote ? (
                           <span className="text-[10px] shrink-0 rounded-full border px-2 py-0.5 font-semibold border-[#4cd34c] text-[#4cd34c]">
-                            🔒 Private Note
+                            <Icon src="/locked.png" fallback="🔒" className="h-3 w-3 mr-1" />Private Note
                           </span>
                         ) : (
                           quickTab !== "private_notes" && (
@@ -1312,7 +1336,11 @@ export default function QuickAccess({
                       className="p-1 rounded-lg text-sm hover:scale-125 transition cursor-pointer"
                       title={favIds.includes(t.id) ? "Remove from Favorites" : "Add to Favorites"}
                     >
-                      {favIds.includes(t.id) ? "⭐" : "☆"}
+                      {favIds.includes(t.id) ? (
+                          <Icon src="/favorites.png" fallback="⭐" className="h-5 w-5" />
+                        ) : (
+                          <Icon src="/favorites.png" fallback="☆" className="h-5 w-5 opacity-40 grayscale" />
+                        )}
                     </button>
                   </div>
                 </div>
