@@ -66,7 +66,7 @@ export default function App() {
   // 1. Agents hook
   const agentState = useAgents({
     apiStatus,
-    showToast: (msg) => userInteractions?.showToast?.(msg),
+    showToast: (...args) => userInteractions?.showToast?.(...args),
   });
 
   const {
