@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Icon from "../components/Icon";
 
 export default function TranslatorScreen({
   translatorState,
@@ -228,7 +229,11 @@ export default function TranslatorScreen({
                   : "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] hover:bg-[#4cd34c] hover:text-[#071007]"
               }`}
             >
-              {copied ? "✓ Copied!" : "📋 Copy Translation"}
+              {copied ? "✓ Copied!" : (
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon src="/clipboard.png" fallback="📋" className="h-4 w-4" /> Copy Translation
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -243,7 +248,7 @@ export default function TranslatorScreen({
         }}
       >
         <div className="flex items-center gap-2">
-          <span className="text-lg">💡</span>
+          <Icon src="/bulb.png" fallback="💡" className="h-5 w-5" />
           <h2 className="text-sm font-bold uppercase tracking-wider">
             Preset Customer Support Phrases
           </h2>

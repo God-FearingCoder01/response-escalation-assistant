@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ASK_REA_LIMITS, diagnoseAskRea } from "../services/askReaService";
 import { IMAGE_LIMITS, imagesFromClipboardEvent, isImageFile } from "../utils/imageAttachments";
+import Icon from "../components/Icon";
 
 const MODES = [
   { id: "reply", label: "Draft reply", hint: "A message you can send to the customer" },
@@ -162,7 +163,7 @@ export default function AskREAScreen({ askReaState, copyText, showToast, isAdmin
         style={panelStyle}
         role="note"
       >
-        🔒 Emails, phone numbers, ID, card and reference numbers are hidden before anything leaves REA.
+        <Icon src="/locked.png" fallback="🔒" className="h-4 w-4 mr-1" />Emails, phone numbers, ID, card and reference numbers are hidden before anything leaves REA.
         Names are only hidden if you list them below. This chat is not saved and clears when you sign out.
         <strong className="font-semibold text-[var(--text-main,inherit)]">
           {" "}Screenshots cannot be hidden automatically: cover or crop names, numbers and account details before you attach one.

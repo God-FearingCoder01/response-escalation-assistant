@@ -102,7 +102,15 @@ export default function TechEscalation({
                 className="text-xs font-semibold flex items-center gap-1.5 transition hover:scale-105"
                 style={{ color: (favoriteIds || []).includes(activeTemplate.id) ? "#facc15" : "var(--neutral-text)" }}
               >
-                {(favoriteIds || []).includes(activeTemplate.id) ? "★ Favorite" : "☆ Add to Favorites"}
+                {(favoriteIds || []).includes(activeTemplate.id) ? (
+                  <>
+                    <Icon src="/favorites.png" fallback="★" className="h-4 w-4" /> Favorite
+                  </>
+                ) : (
+                  <>
+                    <Icon src="/favorites.png" fallback="☆" className="h-4 w-4 opacity-40 grayscale" /> Add to Favorites
+                  </>
+                )}
               </button>
             )}
           </div>

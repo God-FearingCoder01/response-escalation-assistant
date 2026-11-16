@@ -256,7 +256,7 @@ export default function SentenceSnippetSelector({
 
       {generatedMsg && !isFullMessage && sentences.length > 1 && (
         <p className="text-[11px] italic opacity-70 flex items-center gap-1" style={{ color: "var(--text-muted)" }}>
-          <span>💡</span>
+          <Icon src="/bulb.png" fallback="💡" className="h-3.5 w-3.5" />
           <span>Hover over any sentence in the message preview above & click to toggle inclusion.</span>
         </p>
       )}

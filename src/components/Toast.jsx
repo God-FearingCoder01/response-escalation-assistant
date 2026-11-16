@@ -1,3 +1,5 @@
+import EmojiText from "./EmojiText";
+
 export default function Toast({ toast, onClose }) {
   if (!toast?.show) return null;
 
@@ -24,7 +26,9 @@ export default function Toast({ toast, onClose }) {
         ) : (
           <span className="flex h-3 w-3 rounded-full bg-[#4cd34c] animate-ping" />
         )}
-        <span className="text-sm font-semibold">{toast.message}</span>
+        <span className="text-sm font-semibold">
+          <EmojiText text={toast.message} />
+        </span>
         {onClose && (
           <button
             type="button"

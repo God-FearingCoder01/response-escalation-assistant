@@ -3,6 +3,7 @@ import { getDateAutoValues, resolveConditionalMappings, formatDateTimeString, sa
 import { processExtractableFields } from "../services/extractableFieldService";
 import { translateText } from "../services/translationService";
 import SentenceSnippetSelector from "../components/SentenceSnippetSelector";
+import Icon from "../components/Icon";
 
 export default function CustomerReply({
   activeScreen,
@@ -243,7 +244,11 @@ export default function CustomerReply({
                         className="p-1 text-sm hover:scale-125 transition"
                         title={favIds.includes(t.id) ? "Remove from Favorites" : "Add to Favorites"}
                       >
-                        {favIds.includes(t.id) ? "⭐" : "☆"}
+                        {favIds.includes(t.id) ? (
+                          <Icon src="/favorites.png" fallback="⭐" className="h-5 w-5" />
+                        ) : (
+                          <Icon src="/favorites.png" fallback="☆" className="h-5 w-5 opacity-40 grayscale" />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -655,11 +660,11 @@ export default function CustomerReply({
 
           {replyChannel === "signed" ? (
             <p className="text-xs italic mt-2" style={{ color: "var(--text-muted)" }}>
-              💡 Signed format automatically appends agent initials signature <code className="text-[#4cd34c]">^{currentAgent?.agent_initials || ""}</code>.
+              <Icon src="/bulb.png" fallback="💡" className="h-4 w-4 mr-1" />Signed format automatically appends agent initials signature <code className="text-[#4cd34c]">^{currentAgent?.agent_initials || ""}</code>.
             </p>
           ) : (
             <p className="text-xs italic mt-2" style={{ color: "var(--text-muted)" }}>
-              💡 Unsigned format presents clean customer-facing response text without trailing signature.
+              <Icon src="/bulb.png" fallback="💡" className="h-4 w-4 mr-1" />Unsigned format presents clean customer-facing response text without trailing signature.
             </p>
           )}
         </div>

@@ -458,7 +458,7 @@ export default function QuickAccess({
       {promptBannerNote && (
         <div className="lg:col-span-12 p-4 rounded-2xl border border-[#4cd34c]/40 bg-[#4cd34c]/10 text-xs flex flex-wrap items-center justify-between gap-3 shadow-md animate-fade-in">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">💡</span>
+            <Icon src="/bulb.png" fallback="💡" className="h-7 w-7" />
             <div>
               <div className="font-bold text-sm text-[var(--app-text)]">
                 Smart Suggestion: High Daily Frequency Private Note!
@@ -1845,7 +1845,7 @@ export default function QuickAccess({
                     }}
                     className="px-3 py-1.5 rounded-xl bg-[#4cd34c] text-black font-extrabold text-xs shadow-sm hover:opacity-90 transition flex items-center gap-1 cursor-pointer"
                   >
-                    📋 Copy Translation
+                    <Icon src="/clipboard.png" fallback="📋" className="h-4 w-4" /> Copy Translation
                   </button>
                 </div>
               </div>
