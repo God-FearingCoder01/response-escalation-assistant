@@ -16,6 +16,7 @@ import {
   applyTemplateMigration,
 } from "../services/globalVariableService";
 import EmojiText from "../components/EmojiText";
+import Icon from "../components/Icon";
 
 
 export default function AdminDashboard({
@@ -68,6 +69,8 @@ export default function AdminDashboard({
   handleDeleteAgent,
   handleResetAgentPin,
   handleToggleAgentActive,
+  handleMoveAgent,
+  isReordering = false,
   adminCurrentPin,
   setAdminCurrentPin,
   adminNewPin,
@@ -1459,14 +1462,17 @@ export default function AdminDashboard({
         </form>
 
         {/* Agent List */}
+        <p className="text-xs text-[var(--text-muted)]">
+          The order below is the order profiles appear on the Welcome screen. Use the arrows to move a profile up or down.
+        </p>
         <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,21rem),1fr))]">
-          {(agents || []).map((agent) => (
+          {(agents || []).map((agent, index) => (
             <div key={agent.id} className="min-w-0 rounded-2xl border p-4 flex flex-col gap-3" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }}>
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#32324a_0%,#11111e_100%)] text-sm font-bold text-[#4cd34c] border" style={{ borderColor: "var(--badge-border)" }}>
                   {agent.agent_initials}
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="font-bold text-sm flex flex-wrap items-center gap-1.5">
                     <span>{agent.agent_name}</span>
                     {agent.is_active === false ? (
@@ -1484,6 +1490,32 @@ export default function AdminDashboard({
                   ) : null}
                   <div className="text-[11px] text-[#4cd34c] mt-0.5">{agent.is_admin ? "System Admin" : "Support Agent"}</div>
                 </div>
+                {handleMoveAgent ? (
+                  <div className="flex shrink-0 flex-col gap-1" aria-label={`Order of ${agent.agent_name}`}>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveAgent(agent.id, "up")}
+                      disabled={index === 0 || isReordering}
+                      className="h-6 w-7 rounded-lg border text-xs font-bold leading-none transition hover:bg-[#4cd34c]/10 disabled:cursor-not-allowed disabled:opacity-30"
+                      style={{ borderColor: "var(--badge-border)" }}
+                      title="Move up (appears earlier on the Welcome screen)"
+                      aria-label={`Move ${agent.agent_name} up`}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveAgent(agent.id, "down")}
+                      disabled={index === (agents || []).length - 1 || isReordering}
+                      className="h-6 w-7 rounded-lg border text-xs font-bold leading-none transition hover:bg-[#4cd34c]/10 disabled:cursor-not-allowed disabled:opacity-30"
+                      style={{ borderColor: "var(--badge-border)" }}
+                      title="Move down (appears later on the Welcome screen)"
+                      aria-label={`Move ${agent.agent_name} down`}
+                    >
+                      ▼
+                    </button>
+                  </div>
+                ) : null}
               </div>
               <div className="flex flex-wrap items-center gap-1.5 [&>button]:whitespace-nowrap">
                 <button
@@ -1522,7 +1554,13 @@ export default function AdminDashboard({
                       }`}
                       title={agent.is_active === false ? "Click to reactivate agent profile" : "Deactivate agent (removes from Welcome screen)"}
                     >
-                      {agent.is_active === false ? "Activate" : "Deactivate"}
+                      {agent.is_active === false ? (
+                        "Activate"
+                      ) : (
+                        <span className="inline-flex items-center gap-1">
+                          <Icon src="/pause.png" fallback="⏸" className="h-3.5 w-3.5" /> Deactivate
+                        </span>
+                      )}
                     </button>
                     <button
                       onClick={() => handleDeleteAgent(agent.id)}

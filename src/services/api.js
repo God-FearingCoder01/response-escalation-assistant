@@ -838,6 +838,20 @@ export async function updateAgentApi(id, payload) {
   return await res.json();
 }
 
+// Admin only: saves the order agents are listed in on the Welcome screen.
+export async function reorderAgentsApi(agentIds) {
+  const res = await fetch(`${API_BASE}/agents/reorder`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAdminHeaders() },
+    body: JSON.stringify({ agent_ids: agentIds }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(parseApiError(errData, "Failed to save the agent order"));
+  }
+  return await res.json();
+}
+
 export async function deleteAgentApi(id) {
   const res = await fetch(`${API_BASE}/agents/${id}`, {
     method: "DELETE",

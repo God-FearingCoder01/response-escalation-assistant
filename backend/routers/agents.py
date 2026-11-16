@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import List
 import secrets
 from fastapi import APIRouter, HTTPException, Depends, Request, Header
+from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlmodel import Session, select, col
 
@@ -55,6 +56,11 @@ class PinChangeRequest(PinVerifyRequest):
     new_pin: str
 
 
+class AgentOrderRequest(BaseModel):
+    # Agent ids in the order they should appear on the Welcome screen.
+    agent_ids: List[int] = Field(min_length=1, max_length=500)
+
+
 class AgentProvisioned(AgentRead):
     setup_pin: str | None = None
 
@@ -73,7 +79,9 @@ def list_agents(company: Company = Depends(get_current_company)):
     cid = company.id if company and company.id else 1
     with Session(engine) as session:
         return session.exec(
-            select(Agent).where(Agent.company_id == cid, Agent.is_active == True).order_by(col(Agent.id).asc())
+            select(Agent)
+            .where(Agent.company_id == cid, Agent.is_active == True)
+            .order_by(col(Agent.sort_order).asc(), col(Agent.id).asc())
         ).all()
 
 
@@ -90,7 +98,9 @@ def list_all_agents(company: Company = Depends(get_current_company)):
     """
     cid = company.id if company and company.id else 1
     with Session(engine) as session:
-        return session.exec(select(Agent).where(Agent.company_id == cid).order_by(col(Agent.id).asc())).all()
+        return session.exec(
+            select(Agent).where(Agent.company_id == cid).order_by(col(Agent.sort_order).asc(), col(Agent.id).asc())
+        ).all()
 
 
 @router.post("/agents", response_model=AgentProvisioned, dependencies=[Depends(require_agent_session), Depends(require_admin)])
@@ -103,7 +113,10 @@ def create_agent(agent: AgentCreate, company: Company = Depends(get_current_comp
     cid = company.id if company and company.id else 1
     with Session(engine) as session:
         now = datetime.now(timezone.utc)
+        # New profiles go to the end of the Welcome screen list.
+        last_position = session.exec(select(func.max(Agent.sort_order)).where(Agent.company_id == cid)).one()
         db_agent = Agent(
+            sort_order=(last_position if last_position is not None else -1) + 1,
             agent=agent.agent,
             agent_name=agent.agent_name,
             agent_initials=agent.agent_initials.upper(),
@@ -120,6 +133,40 @@ def create_agent(agent: AgentCreate, company: Company = Depends(get_current_comp
         result = AgentRead.model_validate(db_agent).model_dump()
         result["setup_pin"] = setup_pin
         return result
+
+
+@router.put(
+    "/agents/reorder",
+    response_model=List[AgentRead],
+    dependencies=[Depends(require_agent_session), Depends(require_admin)],
+)
+def reorder_agents(payload: AgentOrderRequest, company: Company = Depends(get_current_company)):
+    """Set the order agents are listed in on the Welcome screen (admin only).
+
+    The ids given come first, in the order given. Any profile not mentioned (for example one
+    created while the admin had the page open) keeps its place after them.
+    """
+    cid = company.id if company and company.id else 1
+    if len(set(payload.agent_ids)) != len(payload.agent_ids):
+        raise HTTPException(status_code=400, detail="Each agent can only appear once in the order.")
+    with Session(engine) as session:
+        agents = session.exec(
+            select(Agent).where(Agent.company_id == cid).order_by(col(Agent.sort_order).asc(), col(Agent.id).asc())
+        ).all()
+        by_id = {a.id: a for a in agents}
+        unknown = [agent_id for agent_id in payload.agent_ids if agent_id not in by_id]
+        if unknown:
+            raise HTTPException(status_code=404, detail="One or more agents were not found in this organization.")
+        ordered = [by_id[agent_id] for agent_id in payload.agent_ids]
+        ordered += [a for a in agents if a.id not in set(payload.agent_ids)]
+        for position, agent in enumerate(ordered):
+            if agent.sort_order != position:
+                agent.sort_order = position
+                session.add(agent)
+        session.commit()
+        for agent in ordered:
+            session.refresh(agent)
+        return ordered
 
 
 @router.put("/agents/{agent_id}", response_model=AgentRead, dependencies=[Depends(require_agent_session), Depends(require_admin)])

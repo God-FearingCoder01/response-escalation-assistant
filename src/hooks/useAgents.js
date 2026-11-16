@@ -10,6 +10,7 @@ import {
   createAgentApi,
   updateAgentApi,
   deleteAgentApi,
+  reorderAgentsApi,
   resetAgentPinApi,
   verifyAgentPinApi,
   changeAgentPinApi,
@@ -429,6 +430,31 @@ export function useAgents({ apiStatus, showToast }) {
     }
   };
 
+  // Moves one profile up or down the list that the Welcome screen shows (admin only).
+  const [isReordering, setIsReordering] = useState(false);
+  const handleMoveAgent = async (agentId, direction) => {
+    if (isReordering) return;
+    const from = agents.findIndex((a) => a.id === agentId);
+    const to = from + (direction === "up" ? -1 : 1);
+    if (from < 0 || to < 0 || to >= agents.length) return;
+
+    const previous = agents;
+    const reordered = [...agents];
+    [reordered[from], reordered[to]] = [reordered[to], reordered[from]];
+    setAgents(reordered); // show the move straight away
+    setIsReordering(true);
+    try {
+      if (apiStatus === "offline") throw new Error("You are offline. Reconnect to change the order.");
+      const saved = await reorderAgentsApi(reordered.map((a) => a.id));
+      if (Array.isArray(saved) && saved.length > 0) setAgents(saved);
+    } catch (err) {
+      setAgents(previous);
+      showToast(`Error: ${err instanceof Error ? err.message : "Could not save the agent order"} ⚠️`);
+    } finally {
+      setIsReordering(false);
+    }
+  };
+
   const handleToggleAgentActive = async (agentId) => {
     const targetAgent = (agents || []).find((a) => a.id === agentId);
     if (!targetAgent) return;
@@ -446,7 +472,7 @@ export function useAgents({ apiStatus, showToast }) {
         try {
           const updated = await updateAgentApi(agentId, payload);
           setAgents((curr) => curr.map((a) => (a.id === agentId ? updated : a)));
-          showToast(newActiveState ? "Agent profile activated 🟢" : "Agent profile deactivated (hidden from Welcome) 🔴");
+          showToast(newActiveState ? "Agent profile activated 🟢" : "Agent profile deactivated (hidden from Welcome) ⏸");
           return;
         } catch (err) {
           if (err instanceof Error && err.message === "Failed to fetch") {
@@ -460,7 +486,7 @@ export function useAgents({ apiStatus, showToast }) {
       setAgents((curr) =>
         curr.map((a) => (a.id === agentId ? { ...a, is_active: newActiveState } : a))
       );
-      showToast(newActiveState ? "Agent profile activated 🟢" : "Agent profile deactivated (hidden from Welcome) 🔴");
+      showToast(newActiveState ? "Agent profile activated 🟢" : "Agent profile deactivated (hidden from Welcome) ⏸");
     } catch (err) {
       alert("Failed to toggle agent active status");
     }
@@ -475,6 +501,8 @@ export function useAgents({ apiStatus, showToast }) {
     setActiveScreen,
     handleSelectAgent,
     handleToggleAgentActive,
+    handleMoveAgent,
+    isReordering,
     // PIN Modal
     showPinModal,
     setShowPinModal,

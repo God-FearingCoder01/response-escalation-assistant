@@ -89,6 +89,8 @@ class Agent(AgentBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     pin: Optional[str] = Field(default=None, nullable=True)
     token_version: int = Field(default=1, nullable=False, sa_column_kwargs={"server_default": "1"})
+    # Position on the Welcome screen (lowest first); set by administrators.
+    sort_order: int = Field(default=0, nullable=False, sa_column_kwargs={"server_default": "0"})
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
 
@@ -118,6 +120,7 @@ class AgentUpdate(SQLModel):
 
 class AgentRead(AgentBase):
     id: int
+    sort_order: int = 0
     created_at: datetime
     updated_at: datetime
 
