@@ -6,6 +6,7 @@ import {
   deleteExtractionRule,
   testExtractionRuleApi,
 } from "../services/smartExtractorService";
+import EmojiText from "./EmojiText";
 
 export default function SmartExtractorRuleManager({ companyId = 1, showToast = () => { } }) {
   const [rules, setRules] = useState([]);
@@ -221,7 +222,7 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
                         : "border-gray-500/40 bg-gray-500/10 text-gray-500"
                       }`}
                   >
-                    {rule.is_enabled ? "Enabled ✓" : "Disabled"}
+                    <EmojiText text={rule.is_enabled ? "Enabled ✓" : "Disabled"} />
                   </button>
                 </div>
               </div>
@@ -313,7 +314,7 @@ export default function SmartExtractorRuleManager({ companyId = 1, showToast = (
                 : "border-amber-500/40 bg-amber-500/10 text-amber-700"
               }`}
           >
-            <p className="font-bold">{testResult.matched ? "✓ Pattern Matched Successfully!" : "❌ No Match Found"}</p>
+            <p className="font-bold"><EmojiText text={testResult.matched ? "✓ Pattern Matched Successfully!" : "❌ No Match Found"} /></p>
             {testResult.matched && (
               <p className="font-mono text-sm" style={{ color: "var(--app-text)" }}>Extracted Match: <span className="text-[#4cd34c]">{testResult.value}</span></p>
             )}

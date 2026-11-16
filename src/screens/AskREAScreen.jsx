@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ASK_REA_LIMITS, diagnoseAskRea } from "../services/askReaService";
 import { IMAGE_LIMITS, imagesFromClipboardEvent, isImageFile } from "../utils/imageAttachments";
 import Icon from "../components/Icon";
+import EmojiText from "../components/EmojiText";
 
 const MODES = [
   { id: "reply", label: "Draft reply", hint: "A message you can send to the customer" },
@@ -202,7 +203,7 @@ export default function AskREAScreen({ askReaState, copyText, showToast, isAdmin
               {(check.data.results || []).map((row, index) => (
                 <p key={`${row.provider}-${row.model}-${index}`}>
                   <span className={row.ok ? "font-bold text-green-500" : "font-bold text-red-500"}>
-                    {row.ok ? "✓" : "✗"}
+                    <EmojiText text={row.ok ? "✓" : "✗"} />
                   </span>{" "}
                   {row.provider} · {row.model}
                   {row.ok ? "" : ` — ${row.reason || "failed"}${row.status ? ` (${row.status})` : ""}`}
@@ -330,7 +331,7 @@ export default function AskREAScreen({ askReaState, copyText, showToast, isAdmin
                         onClick={() => handleCopy(message.content, index)}
                         className="rounded-lg bg-[var(--neutral-bg)] px-2.5 py-1 font-bold text-[var(--neutral-text)] transition hover:opacity-80"
                       >
-                        {copiedIndex === index ? "Copied ✓" : "Copy"}
+                        <EmojiText text={copiedIndex === index ? "Copied ✓" : "Copy"} />
                       </button>
                     </div>
                   ) : null}

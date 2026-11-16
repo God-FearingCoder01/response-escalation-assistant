@@ -518,7 +518,7 @@ export default function QuickAccess({
                 }`}
                 title="Multi-select personal notes to move to a category"
               >
-                <span>☑️</span>
+                <Icon src="/batch.png" fallback="☑️" className="h-4 w-4" />
                 <span>{isMultiSelectMode ? "Exit Batch Mode" : "Batch Select"}</span>
               </button>
               <button
@@ -613,7 +613,7 @@ export default function QuickAccess({
         {quickTab === "private_notes" && isMultiSelectMode && (
           <div className="p-3.5 rounded-2xl border bg-[#4cd34c]/10 border-[#4cd34c]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md animate-fade-in">
             <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[var(--app-text)]">
-              <span>☑️ {selectedNoteIds.length} notes selected</span>
+              <span className="inline-flex items-center gap-1"><Icon src="/batch.png" fallback="☑️" className="h-4 w-4" /> {selectedNoteIds.length} notes selected</span>
               <button
                 type="button"
                 onClick={handleSelectAllNotes}
@@ -730,7 +730,7 @@ export default function QuickAccess({
           <form onSubmit={handleSavePrivateNote} className="p-4 rounded-2xl border bg-[var(--field-bg)] space-y-3 shadow-md" style={{ borderColor: "#4cd34c" }}>
             <div className="font-bold text-xs text-[#4cd34c] flex items-center justify-between">
               <span className="flex items-center gap-1.5">
-                {editingNote ? "✏️ Edit Private Agent Template" : (
+                {editingNote ? (<><Icon src="/edit.png" fallback="✏️" className="h-4 w-4" /> Edit Private Agent Template</>) : (
                   <>
                     <Icon src="/locked.png" fallback="🔒" className="h-4 w-4" />
                     Create Private Agent Template
@@ -1052,7 +1052,7 @@ export default function QuickAccess({
               className="p-6 text-center rounded-2xl border backdrop-blur space-y-2"
               style={{ borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)", color: "var(--text-muted)" }}
             >
-              <div className="text-2xl">🔍</div>
+              <div className="flex justify-center"><Icon src="/search.png" fallback="🔍" className="h-8 w-8" /></div>
               <div className="font-bold text-sm text-[var(--app-text)]">
                 No matching {quickTab === "private_notes" ? "personal notes" : "templates"} found
               </div>
@@ -1276,7 +1276,7 @@ export default function QuickAccess({
                         className="p-1 rounded-lg text-xs hover:text-[#4cd34c] transition cursor-pointer"
                         title="Edit Private Note"
                       >
-                        ✏️
+                        <Icon src="/edit.png" fallback="✏️" className="h-4 w-4" />
                       </button>
                     )}
 
@@ -1292,7 +1292,7 @@ export default function QuickAccess({
                         className="p-1 rounded-lg text-xs hover:text-red-400 transition cursor-pointer"
                         title="Delete Private Note"
                       >
-                        🗑️
+                        <Icon src="/bin.png" fallback="🗑️" className="h-4 w-4" />
                       </button>
                     )}
 
@@ -1371,7 +1371,7 @@ export default function QuickAccess({
                     onClick={() => handleStartEditNote(activeTemplate)}
                     className="text-xs text-[#4cd34c] font-bold hover:underline cursor-pointer"
                   >
-                    ✏️ Edit
+                    <Icon src="/edit.png" fallback="✏️" className="h-4 w-4 mr-1" />Edit
                   </button>
                 )}
               </div>

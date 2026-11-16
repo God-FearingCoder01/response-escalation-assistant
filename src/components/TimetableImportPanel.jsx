@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchAdminTimetableArchiveApi, importTimetableApi } from "../services/api";
 import { parseTimetableWorkbook } from "../utils/timetableImport";
+import EmojiText from "./EmojiText";
 
 const monthInputValue = (year, month) => `${year}-${String(month).padStart(2, "0")}`;
 
@@ -141,7 +142,7 @@ export default function TimetableImportPanel({ activeScreen, agents = [], curren
               const agent = agents.find((candidate) => candidate.agent_initials.toUpperCase() === item.agent_initials);
               return <span key={item.agent_initials} className="rounded-full border px-2.5 py-1 text-xs" style={{ borderColor: "var(--badge-border)", color: "var(--app-text)" }}>{agent?.agent_name || item.agent_initials} · {item.entries.length} days</span>;
             })}</div>
-            <button type="button" disabled={!canImport} onClick={handleImport} className="inline-flex items-center gap-2 rounded-xl bg-fuchsia-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-fuchsia-400 disabled:cursor-not-allowed disabled:opacity-50">{busy ? <span className="animate-spin">◌</span> : <span>✓</span>}Save monthly timetable</button>
+            <button type="button" disabled={!canImport} onClick={handleImport} className="inline-flex items-center gap-2 rounded-xl bg-fuchsia-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-fuchsia-400 disabled:cursor-not-allowed disabled:opacity-50">{busy ? <span className="animate-spin">◌</span> : <EmojiText text="✓" />}Save monthly timetable</button>
           </div>}
           {error && <p className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</p>}
         </div>

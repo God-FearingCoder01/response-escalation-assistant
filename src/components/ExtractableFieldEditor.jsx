@@ -4,6 +4,7 @@ import {
   extractValuesFromPattern,
   transformExtractedValue,
 } from "../services/extractableFieldService";
+import EmojiText from "./EmojiText";
 
 export default function ExtractableFieldEditor({
   ph,
@@ -220,12 +221,12 @@ export default function ExtractableFieldEditor({
           {/* Pattern Validation Feedback */}
           {!validation.isValid ? (
             <div className="p-2.5 rounded-xl border border-red-500/40 bg-red-500/10 text-red-400 text-xs font-semibold">
-              ⚠️ Invalid Extraction Definition: {validation.error}
+              <EmojiText text="⚠️" /> Invalid Extraction Definition: {validation.error}
             </div>
           ) : (
             <div className="p-3 rounded-xl border border-[#4cd34c]/30 bg-[#4cd34c]/10 space-y-2">
               <div className="flex items-center justify-between text-xs font-bold text-[#4cd34c]">
-                <span>✓ {validation.extractions.length} extractable value(s) detected</span>
+                <span><EmojiText text="✓" /> {validation.extractions.length} extractable value(s) detected</span>
                 <span className="text-[10px] opacity-80">Extraction Preview</span>
               </div>
 
@@ -423,7 +424,7 @@ export default function ExtractableFieldEditor({
                   <div className="font-bold flex justify-between text-[var(--app-text)]">
                     <span>Tested Input: <code className="text-[#4cd34c] font-mono">{testResults.inputTested}</code></span>
                     <span className={testResults.matchFound ? "text-[#4cd34c]" : "text-red-400"}>
-                      {testResults.matchFound ? "✓ Match Found" : "❌ No Pattern Match"}
+                      <EmojiText text={testResults.matchFound ? "✓ Match Found" : "❌ No Pattern Match"} />
                     </span>
                   </div>
 

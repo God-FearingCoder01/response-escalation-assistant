@@ -15,6 +15,7 @@ import {
   previewTemplateMigration,
   applyTemplateMigration,
 } from "../services/globalVariableService";
+import EmojiText from "../components/EmojiText";
 
 
 export default function AdminDashboard({
@@ -986,7 +987,7 @@ export default function AdminDashboard({
                                   />
                                   {cfg.mapping && Object.keys(cfg.mapping).length > 0 ? (
                                     <div className="text-[10px] text-[#4cd34c] font-semibold mt-1">
-                                      ✓ {Object.keys(cfg.mapping).length} conditional pair(s) configured ({Object.entries(cfg.mapping).map(([k,v])=>`${k}➔"${v}"`).slice(0, 3).join(", ")}{Object.keys(cfg.mapping).length > 3 ? "..." : ""})
+                                      <EmojiText text="✓" /> {Object.keys(cfg.mapping).length} conditional pair(s) configured ({Object.entries(cfg.mapping).map(([k,v])=>`${k}➔"${v}"`).slice(0, 3).join(", ")}{Object.keys(cfg.mapping).length > 3 ? "..." : ""})
                                     </div>
                                   ) : null}
                                 </div>
@@ -1108,7 +1109,7 @@ export default function AdminDashboard({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border bg-[#b83838]/10 border-[#b83838]/30 shadow-md">
             <div className="flex items-center gap-3">
               <span className="text-xs font-bold" style={{ color: "var(--app-text)" }}>
-                ✓ {selectedTplIds.length} template{selectedTplIds.length === 1 ? "" : "s"} selected
+                <EmojiText text="✓" /> {selectedTplIds.length} template{selectedTplIds.length === 1 ? "" : "s"} selected
               </span>
               <button
                 type="button"
@@ -1137,7 +1138,7 @@ export default function AdminDashboard({
               }}
               className="px-4 py-1.5 rounded-xl bg-[#b83838] hover:bg-[#a12f2f] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow"
             >
-              Delete Selected ({selectedTplIds.length}) 🗑️
+              Delete Selected ({selectedTplIds.length}) <EmojiText text="🗑️" />
             </button>
           </div>
         )}
@@ -1597,7 +1598,7 @@ export default function AdminDashboard({
 
           {pinSuccessMsg ? (
             <div className="flex items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold text-[#4cd34c] border-[#4cd34c]/40 bg-[#4cd34c]/10">
-              <span>{pinSuccessMsg}</span>
+              <span><EmojiText text={pinSuccessMsg} /></span>
               <button
                 type="button"
                 onClick={() => setPinSuccessMsg?.("")}
@@ -2018,7 +2019,7 @@ export default function AdminDashboard({
                     <img src={companyLogo} alt="Company Logo" className="h-12 w-auto max-w-[140px] object-contain" />
                   </div>
                   <div className="space-y-1">
-                    <span className="text-xs font-bold text-[#4cd34c] block">✓ Logo active on PDF exports</span>
+                    <span className="text-xs font-bold text-[#4cd34c] block"><EmojiText text="✓" /> Logo active on PDF exports</span>
                     <button
                       type="button"
                       onClick={handleRemoveLogo}
@@ -2137,7 +2138,7 @@ export default function AdminDashboard({
                         </span>
                         {v.is_active !== false ? (
                           <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 border border-green-500/30">
-                            Active ✓
+                            Active <EmojiText text="✓" />
                           </span>
                         ) : (
                           <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
@@ -2234,7 +2235,7 @@ export default function AdminDashboard({
               disabled={isSearchingMigration || !migrationSearchText.trim()}
               className="px-5 py-2.5 rounded-xl bg-[linear-gradient(135deg,#4cd34c_0%,#0f9b00_100%)] text-[#071007] text-xs font-bold shadow-md transition disabled:opacity-50 whitespace-nowrap"
             >
-              {isSearchingMigration ? "Searching..." : "🔍 Search Templates"}
+              <EmojiText text={isSearchingMigration ? "Searching..." : "🔍 Search Templates"} />
             </button>
             {(migrationSearchText || migrationSearchResults) ? (
               <button

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSmartExtractor } from "../hooks/useSmartExtractor";
 import Icon from "./Icon";
+import EmojiText from "./EmojiText";
 
 export default function SmartExtractorWidget({
   companyId = 1,
@@ -289,7 +290,7 @@ export default function SmartExtractorWidget({
         <div className="flex items-center justify-between border-b px-6 py-4" style={{ borderColor: "var(--panel-border, #374151)" }}>
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#4cd34c]/10 text-xl text-[#4cd34c]">
-              🔍
+              <Icon src="/search.png" fallback="🔍" className="h-6 w-6" />
             </span>
             <div>
               <h3 className="text-lg font-bold text-white">Smart Extractor</h3>
@@ -410,7 +411,7 @@ export default function SmartExtractorWidget({
                           disabled={extractor.isProcessing || extractor.loadingRules}
                           className="inline-flex items-center gap-2 rounded-xl bg-[#4cd34c] px-4 py-2 text-xs font-bold text-black shadow-lg hover:bg-[#42be42] disabled:opacity-50 transition cursor-pointer"
                         >
-                          {extractor.isProcessing ? "Extracting..." : "🔍 Extract Information"}
+                          <EmojiText text={extractor.isProcessing ? "Extracting..." : "🔍 Extract Information"} />
                         </button>
                         <button
                           onClick={extractor.resetExtractor}
@@ -448,7 +449,7 @@ export default function SmartExtractorWidget({
                   disabled={extractor.isProcessing || extractor.loadingRules || !extractor.pastedText.trim()}
                   className="inline-flex items-center gap-2 rounded-xl bg-[#4cd34c] px-5 py-2.5 text-xs font-bold text-black shadow-lg hover:bg-[#42be42] disabled:opacity-50 transition cursor-pointer"
                 >
-                  {extractor.isProcessing ? "Processing..." : "🔍 Extract Information"}
+                  <EmojiText text={extractor.isProcessing ? "Processing..." : "🔍 Extract Information"} />
                 </button>
               </div>
             </div>
@@ -459,7 +460,7 @@ export default function SmartExtractorWidget({
             <div className="rounded-2xl border border-[#4cd34c]/30 bg-[#4cd34c]/10 p-4 space-y-2">
               <div className="flex items-center gap-2 text-xs font-bold text-[#4cd34c]">
                 <span className="animate-spin text-sm">⏳</span>
-                <span>{extractor.processingStatus?.message || "Processing..."}</span>
+                <span><EmojiText text={extractor.processingStatus?.message || "Processing..."} /></span>
               </div>
               <p className="text-[11px] text-gray-300">{extractor.processingStatus?.details || "Please wait while values are identified..."}</p>
             </div>
@@ -468,7 +469,7 @@ export default function SmartExtractorWidget({
           {/* ERROR DISPLAY */}
           {extractor.error && (
             <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-xs text-red-300 flex items-start gap-2">
-              <span>⚠️</span>
+              <span><EmojiText text="⚠️" /></span>
               <span>{extractor.error}</span>
             </div>
           )}
@@ -481,7 +482,7 @@ export default function SmartExtractorWidget({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h4 className="text-xs font-bold text-[#4cd34c] uppercase tracking-wider flex items-center gap-1.5">
-                      <span>🎯</span> Select Target Message Template
+                      <Icon src="/dart.png" fallback="🎯" className="h-4 w-4" /> Select Target Message Template
                     </h4>
                     <p className="text-[11px] text-gray-300 mt-0.5">
                       Exact matches use only extracted fields. Partial matches also need other fields:
@@ -497,7 +498,7 @@ export default function SmartExtractorWidget({
                       <optgroup label="🌟 Best Match (Requires Only Extracted Fields)">
                         {rankedTemplates.tier1.map((t) => (
                           <option key={t.id} value={t.id}>
-                            ✓ {t.name} ({t.matchingFields.map((f) => `{${f}}`).join(", ")})
+                            <EmojiText text="✓" /> {t.name} ({t.matchingFields.map((f) => `{${f}}`).join(", ")})
                           </option>
                         ))}
                       </optgroup>
@@ -530,7 +531,7 @@ export default function SmartExtractorWidget({
                     onClick={handleApplyAllToTargetTemplate}
                     className="inline-flex items-center gap-2 rounded-xl bg-[#4cd34c] px-4 py-2 text-xs font-bold text-black shadow-lg hover:bg-[#42be42] transition cursor-pointer"
                   >
-                    🎯 Apply Extracted Fields to "{targetTemplate?.name || "Selected Template"}"
+                    <EmojiText text="🎯" /> Apply Extracted Fields to "{targetTemplate?.name || "Selected Template"}"
                   </button>
                 </div>
               </div>
@@ -552,7 +553,7 @@ export default function SmartExtractorWidget({
                     <div key={idx} className="rounded-2xl border p-4 bg-black/30 space-y-3 border-white/10">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-white flex items-center gap-2">
-                          <span>{res.is_valid ? "✓" : "⚠️"}</span>
+                          <span><EmojiText text={res.is_valid ? "✓" : "⚠️"} /></span>
                           <span>{res.rule_name}</span>
                           <span className="text-[10px] text-[#4cd34c] font-mono">{`{${fieldKey}}`}</span>
                         </span>
@@ -733,7 +734,7 @@ export default function SmartExtractorWidget({
                     <optgroup label="🌟 Best Match (Requires Only Extracted Fields)">
                       {rankedTemplates.tier1.map((t) => (
                         <option key={t.id} value={t.id}>
-                          ✓ {t.name}
+                          <EmojiText text="✓" /> {t.name}
                         </option>
                       ))}
                     </optgroup>
@@ -786,7 +787,7 @@ export default function SmartExtractorWidget({
                 onClick={handleConfirmSingleInsert}
                 className="rounded-xl bg-[#4cd34c] px-4 py-2 text-xs font-bold text-black hover:bg-[#42be42]"
               >
-                🎯 Insert Only This Value
+                <EmojiText text="🎯" /> Insert Only This Value
               </button>
             </div>
           </div>

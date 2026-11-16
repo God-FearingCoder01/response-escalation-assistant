@@ -1,3 +1,5 @@
+import EmojiText from "./EmojiText";
+
 export default function HeaderStatusBar({
   activeScreen,
   apiStatus,
@@ -136,7 +138,7 @@ export default function HeaderStatusBar({
           }}
         >
           <div className="flex items-center gap-2">
-            <span>⚠️</span>
+            <span><EmojiText text="⚠️" /></span>
             <span>{error}</span>
           </div>
           {setError && (

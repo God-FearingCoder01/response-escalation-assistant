@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { splitIntoSentences } from "../services/api";
 import Icon from "./Icon";
+import EmojiText from "./EmojiText";
 
 export default function SentenceSnippetSelector({
   generatedMsg = "",
@@ -345,7 +346,7 @@ export default function SentenceSnippetSelector({
                     </span>
                   </div>
                 </div>
-                {replyChannel === "signed" && <span className="text-xs font-black text-[#4cd34c]">✓</span>}
+                {replyChannel === "signed" && <span className="text-xs font-black text-[#4cd34c]"><EmojiText text="✓" /></span>}
               </button>
 
               <button
@@ -367,7 +368,7 @@ export default function SentenceSnippetSelector({
                     <span className="text-[10px] font-mono opacity-80">(Plain Text)</span>
                   </div>
                 </div>
-                {replyChannel === "unsigned" && <span className="text-xs font-black text-[#4cd34c]">✓</span>}
+                {replyChannel === "unsigned" && <span className="text-xs font-black text-[#4cd34c]"><EmojiText text="✓" /></span>}
               </button>
             </div>
           )}

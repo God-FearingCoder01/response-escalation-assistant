@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Icon from "../components/Icon";
+import EmojiText from "../components/EmojiText";
 
 export default function TranslatorScreen({
   translatorState,
@@ -229,7 +230,7 @@ export default function TranslatorScreen({
                   : "border-[#4cd34c] bg-[#4cd34c]/10 text-[#4cd34c] hover:bg-[#4cd34c] hover:text-[#071007]"
               }`}
             >
-              {copied ? "✓ Copied!" : (
+              {copied ? <EmojiText text="✓ Copied!" /> : (
                 <span className="inline-flex items-center gap-1.5">
                   <Icon src="/clipboard.png" fallback="📋" className="h-4 w-4" /> Copy Translation
                 </span>
