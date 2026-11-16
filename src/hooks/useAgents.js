@@ -212,7 +212,7 @@ export function useAgents({ apiStatus, showToast }) {
     setPendingAdminAgent(null);
     setPinDigits(["", "", "", ""]);
     setActiveScreen("tech_escalation");
-    showToast(`Welcome, ${agent.agent_name}! 🔒`);
+    showToast(`Welcome, ${agent.agent_name}!`, "success", "/unlocked.png");
   };
 
   const completePinSetup = async (newPin) => {
