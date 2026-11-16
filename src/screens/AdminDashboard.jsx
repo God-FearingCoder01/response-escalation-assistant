@@ -2142,7 +2142,7 @@ export default function AdminDashboard({
                           </span>
                         ) : (
                           <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                            Inactive ⏸
+                            Inactive <EmojiText text="⏸" />
                           </span>
                         )}
                       </div>
