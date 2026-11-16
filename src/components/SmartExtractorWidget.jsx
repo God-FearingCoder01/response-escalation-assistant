@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSmartExtractor } from "../hooks/useSmartExtractor";
+import Icon from "./Icon";
 
 export default function SmartExtractorWidget({
   companyId = 1,
@@ -360,7 +361,8 @@ export default function SmartExtractorWidget({
             disabled={extractor.isProcessing}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#4cd34c]/30 bg-[#4cd34c]/10 px-4 py-2.5 text-xs font-bold text-[#4cd34c] hover:bg-[#4cd34c]/20 disabled:opacity-50 transition"
           >
-            📋 Paste message or screenshot from clipboard
+            <Icon src="/clipboard.png" fallback="📋" className="h-4 w-4" />
+            Paste message or screenshot from clipboard
           </button>
 
           {/* IMAGE MODE CONTENT */}
@@ -380,7 +382,8 @@ export default function SmartExtractorWidget({
                   </p>
 
                   <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-[#4cd34c]/20 px-4 py-2 text-xs font-bold text-[#4cd34c] border border-[#4cd34c]/30 hover:bg-[#4cd34c]/30 transition">
-                    📁 Browse Image File
+                    <Icon src="/folder.png" fallback="📁" className="h-4 w-4" />
+                    Browse Image File
                     <input
                       type="file"
                       accept="image/*"
@@ -633,7 +636,7 @@ export default function SmartExtractorWidget({
                                     }}
                                     className="text-[10px] text-gray-400 hover:text-white px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 transition"
                                   >
-                                    📋 Copy
+                                    <Icon src="/clipboard.png" fallback="📋" className="h-3.5 w-3.5" /> Copy
                                   </button>
                                 </div>
                               );
@@ -658,7 +661,7 @@ export default function SmartExtractorWidget({
                             onClick={() => handleCopy(currentSelected, res.rule_name)}
                             className="rounded-xl border px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-white/10 border-white/10 transition"
                           >
-                            📋 Copy
+                            <Icon src="/clipboard.png" fallback="📋" className="h-3.5 w-3.5" /> Copy
                           </button>
                         </div>
                       )}

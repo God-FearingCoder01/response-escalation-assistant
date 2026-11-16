@@ -503,7 +503,7 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
     a.download = `rea_templates_backup_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    showToast("Template library exported to JSON! 📥");
+    showToast("Template library exported to JSON! 📤");
   };
 
   const handleImportTemplatesFile = async (e) => {
@@ -520,7 +520,7 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
         try {
           const res = await importTemplatesApi(importedData);
           setTemplates(res);
-          showToast("Template library imported successfully! 📤");
+          showToast("Template library imported successfully! 📥");
           return;
         } catch (err) {
           if (err instanceof Error && err.message === "Failed to fetch") {
@@ -532,7 +532,7 @@ export function useTemplates({ apiStatus, activeScreen, currentAgent, favoriteId
         }
       }
       setTemplates(importedData);
-      showToast("Template library imported locally 📤");
+      showToast("Template library imported locally 📥");
     } catch (err) {
       alert("Failed to parse JSON file");
     }

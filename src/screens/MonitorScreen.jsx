@@ -5,6 +5,7 @@ import {
   fetchSupportRequestsApi,
   updateSupportRequestStatusApi,
 } from "../services/api";
+import Icon from "../components/Icon";
 
 export default function MonitorScreen({
   activeScreen,
@@ -576,7 +577,7 @@ export default function MonitorScreen({
           >
             <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--panel-border)" }}>
               <div className="flex items-center gap-2">
-                <span className="text-2xl">✨</span>
+                <Icon src="/sparkling.png" fallback="✨" className="h-7 w-7" />
                 <h3 className="text-xl font-bold" style={{ color: "var(--app-text)" }}>
                   Create Organization
                 </h3>
