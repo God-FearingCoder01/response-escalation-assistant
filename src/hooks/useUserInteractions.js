@@ -16,11 +16,12 @@ export function useUserInteractions({ currentAgent, apiStatus }) {
   const [recentlyUsed, setRecentlyUsed] = useState([]);
   const toastTimerRef = useRef(null);
 
-  function showToast(message = "Copied to clipboard!") {
+  // `icon` is an optional image path (e.g. "/unlocked.png") shown before the message.
+  function showToast(message = "Copied to clipboard!", _type, icon = null) {
     if (toastTimerRef.current) {
       clearTimeout(toastTimerRef.current);
     }
-    setToast({ show: true, message });
+    setToast({ show: true, message, icon });
     toastTimerRef.current = setTimeout(() => {
       setToast({ show: false, message: "" });
     }, 2800);

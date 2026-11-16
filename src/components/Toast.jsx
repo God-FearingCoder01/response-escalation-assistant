@@ -12,7 +12,18 @@ export default function Toast({ toast, onClose }) {
           color: "var(--app-text)",
         }}
       >
-        <span className="flex h-3 w-3 rounded-full bg-[#4cd34c] animate-ping" />
+        {toast.icon ? (
+          <img
+            src={toast.icon}
+            alt=""
+            className="h-5 w-5 shrink-0 object-contain"
+            onError={(event) => {
+              event.currentTarget.style.display = "none"; // missing image: show nothing, not a broken icon
+            }}
+          />
+        ) : (
+          <span className="flex h-3 w-3 rounded-full bg-[#4cd34c] animate-ping" />
+        )}
         <span className="text-sm font-semibold">{toast.message}</span>
         {onClose && (
           <button
