@@ -1,4 +1,19 @@
 (function() {
+  // Cache an explicitly highlighted customer message for the side panel. Keep it in
+  // session storage only; selections are never persisted across browser restarts.
+  const captureSelection = () => {
+    const active = document.activeElement;
+    const value = typeof active?.value === "string" && Number.isInteger(active.selectionStart) && active.selectionEnd > active.selectionStart
+      ? active.value.slice(active.selectionStart, active.selectionEnd)
+      : window.getSelection?.();
+    const text = String(value || "").trim().slice(0, 4000);
+    if (text) chrome.runtime.sendMessage({ action: "rea_selection", text });
+  };
+  document.addEventListener("mouseup", captureSelection, true);
+  document.addEventListener("keyup", (event) => {
+    if (["Shift", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) captureSelection();
+  }, true);
+
   // Check if button already exists
   if (document.getElementById("rea-floating-btn")) {
     return;

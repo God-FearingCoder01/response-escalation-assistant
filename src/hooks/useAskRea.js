@@ -135,6 +135,7 @@ export function useAskRea({ currentAgent = null } = {}) {
           {
             role: "assistant",
             content: result.reply,
+            options: result.options || [],
             provider: result.provider,
             redactions: result.redactions || {},
           },

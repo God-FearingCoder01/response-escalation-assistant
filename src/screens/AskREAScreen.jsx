@@ -60,6 +60,7 @@ export default function AskREAScreen({ askReaState, copyText, showToast, isAdmin
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [check, setCheck] = useState({ running: false, error: "", data: null });
+  const [selectionAvailable, setSelectionAvailable] = useState(false);
   const endRef = useRef(null);
   const inputRef = useRef(null);
   const fileRef = useRef(null);
@@ -126,6 +127,30 @@ export default function AskREAScreen({ askReaState, copyText, showToast, isAdmin
     setCopiedIndex(index);
     setTimeout(() => setCopiedIndex((current) => (current === index ? null : current)), 2000);
   };
+
+  const useHighlightedText = () => {
+    if (!globalThis.chrome?.runtime?.sendMessage) return;
+    chrome.runtime.sendMessage({ action: "get_rea_selection" }, (result) => {
+      if (chrome.runtime.lastError) return;
+      const selected = String(result?.text || "").trim();
+      if (!selected) {
+        showToast?.("Highlight a customer message on the page first.");
+        return;
+      }
+      setInput((current) => current.trim() ? `${current.trim()}\n\nCustomer message:\n${selected}` : `Customer message:\n${selected}`);
+      setSelectionAvailable(false);
+      inputRef.current?.focus();
+    });
+  };
+
+  useEffect(() => {
+    if (!globalThis.chrome?.runtime?.sendMessage) return undefined;
+    const markAvailable = (message) => {
+      if (message?.action === "rea_selection_available") setSelectionAvailable(true);
+    };
+    chrome.runtime.onMessage?.addListener(markAvailable);
+    return () => chrome.runtime.onMessage?.removeListener(markAvailable);
+  }, []);
 
   const panelStyle = { borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" };
   const fieldStyle = { borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" };
@@ -319,20 +344,30 @@ export default function AskREAScreen({ askReaState, copyText, showToast, isAdmin
                       ))}
                     </div>
                   ) : null}
-                  <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                  {Array.isArray(message.options) && message.options.length > 1 ? (
+                    <div className="space-y-3">
+                      {message.options.map((option, optionIndex) => (
+                        <div key={`${index}-${optionIndex}`} className="rounded-xl border p-3" style={{ borderColor: "var(--panel-border)" }}>
+                          <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-bold text-[var(--text-muted)]">
+                            <span>Option {optionIndex + 1}</span>
+                            <button type="button" onClick={() => handleCopy(option, `${index}-${optionIndex}`)} className="rounded-lg bg-[var(--neutral-bg)] px-2.5 py-1 font-bold text-[var(--neutral-text)]">
+                              <EmojiText text={copiedIndex === `${index}-${optionIndex}` ? "Copied ✓" : "Copy"} />
+                            </button>
+                          </div>
+                          <p className="whitespace-pre-wrap break-words">{option}</p>
+                        </div>
+                      ))}
+                      {note ? <p className="text-[10px] text-[var(--text-muted)]">{note}</p> : null}
+                    </div>
+                  ) : <p className="whitespace-pre-wrap break-words">{message.content}</p>}
                   {!isUser ? (
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[var(--text-muted)]">
-                      <span>
-                        {message.provider ? `Answered by ${message.provider}` : "Answer"}
-                        {note ? ` · ${note}` : ""}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(message.content, index)}
-                        className="rounded-lg bg-[var(--neutral-bg)] px-2.5 py-1 font-bold text-[var(--neutral-text)] transition hover:opacity-80"
-                      >
-                        <EmojiText text={copiedIndex === index ? "Copied ✓" : "Copy"} />
-                      </button>
+                      <span>{message.provider ? `Answered by ${message.provider}` : "Answer"}</span>
+                      {(!Array.isArray(message.options) || message.options.length < 2) ? (
+                        <button type="button" onClick={() => handleCopy(message.content, index)} className="rounded-lg bg-[var(--neutral-bg)] px-2.5 py-1 font-bold text-[var(--neutral-text)] transition hover:opacity-80">
+                          <EmojiText text={copiedIndex === index ? "Copied ✓" : "Copy"} />
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -413,6 +448,11 @@ export default function AskREAScreen({ askReaState, copyText, showToast, isAdmin
           style={fieldStyle}
           aria-label="Your question for Ask REA"
         />
+        {globalThis.chrome?.runtime?.sendMessage ? (
+          <button type="button" onClick={useHighlightedText} className="rounded-xl border px-3 py-2 text-xs font-bold transition hover:bg-[var(--neutral-bg)]" style={{ borderColor: "var(--panel-border)" }}>
+            {selectionAvailable ? "Add highlighted customer text" : "Use highlighted page text"}
+          </button>
+        ) : null}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className={`text-[11px] ${tooLong ? "font-bold text-red-500" : "text-[var(--text-muted)]"}`}>
             {input.length}/{ASK_REA_LIMITS.maxMessageChars}

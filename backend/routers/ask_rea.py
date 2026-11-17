@@ -120,8 +120,13 @@ def ask_rea(req: AskRequest, agent: dict = Depends(require_agent_session)):
     except ai_service.AIUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc))
 
+    restored = redactor.restore(reply)
+    options = [part.strip() for part in restored.split("---OPTION---") if part.strip()] if req.mode == "reply" else []
+    if req.mode == "reply" and len(options) < 2:
+        options = [restored]
     return {
-        "reply": redactor.restore(reply),
+        "reply": "\n\n".join(options) if options else restored,
+        "options": options,
         "provider": provider,
         "redactions": redactor.summary(),
         "remaining_requests": remaining,

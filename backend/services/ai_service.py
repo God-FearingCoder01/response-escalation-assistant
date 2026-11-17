@@ -136,8 +136,10 @@ _BASE_PROMPT = (
 
 _MODE_PROMPTS = {
     "reply": (
-        "Task: write a reply the agent can send to the customer. Output only the message "
-        "text, ready to send, with no preamble or notes."
+        "Task: write exactly three alternative replies the agent can send to the customer. "
+        "Make them meaningfully different in tone or length while keeping each concise and "
+        "ready to send. Separate them using the exact delimiter ---OPTION--- on its own line. "
+        "Output only the three customer messages, with no explanations, labels, preamble or notes."
     ),
     "advice": (
         "Task: advise the agent on how to handle the situation: what to check, what to say "
