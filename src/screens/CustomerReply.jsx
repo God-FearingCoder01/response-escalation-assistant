@@ -218,21 +218,25 @@ export default function CustomerReply({
                         copyText(msgToCopy, "Customer reply copied to clipboard! 📋", t.id);
                       }
                     }}
-                    className={`p-3 rounded-2xl border cursor-pointer transition flex items-center justify-between ${
+                    className={`p-3 rounded-2xl border cursor-pointer transition flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 ${
                       String(t.id) === String(activeTemplate?.id)
                         ? "border-[#4cd34c] ring-1 ring-[#4cd34c]/30 bg-[#4cd34c]/5"
                         : "hover:border-[#4cd34c]/50"
                     }`}
                     style={{ borderColor: String(t.id) === String(activeTemplate?.id) ? "#4cd34c" : "var(--field-border)", backgroundColor: "var(--field-bg)" }}
                   >
-                    <div className="min-w-0 flex-1 pr-2">
-                      <div className="font-semibold text-sm truncate">{t.name}</div>
+                    <div className="min-w-[10rem] flex-1 pr-2">
+                      <div className="font-semibold text-sm truncate" title={t.name}>{t.name}</div>
                       <div className="text-xs truncate mt-0.5" style={{ color: "var(--text-muted)" }}>
                         {t.body}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-2">
-                      <span className="text-[10px] rounded-full border px-2 py-0.5" style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}>
+                    <div className="flex min-w-0 max-w-full items-center gap-2 ml-auto">
+                      <span
+                        className="min-w-0 max-w-[12rem] truncate text-[10px] rounded-full border px-2 py-0.5"
+                        style={{ borderColor: "var(--badge-border)", color: "var(--badge-text)" }}
+                        title={t.category ?? "General"}
+                      >
                         {t.category ?? "General"}
                       </span>
                       <button
