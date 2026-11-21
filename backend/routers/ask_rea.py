@@ -1,5 +1,6 @@
 import base64
 import binascii
+import re
 from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -83,6 +84,17 @@ class AskRequest(BaseModel):
         return self
 
 
+_OPTION_LABEL = re.compile(r"^\s*(?:\*\*)?\s*(?:option|reply|response|version)\s*\d+\s*[:.)-]?\s*(?:\*\*)?\s*", re.IGNORECASE)
+
+
+def _clean_option(part: str) -> str:
+    """Trim an option and drop a leading "Option 2:" label or wrapping quotes if the model added them."""
+    text = _OPTION_LABEL.sub("", part.strip()).strip()
+    if len(text) > 1 and text[0] in "\"\u201c" and text[-1] in "\"\u201d" and not any(c in text[1:-1] for c in "\"\u201c\u201d"):
+        text = text[1:-1].strip()
+    return text
+
+
 @router.get("/ask-rea/status")
 def ask_rea_status(_agent: dict = Depends(require_agent_session)):
     return {"enabled": ai_service.is_enabled(), "hourly_limit": ai_service.hourly_limit()}
@@ -121,7 +133,11 @@ def ask_rea(req: AskRequest, agent: dict = Depends(require_agent_session)):
         raise HTTPException(status_code=503, detail=str(exc))
 
     restored = redactor.restore(reply)
-    options = [part.strip() for part in restored.split("---OPTION---") if part.strip()] if req.mode == "reply" else []
+    options = (
+        [_clean_option(part) for part in restored.split("---OPTION---") if _clean_option(part)]
+        if req.mode == "reply"
+        else []
+    )
     if req.mode == "reply" and len(options) < 2:
         options = [restored]
     return {

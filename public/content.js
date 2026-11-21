@@ -3,6 +3,7 @@
   // session storage only; selections are never persisted across browser restarts.
   const captureSelection = () => {
     const active = document.activeElement;
+    if (active?.tagName === "INPUT" && /^(password|hidden)$/i.test(active.type || "")) return; // never read passwords
     const value = typeof active?.value === "string" && Number.isInteger(active.selectionStart) && active.selectionEnd > active.selectionStart
       ? active.value.slice(active.selectionStart, active.selectionEnd)
       : window.getSelection?.();

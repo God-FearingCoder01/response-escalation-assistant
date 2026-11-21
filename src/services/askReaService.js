@@ -9,6 +9,7 @@ export const ASK_REA_LIMITS = {
   maxMessages: 12,
   maxHideTerms: 10,
   maxImages: 3,
+  maxQuotedChars: 2500,
 };
 
 // Screenshots make answers slower, and the server may try several AI models in turn.

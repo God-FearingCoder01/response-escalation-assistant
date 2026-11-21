@@ -124,7 +124,11 @@ _BASE_PROMPT = (
     "You are REA, an assistant built into a customer-support tool used by support agents. "
     "You help the agent; the agent, not you, talks to the customer.\n"
     "Rules:\n"
-    "- Be professional, warm, clear and concise. Plain text only, no markdown headings.\n"
+    "- Be professional, warm, clear and concise. Plain text only: no markdown, no headings, "
+    "no bold, no bullet symbols in anything the agent will send.\n"
+    "- Give the agent only what they will copy and paste. No introduction, no explanation of "
+    "your choices, no labels such as 'Option 1', no notes and no closing remarks such as "
+    "'Here are some options' or 'Let me know'.\n"
     "- Placeholders in square brackets such as [NAME_1], [PHONE_1] or [REF_1] stand for "
     "private customer details that were hidden from you. Keep them exactly as written "
     "wherever they belong in your answer. Never guess, invent or ask for the real values.\n"
@@ -139,17 +143,20 @@ _MODE_PROMPTS = {
         "Task: write exactly three alternative replies the agent can send to the customer. "
         "Make them meaningfully different in tone or length while keeping each concise and "
         "ready to send. Separate them using the exact delimiter ---OPTION--- on its own line. "
-        "Output only the three customer messages, with no explanations, labels, preamble or notes."
+        "Output only the three customer messages, with no explanations, labels, preamble or notes. "
+        "The agent may add their own note after the customer's message; follow it. If the "
+        "customer's message is abusive or does not say what the problem is, stay calm, set a "
+        "respectful boundary and invite them to describe their issue."
     ),
     "advice": (
         "Task: advise the agent on how to handle the situation: what to check, what to say "
-        "and what to avoid. Keep it practical and short. Do not write the full customer "
-        "message unless asked."
+        "and what to avoid. Keep it practical and very short (at most 5 short lines, each on "
+        "its own line). Do not write the full customer message unless asked."
     ),
     "escalation": (
         "Task: write a clear internal escalation for the technical team. Include a one-line "
         "summary, what the customer reported, what has been checked or tried, and what is "
-        "needed from the team. Output only the escalation text."
+        "needed from the team. Write one escalation only, ready to paste, with no commentary."
     ),
 }
 
@@ -384,7 +391,7 @@ def generate(system: str, messages: Messages) -> Tuple[str, str]:
     if not providers:
         raise AIUnavailable("Ask REA is not available right now. Please contact your administrator.")
 
-    max_tokens = _env_int("ASK_REA_MAX_OUTPUT_TOKENS", 700)
+    max_tokens = _env_int("ASK_REA_MAX_OUTPUT_TOKENS", 900)
     per_call_timeout = float(_env_int("ASK_REA_TIMEOUT_SECONDS", 20))
     total_budget = float(_env_int("ASK_REA_TOTAL_TIMEOUT_SECONDS", 40))
     started = time.monotonic()

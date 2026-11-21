@@ -52,6 +52,9 @@ export default function AskREAScreen({ askReaState, copyText, showToast, isAdmin
     isPreparingImage,
     addImages,
     removeAttachment,
+    pageText = "",
+    pullSelection,
+    clearPageText,
     send,
     clearConversation,
   } = askReaState || {};
@@ -60,7 +63,6 @@ export default function AskREAScreen({ askReaState, copyText, showToast, isAdmin
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [check, setCheck] = useState({ running: false, error: "", data: null });
-  const [selectionAvailable, setSelectionAvailable] = useState(false);
   const endRef = useRef(null);
   const inputRef = useRef(null);
   const fileRef = useRef(null);
@@ -72,13 +74,14 @@ export default function AskREAScreen({ askReaState, copyText, showToast, isAdmin
   const disabled = status?.enabled === false;
   const tooLong = input.length > ASK_REA_LIMITS.maxMessageChars;
   const hasAttachments = attachments.length > 0;
+  const hasQuote = pageText.trim().length > 0;
   const canSend =
-    !disabled && !isLoading && !isPreparingImage && (input.trim().length > 0 || hasAttachments) && !tooLong;
+    !disabled && !isLoading && !isPreparingImage && (input.trim().length > 0 || hasAttachments || hasQuote) && !tooLong;
   const canAttach = !disabled && !isLoading && attachments.length < IMAGE_LIMITS.maxImages;
 
   const submit = async (override) => {
     const text = typeof override === "string" ? override : input;
-    if ((!text.trim() && !hasAttachments) || disabled || isLoading || isPreparingImage) return;
+    if ((!text.trim() && !hasAttachments && !hasQuote) || disabled || isLoading || isPreparingImage) return;
     setInput("");
     const ok = await send?.(text);
     if (!ok) setInput((current) => current || text); // give the text back so it can be retried
@@ -128,29 +131,11 @@ export default function AskREAScreen({ askReaState, copyText, showToast, isAdmin
     setTimeout(() => setCopiedIndex((current) => (current === index ? null : current)), 2000);
   };
 
-  const useHighlightedText = () => {
-    if (!globalThis.chrome?.runtime?.sendMessage) return;
-    chrome.runtime.sendMessage({ action: "get_rea_selection" }, (result) => {
-      if (chrome.runtime.lastError) return;
-      const selected = String(result?.text || "").trim();
-      if (!selected) {
-        showToast?.("Highlight a customer message on the page first.");
-        return;
-      }
-      setInput((current) => current.trim() ? `${current.trim()}\n\nCustomer message:\n${selected}` : `Customer message:\n${selected}`);
-      setSelectionAvailable(false);
-      inputRef.current?.focus();
-    });
+  const useHighlightedText = async () => {
+    const text = await pullSelection?.();
+    if (!text && !hasQuote) showToast?.("Highlight a customer message on the page first.");
+    inputRef.current?.focus();
   };
-
-  useEffect(() => {
-    if (!globalThis.chrome?.runtime?.sendMessage) return undefined;
-    const markAvailable = (message) => {
-      if (message?.action === "rea_selection_available") setSelectionAvailable(true);
-    };
-    chrome.runtime.onMessage?.addListener(markAvailable);
-    return () => chrome.runtime.onMessage?.removeListener(markAvailable);
-  }, []);
 
   const panelStyle = { borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" };
   const fieldStyle = { borderColor: "var(--field-border)", backgroundColor: "var(--field-bg)" };
@@ -359,6 +344,11 @@ export default function AskREAScreen({ askReaState, copyText, showToast, isAdmin
                       ))}
                       {note ? <p className="text-[10px] text-[var(--text-muted)]">{note}</p> : null}
                     </div>
+                  ) : isUser && message.quote ? (
+                    <div className="space-y-1.5">
+                      <p className="line-clamp-6 whitespace-pre-wrap break-words rounded-lg bg-black/10 px-2 py-1 text-xs">{message.quote}</p>
+                      {message.typed ? <p className="whitespace-pre-wrap break-words">{message.typed}</p> : null}
+                    </div>
                   ) : <p className="whitespace-pre-wrap break-words">{message.content}</p>}
                   {!isUser ? (
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[var(--text-muted)]">
@@ -442,16 +432,37 @@ export default function AskREAScreen({ askReaState, copyText, showToast, isAdmin
           placeholder={
             disabled
               ? "Ask REA is not available."
-              : "Describe the issue and what you need. You can paste a screenshot here (Ctrl+V). Press Enter to send, Shift+Enter for a new line."
+              : hasQuote
+                ? "Add your own note (optional), then press Enter."
+                : "Describe the issue and what you need. You can paste a screenshot here (Ctrl+V). Press Enter to send, Shift+Enter for a new line."
           }
           className="w-full resize-y rounded-2xl border px-3 py-2 text-sm outline-none disabled:opacity-50"
           style={fieldStyle}
           aria-label="Your question for Ask REA"
         />
+        {hasQuote ? (
+          <div className="rounded-2xl border px-3 py-2 text-xs" style={fieldStyle}>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <span className="font-bold">Customer message picked up from the page</span>
+              <button
+                type="button"
+                onClick={clearPageText}
+                aria-label="Remove picked up message"
+                className="rounded-full px-2 text-sm font-bold text-[var(--text-muted)] hover:text-red-500"
+              >
+                ×
+              </button>
+            </div>
+            <p className="line-clamp-4 whitespace-pre-wrap break-words text-[var(--text-muted)]">{pageText}</p>
+          </div>
+        ) : null}
         {globalThis.chrome?.runtime?.sendMessage ? (
-          <button type="button" onClick={useHighlightedText} className="rounded-xl border px-3 py-2 text-xs font-bold transition hover:bg-[var(--neutral-bg)]" style={{ borderColor: "var(--panel-border)" }}>
-            {selectionAvailable ? "Add highlighted customer text" : "Use highlighted page text"}
-          </button>
+          <p className="text-[11px] text-[var(--text-muted)]">
+            Highlight a customer's message on the page and it is picked up here. Add your own note below, or just press Ask REA.{" "}
+            <button type="button" onClick={useHighlightedText} className="font-bold underline">
+              Pick up again
+            </button>
+          </p>
         ) : null}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className={`text-[11px] ${tooLong ? "font-bold text-red-500" : "text-[var(--text-muted)]"}`}>

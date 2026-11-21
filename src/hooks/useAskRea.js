@@ -45,6 +45,9 @@ export function useAskRea({ currentAgent = null } = {}) {
   const [remaining, setRemaining] = useState(null);
   const [attachments, setAttachments] = useState([]);
   const [isPreparingImage, setIsPreparingImage] = useState(false);
+  // The customer message the agent highlighted in the page next to the side panel. The
+  // extension's content script hands it over (see public/content.js and background.js).
+  const [pageText, setPageText] = useState("");
   const requestId = useRef(0);
   const attachmentCount = useRef(0);
 
@@ -56,6 +59,7 @@ export function useAskRea({ currentAgent = null } = {}) {
     setRemaining(null);
     setIsLoading(false);
     setAttachments([]);
+    setPageText("");
     setIsPreparingImage(false);
     setStatus({ enabled: null, hourly_limit: null });
     if (!agentInitials) return undefined;
@@ -67,6 +71,38 @@ export function useAskRea({ currentAgent = null } = {}) {
       active = false;
     };
   }, [agentInitials]);
+
+  // Asks the extension for the latest highlighted text. Resolves to that text ("" if none).
+  const pullSelection = useCallback(
+    () =>
+      new Promise((resolve) => {
+        if (!globalThis.chrome?.runtime?.sendMessage) return resolve("");
+        try {
+          chrome.runtime.sendMessage({ action: "get_rea_selection" }, (result) => {
+            if (chrome.runtime.lastError) return resolve("");
+            const text = String(result?.text || "").trim().slice(0, ASK_REA_LIMITS.maxQuotedChars);
+            if (text) setPageText(text);
+            resolve(text);
+          });
+        } catch {
+          resolve("");
+        }
+      }),
+    []
+  );
+
+  // Pick up highlights automatically as the agent makes them, without any button press.
+  useEffect(() => {
+    if (!agentInitials || !globalThis.chrome?.runtime?.onMessage) return undefined;
+    const onMessage = (message) => {
+      if (message?.action === "rea_selection_available") pullSelection();
+    };
+    chrome.runtime.onMessage.addListener(onMessage);
+    pullSelection(); // something may already be highlighted when the panel opens
+    return () => chrome.runtime.onMessage.removeListener(onMessage);
+  }, [agentInitials, pullSelection]);
+
+  const clearPageText = useCallback(() => setPageText(""), []);
 
   // Accepts File objects (pasted, dropped or picked). Shrinks each one and keeps it in memory.
   const addImages = useCallback(async (files) => {
@@ -104,19 +140,28 @@ export function useAskRea({ currentAgent = null } = {}) {
   const send = useCallback(
     async (text) => {
       const typed = String(text || "").trim();
-      // A screenshot on its own is a fair question: "what does this show?"
-      const content = typed || (attachments.length ? "Please look at the attached screenshot and tell me what it shows and what I should do." : "");
-      if (!content || isLoading || isPreparingImage) return false;
+      const quote = pageText.trim();
+      // A highlighted message or a screenshot on its own is a fair question.
+      const note =
+        typed ||
+        (quote
+          ? "Write replies to this customer message."
+          : attachments.length
+            ? "Please look at the attached screenshot and tell me what it shows and what I should do."
+            : "");
+      const content = quote ? `Customer's message:\n"""\n${quote}\n"""\n\nAgent's note: ${note}` : note;
+      if (!note || isLoading || isPreparingImage) return false;
       if (content.length > ASK_REA_LIMITS.maxMessageChars) {
         setError(`Please keep each message under ${ASK_REA_LIMITS.maxMessageChars} characters.`);
         return false;
       }
 
       const sentImages = attachments;
-      const userMessage = { role: "user", content, images: sentImages, hadImages: sentImages.length };
+      const userMessage = { role: "user", content, typed, quote, images: sentImages, hadImages: sentImages.length };
       const nextMessages = [...messages, userMessage];
       setMessages(nextMessages);
       setAttachments([]);
+      setPageText("");
       attachmentCount.current = 0;
       setError("");
       setIsLoading(true);
@@ -148,6 +193,7 @@ export function useAskRea({ currentAgent = null } = {}) {
         // row; the screen puts its text back in the box so the agent can simply retry.
         setMessages((current) => current.filter((message) => message !== userMessage));
         setAttachments((current) => (current.length ? current : sentImages)); // keep the screenshots for a retry
+        setPageText((current) => current || quote); // and the highlighted message
         attachmentCount.current = sentImages.length;
         setError(err instanceof Error ? err.message : "Ask REA could not answer right now.");
         if (err?.status === 429) setRemaining(0);
@@ -156,13 +202,14 @@ export function useAskRea({ currentAgent = null } = {}) {
         if (myRequest === requestId.current) setIsLoading(false);
       }
     },
-    [messages, mode, channel, hideTermsText, isLoading, isPreparingImage, attachments]
+    [messages, mode, channel, hideTermsText, isLoading, isPreparingImage, attachments, pageText]
   );
 
   const clearConversation = useCallback(() => {
     requestId.current += 1;
     setMessages([]);
     setAttachments([]);
+    setPageText("");
     attachmentCount.current = 0;
     setError("");
     setIsLoading(false);
@@ -184,6 +231,9 @@ export function useAskRea({ currentAgent = null } = {}) {
     isPreparingImage,
     addImages,
     removeAttachment,
+    pageText,
+    pullSelection,
+    clearPageText,
     send,
     clearConversation,
   };

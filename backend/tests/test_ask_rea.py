@@ -517,3 +517,33 @@ def test_diagnose_reports_why_each_provider_fails(providers):
     assert openai_rows[0]["reason"] == "Incorrect API key provided"
     assert SECRET not in res.text
     assert rows
+
+
+# --- replies come back as ready-to-send options --------------------------------
+
+def test_reply_mode_returns_separate_cleaned_options(providers):
+    providers["gemini"].reply = 'First reply.\n---OPTION---\nOption 2: Second reply.\n---OPTION---\n"Third reply."'
+    data = ask(mode="reply").json()
+    assert data["options"] == ["First reply.", "Second reply.", "Third reply."]
+
+
+def test_a_single_reply_is_still_returned_as_one_option(providers):
+    providers["gemini"].reply = "Only one reply."
+    data = ask(mode="reply").json()
+    assert data["options"] == ["Only one reply."]
+
+
+def test_advice_and_escalation_are_not_split_into_options(providers):
+    providers["gemini"].reply = "A\n---OPTION---\nB"
+    assert ask(mode="advice").json()["options"] == []
+    assert ask(mode="escalation").json()["options"] == []
+
+
+def test_prompts_ask_for_copy_ready_text_only(providers):
+    ask(mode="reply")
+    ask(mode="advice")
+    reply_prompt = providers["gemini"].calls[0]["system"]
+    advice_prompt = providers["gemini"].calls[1]["system"]
+    assert "exactly three" in reply_prompt and "---OPTION---" in reply_prompt
+    assert "no explanation" in reply_prompt.lower()
+    assert "exactly three" not in advice_prompt
