@@ -1,6 +1,6 @@
 import json
 import re
-from datetime import datetime, timezone
+from datetime import date as date_type, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -76,10 +76,31 @@ def _latest_timetable(session: Session, company_id: int, year: int, month: int):
     ).first()
 
 
+def _shift_month(day: date_type, delta: int) -> date_type:
+    index = day.year * 12 + (day.month - 1) + delta
+    return date_type(index // 12, index % 12 + 1, 1)
+
+
+def _has_entry_for(record: MonthlyTimetable, initials: str, day: str) -> bool:
+    try:
+        schedules = json.loads(record.schedules_json)
+    except (TypeError, json.JSONDecodeError):
+        return False
+    return any(
+        item.get("agent_initials", "").upper() == initials.upper()
+        and any(entry.get("date") == day for entry in item.get("entries", []))
+        for item in schedules
+    )
+
+
 @router.post("/import", dependencies=[Depends(require_admin)])
 def import_timetable(payload: TimetableImport, company: Company = Depends(get_current_company),
                      x_admin_initials: Optional[str] = Header(None, alias="X-Admin-Initials")):
     cid = company.id or 1
+    month_first = date_type(payload.year, payload.month, 1)
+    next_first = date_type(payload.year + (payload.month == 12), payload.month % 12 + 1, 1)
+    window_start = month_first - timedelta(days=6)
+    window_end = next_first - timedelta(days=1) + timedelta(days=6)
     with Session(engine) as session:
         roster = session.exec(select(Agent).where(Agent.company_id == cid)).all()
         by_initials = {agent.agent_initials.strip().upper(): agent for agent in roster}
@@ -102,8 +123,10 @@ def import_timetable(payload: TimetableImport, company: Company = Depends(get_cu
                     parsed = datetime.strptime(date, "%Y-%m-%d")
                 except ValueError:
                     raise HTTPException(status_code=400, detail=f"Invalid schedule date for {initials}")
-                if parsed.year != payload.year or parsed.month != payload.month:
-                    raise HTTPException(status_code=400, detail=f"Schedule date is outside the selected month for {initials}")
+                # A week may start in the previous month or end in the next (Nov 29 - Dec 5), so days
+                # in the weeks that touch the month are allowed.
+                if not (window_start <= parsed.date() <= window_end):
+                    raise HTTPException(status_code=400, detail=f"Schedule date is outside the weeks of the selected month for {initials}")
                 if date in seen_dates or not shift:
                     raise HTTPException(status_code=400, detail=f"Duplicate or empty shift entry for {initials}")
                 seen_dates.add(date)
@@ -206,6 +229,14 @@ def get_shift_mates(date: str, company: Company = Depends(get_current_company),
         if not agent:
             raise HTTPException(status_code=403, detail="Agent profile is not active in this organization")
         record = _latest_timetable(session, cid, selected_date.year, selected_date.month)
+        # A day shown at the edge of a neighbouring month's timetable (Nov 29 in December's)
+        # lives in that timetable, so look there when this month has nothing for the day.
+        for neighbour in (_shift_month(selected_date, 1), _shift_month(selected_date, -1)):
+            if record and _has_entry_for(record, agent.agent_initials, date):
+                break
+            candidate = _latest_timetable(session, cid, neighbour.year, neighbour.month)
+            if candidate and _has_entry_for(candidate, agent.agent_initials, date):
+                record = candidate
         if not record:
             raise HTTPException(status_code=404, detail="No timetable has been uploaded for this month")
 

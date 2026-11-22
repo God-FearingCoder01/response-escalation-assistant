@@ -56,17 +56,19 @@ export async function parseTimetableWorkbook(file, agents, targetMonth = "", exc
   const month = requestedMonth || detected.month || new Date().getMonth() + 1;
   const year = targetYear || detected.year || new Date().getFullYear();
   const first = new Date(year, month - 1, 1);
-  const firstSunday = 1 + ((7 - first.getDay()) % 7);
+  // Without a date label, the first week is the one holding the 1st of the month, so it
+  // starts on the Sunday on or before the 1st (this can be in the previous month).
+  const firstWeekStartDay = 1 - first.getDay();
 
   for (const sheetName of workbook.SheetNames) {
     const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, raw: false, defval: "" });
     let weekIndex = -1;
-    let activeWeekStart = new Date(year, month - 1, firstSunday);
+    let activeWeekStart = new Date(year, month - 1, firstWeekStartDay);
     for (let r = 0; r < rows.length; r += 1) {
       const dayStart = rows[r].findIndex((cell) => key(cell) === DAYS[0]);
       if (dayStart < 0 || DAYS.some((day, index) => key(rows[r][dayStart + index]) !== day)) continue;
       weekIndex += 1;
-      activeWeekStart = findWeekStart(rows, r, { year, month, weekIndex }, new Date(year, month - 1, firstSunday + weekIndex * 7));
+      activeWeekStart = findWeekStart(rows, r, { year, month, weekIndex }, new Date(year, month - 1, firstWeekStartDay + weekIndex * 7));
       for (let dataRow = r + 1; dataRow < rows.length; dataRow += 1) {
         const values = rows[dataRow];
         const nextWeekDayStart = values.findIndex((cell) => key(cell) === DAYS[0]);
@@ -85,12 +87,14 @@ export async function parseTimetableWorkbook(file, agents, targetMonth = "", exc
         if (!schedules.has(initials)) schedules.set(initials, { agent_initials: initials, entries: [] });
         shiftValues.forEach((shift, dayIndex) => {
           if (!shift) return;
-          // Weeks often straddle two months (Nov 29 - Dec 5): only the days that fall inside the
-          // month being imported are kept.
+          // Every day in the sheet is kept with its real date, including the days a week borrows
+          // from the previous or next month (Nov 29 - Dec 5, Dec 27 - Jan 2). The timetable still
+          // belongs to the month it was imported for.
           const date = new Date(activeWeekStart.getFullYear(), activeWeekStart.getMonth(), activeWeekStart.getDate() + dayIndex);
-          if (date.getMonth() !== month - 1 || date.getFullYear() !== year) return;
-          const dateString = `${year}-${String(month).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-          schedules.get(initials).entries.push({ date: dateString, shift });
+          const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+          const entries = schedules.get(initials).entries;
+          if (entries.some((entry) => entry.date === dateString)) return; // the same day listed twice: keep the first
+          entries.push({ date: dateString, shift });
         });
       }
     }
