@@ -101,6 +101,17 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
     });
     return [...counts.entries()].sort((a, b) => b[1] - a[1]);
   }, [schedule]);
+  const legendCounts = useMemo(() => {
+    const counts = { morning: 0, afternoon: 0, off: 0, leave: 0 };
+    (schedule?.entries || []).forEach(({ shift }) => {
+      const value = (shift || "").trim().toLowerCase();
+      if (value === "off") counts.off += 1;
+      else if (/leave|holiday/.test(value)) counts.leave += 1;
+      else if (/^(7|8)\s*(a\.?m?\.?|am)/.test(value)) counts.morning += 1;
+      else counts.afternoon += 1;
+    });
+    return counts;
+  }, [schedule]);
 
   if (activeScreen !== "timetable" || !currentAgent) return null;
 
@@ -162,7 +173,7 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
           </div>}
 
           <div className="flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
-            <span className="font-bold mr-1">Legend</span><span className="rounded-md bg-lime-400 px-2 py-1 font-bold text-slate-950"><Icon src="/sun.png" fallback="☀" className="h-3.5 w-3.5 mr-1" />Morning shift</span><span className="rounded-md bg-fuchsia-500 px-2 py-1 font-bold text-slate-950">☾ Afternoon / evening</span><span className="rounded-md bg-slate-300 px-2 py-1 font-bold text-slate-950">◷ Off</span><span className="rounded-md bg-cyan-300 px-2 py-1 font-bold text-slate-950">Leave</span>
+            <span className="font-bold mr-1">Legend</span><span className="rounded-md bg-lime-400 px-2 py-1 font-bold text-slate-950"><Icon src="/sun.png" fallback="☀" className="h-3.5 w-3.5 mr-1" />Morning shift · {legendCounts.morning}</span><span className="rounded-md bg-fuchsia-500 px-2 py-1 font-bold text-slate-950">☾ Afternoon / evening · {legendCounts.afternoon}</span><span className="rounded-md bg-slate-300 px-2 py-1 font-bold text-slate-950">◷ Off · {legendCounts.off}</span><span className="rounded-md bg-cyan-300 px-2 py-1 font-bold text-slate-950">Leave · {legendCounts.leave}</span>
           </div>
         </>}
       </>}
