@@ -173,7 +173,11 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
           </div>}
 
           <div className="flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
-            <span className="font-bold mr-1">Legend</span><span className="rounded-md bg-lime-400 px-2 py-1 font-bold text-slate-950"><Icon src="/sun.png" fallback="☀" className="h-3.5 w-3.5 mr-1" />Morning shift · {legendCounts.morning}</span><span className="rounded-md bg-fuchsia-500 px-2 py-1 font-bold text-slate-950">☾ Afternoon / evening · {legendCounts.afternoon}</span><span className="rounded-md bg-slate-300 px-2 py-1 font-bold text-slate-950">◷ Off · {legendCounts.off}</span><span className="rounded-md bg-cyan-300 px-2 py-1 font-bold text-slate-950">Leave · {legendCounts.leave}</span>
+            {Object.values(legendCounts).some(Boolean) && <span className="font-bold mr-1">Legend</span>}
+            {legendCounts.morning > 0 && <span className="rounded-md bg-lime-400 px-2 py-1 font-bold text-slate-950"><Icon src="/sun.png" fallback="☀" className="h-3.5 w-3.5 mr-1" />Morning shift · {legendCounts.morning}</span>}
+            {legendCounts.afternoon > 0 && <span className="rounded-md bg-fuchsia-500 px-2 py-1 font-bold text-slate-950">☾ Afternoon / evening · {legendCounts.afternoon}</span>}
+            {legendCounts.off > 0 && <span className="rounded-md bg-slate-300 px-2 py-1 font-bold text-slate-950">◷ Off · {legendCounts.off}</span>}
+            {legendCounts.leave > 0 && <span className="rounded-md bg-cyan-300 px-2 py-1 font-bold text-slate-950">Leave · {legendCounts.leave}</span>}
           </div>
         </>}
       </>}
