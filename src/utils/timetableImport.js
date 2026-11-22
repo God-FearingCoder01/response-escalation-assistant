@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { parseWeekRange, resolveWeekStart } from "./weekRange";
 
 const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
@@ -12,23 +13,30 @@ function findMonthYear(workbook) {
     return rows.slice(0, 12).flat().map(clean).join(" ");
   }).join(" ").toLowerCase();
   const year = Number(content.match(/\b(20\d{2})\b/)?.[1]);
-  const monthName = MONTHS.find((month) => new RegExp(`\\b${month}\\b`).test(content));
-  return { year: year || null, month: monthName ? MONTHS.indexOf(monthName) + 1 : null };
+  // The title ("WinBucks December 2026 ...") comes first. Take the month named earliest in the
+  // text, not the first in calendar order, so a week label such as "November 29th - December
+  // 5th" cannot make a December timetable look like November.
+  let month = null;
+  let earliest = Infinity;
+  MONTHS.forEach((name, index) => {
+    const at = content.search(new RegExp(`\\b${name}\\b`));
+    if (at >= 0 && at < earliest) {
+      earliest = at;
+      month = index + 1;
+    }
+  });
+  return { year: year || null, month };
 }
 
-function findWeekStart(rows, headerRow, fallbackDay) {
-  const candidates = [];
+// Looks for the week's date label (for example "Nov 29th - Dec 5th") around the header row and
+// returns the real first date (Sunday) of that week, which may fall in the previous month.
+// Returns `fallback` when no usable label is found.
+function findWeekStart(rows, headerRow, context, fallback) {
   for (let r = Math.max(0, headerRow - 2); r < Math.min(rows.length, headerRow + 4); r += 1) {
-    candidates.push(rows[r].map(clean).join(" "));
+    const start = resolveWeekStart(parseWeekRange(rows[r].map(clean).join(" ")), context);
+    if (start) return start;
   }
-  for (const candidate of candidates) {
-    const match = candidate.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s*(?:-|–|—|to)\s*(?:[a-z]+\s*)?(\d{1,2})(?:st|nd|rd|th)?\b/i);
-    if (match) {
-      const day = Number(match[1]);
-      if (day >= 1 && day <= 31) return day;
-    }
-  }
-  return fallbackDay;
+  return fallback;
 }
 
 export async function parseTimetableWorkbook(file, agents, targetMonth = "", excludedInitials = []) {
@@ -53,12 +61,12 @@ export async function parseTimetableWorkbook(file, agents, targetMonth = "", exc
   for (const sheetName of workbook.SheetNames) {
     const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, raw: false, defval: "" });
     let weekIndex = -1;
-    let activeWeekStart = firstSunday;
+    let activeWeekStart = new Date(year, month - 1, firstSunday);
     for (let r = 0; r < rows.length; r += 1) {
       const dayStart = rows[r].findIndex((cell) => key(cell) === DAYS[0]);
       if (dayStart < 0 || DAYS.some((day, index) => key(rows[r][dayStart + index]) !== day)) continue;
       weekIndex += 1;
-      activeWeekStart = findWeekStart(rows, r, firstSunday + weekIndex * 7);
+      activeWeekStart = findWeekStart(rows, r, { year, month, weekIndex }, new Date(year, month - 1, firstSunday + weekIndex * 7));
       for (let dataRow = r + 1; dataRow < rows.length; dataRow += 1) {
         const values = rows[dataRow];
         const nextWeekDayStart = values.findIndex((cell) => key(cell) === DAYS[0]);
@@ -77,8 +85,10 @@ export async function parseTimetableWorkbook(file, agents, targetMonth = "", exc
         if (!schedules.has(initials)) schedules.set(initials, { agent_initials: initials, entries: [] });
         shiftValues.forEach((shift, dayIndex) => {
           if (!shift) return;
-          const date = new Date(year, month - 1, activeWeekStart + dayIndex);
-          if (date.getMonth() !== month - 1) return;
+          // Weeks often straddle two months (Nov 29 - Dec 5): only the days that fall inside the
+          // month being imported are kept.
+          const date = new Date(activeWeekStart.getFullYear(), activeWeekStart.getMonth(), activeWeekStart.getDate() + dayIndex);
+          if (date.getMonth() !== month - 1 || date.getFullYear() !== year) return;
           const dateString = `${year}-${String(month).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
           schedules.get(initials).entries.push({ date: dateString, shift });
         });
