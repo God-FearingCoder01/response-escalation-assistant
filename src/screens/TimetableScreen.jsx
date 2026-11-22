@@ -75,7 +75,7 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
     let cancelled = false;
     setMatesLoading(true);
     setShiftMates(null);
-    fetchShiftMatesApi(currentAgent.agent_initials, selectedDate)
+    fetchShiftMatesApi(currentAgent.agent_initials, selectedDate, year, month)
       .then((data) => { if (!cancelled) setShiftMates(data); })
       .finally(() => { if (!cancelled) setMatesLoading(false); });
     return () => { cancelled = true; };
@@ -140,8 +140,9 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
               <div className="grid grid-cols-7 gap-2 mb-2">{["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((day) => <div key={day} className="rounded-lg border px-1 py-3 text-center text-xs font-bold uppercase tracking-wide" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}>{day}</div>)}</div>
               <div className="space-y-2">{weeks.map((week, weekIndex) => <div className="grid grid-cols-7 gap-2" key={weekIndex}>{week.map((date) => {
                 const inMonth = date.getMonth() === month - 1;
-                const shift = inMonth ? dayMap.get(isoDate(date)) : null;
-                return <button type="button" key={isoDate(date)} disabled={!inMonth} onClick={() => setSelectedDate(isoDate(date))} className={`min-h-24 rounded-xl border p-2 flex flex-col justify-between text-left transition hover:border-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-400 ${inMonth ? "cursor-pointer" : "cursor-default opacity-35"} ${selectedDate === isoDate(date) ? "ring-2 ring-fuchsia-400" : ""}`} style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }} aria-label={`${date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}: ${shift || "no shift entry"}. Select to view coworkers.`}><span className="text-xs font-bold" style={{ color: "var(--text-muted)" }}>{date.getDate()}</span>{shift ? <span className={`mt-3 rounded-md px-1 py-2 text-center text-xs font-extrabold leading-tight ${shiftClass(shift)}`}>{shift}</span> : inMonth ? <span className="mt-3 rounded-md border border-dashed px-1 py-2 text-center text-[10px]" style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}>No entry</span> : null}</button>;
+                const shift = dayMap.get(isoDate(date));
+                const hasEntry = Boolean(shift);
+                return <button type="button" key={isoDate(date)} disabled={!hasEntry} onClick={() => setSelectedDate(isoDate(date))} className={`min-h-24 rounded-xl border p-2 flex flex-col justify-between text-left transition hover:border-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-400 ${!inMonth ? "opacity-60" : ""} ${hasEntry ? "cursor-pointer" : "cursor-default"} ${selectedDate === isoDate(date) ? "ring-2 ring-fuchsia-400" : ""}`} style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)" }} aria-label={`${date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}: ${shift || "no shift entry"}${hasEntry ? ". Select to view coworkers." : ""}`}><span className="text-xs font-bold" style={{ color: "var(--text-muted)" }}>{date.getDate()}</span>{shift ? <span className={`mt-3 rounded-md px-1 py-2 text-center text-xs font-extrabold leading-tight ${shiftClass(shift)}`}>{shift}</span> : inMonth ? <span className="mt-3 rounded-md border border-dashed px-1 py-2 text-center text-[10px]" style={{ borderColor: "var(--field-border)", color: "var(--text-muted)" }}>No entry</span> : null}</button>;
               })}</div>)}</div>
             </div>
           </div>

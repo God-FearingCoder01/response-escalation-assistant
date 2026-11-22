@@ -788,8 +788,8 @@ export async function fetchMyTimetableApi(agentInitials, year, month) {
   });
 }
 
-export async function fetchShiftMatesApi(agentInitials, date) {
-  const params = new URLSearchParams({ date });
+export async function fetchShiftMatesApi(agentInitials, date, year, month) {
+  const params = new URLSearchParams({ date, year: String(year), month: String(month) });
   return await safeFetchJson(`${API_BASE}/timetables/shift-mates?${params}`, {
     headers: { "X-Agent-Initials": agentInitials || "" },
   });

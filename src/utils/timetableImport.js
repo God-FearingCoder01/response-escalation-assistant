@@ -85,11 +85,10 @@ export async function parseTimetableWorkbook(file, agents, targetMonth = "", exc
         if (!schedules.has(initials)) schedules.set(initials, { agent_initials: initials, entries: [] });
         shiftValues.forEach((shift, dayIndex) => {
           if (!shift) return;
-          // Weeks often straddle two months (Nov 29 - Dec 5): only the days that fall inside the
-          // month being imported are kept.
+          // Keep the complete week from the workbook, including dates that fall in the
+          // neighboring month. The timetable remains archived under its selected month.
           const date = new Date(activeWeekStart.getFullYear(), activeWeekStart.getMonth(), activeWeekStart.getDate() + dayIndex);
-          if (date.getMonth() !== month - 1 || date.getFullYear() !== year) return;
-          const dateString = `${year}-${String(month).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+          const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
           schedules.get(initials).entries.push({ date: dateString, shift });
         });
       }

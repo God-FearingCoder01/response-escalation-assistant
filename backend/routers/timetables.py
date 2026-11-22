@@ -1,6 +1,6 @@
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -102,8 +102,13 @@ def import_timetable(payload: TimetableImport, company: Company = Depends(get_cu
                     parsed = datetime.strptime(date, "%Y-%m-%d")
                 except ValueError:
                     raise HTTPException(status_code=400, detail=f"Invalid schedule date for {initials}")
-                if parsed.year != payload.year or parsed.month != payload.month:
-                    raise HTTPException(status_code=400, detail=f"Schedule date is outside the selected month for {initials}")
+                first_day = datetime(payload.year, payload.month, 1).date()
+                next_month = datetime(payload.year + (payload.month == 12), payload.month % 12 + 1, 1).date()
+                last_day = next_month - timedelta(days=1)
+                first_calendar_day = first_day - timedelta(days=(first_day.weekday() + 1) % 7)
+                last_calendar_day_exclusive = last_day + timedelta(days=((5 - last_day.weekday()) % 7) + 1)
+                if parsed.date() < first_calendar_day or parsed.date() >= last_calendar_day_exclusive:
+                    raise HTTPException(status_code=400, detail=f"Schedule date is outside the selected month’s calendar weeks for {initials}")
                 if date in seen_dates or not shift:
                     raise HTTPException(status_code=400, detail=f"Duplicate or empty shift entry for {initials}")
                 seen_dates.add(date)
@@ -187,7 +192,7 @@ def get_my_timetable(year: int, month: int, company: Company = Depends(get_curre
 
 
 @router.get("/shift-mates")
-def get_shift_mates(date: str, company: Company = Depends(get_current_company),
+def get_shift_mates(date: str, year: int, month: int, company: Company = Depends(get_current_company),
                     x_agent_initials: Optional[str] = Header(None, alias="X-Agent-Initials")):
     if not x_agent_initials:
         raise HTTPException(status_code=401, detail="Agent profile required")
@@ -205,7 +210,7 @@ def get_shift_mates(date: str, company: Company = Depends(get_current_company),
         )).first()
         if not agent:
             raise HTTPException(status_code=403, detail="Agent profile is not active in this organization")
-        record = _latest_timetable(session, cid, selected_date.year, selected_date.month)
+        record = _latest_timetable(session, cid, year, month)
         if not record:
             raise HTTPException(status_code=404, detail="No timetable has been uploaded for this month")
 
