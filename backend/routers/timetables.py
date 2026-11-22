@@ -191,6 +191,58 @@ def get_my_timetable(year: int, month: int, company: Company = Depends(get_curre
         return {"year": year, "month": month, "entries": mine["entries"], "imported_at": record.created_at.isoformat()}
 
 
+@router.get("/master")
+def get_master_timetable(year: int, month: int, week_start: str,
+                         company: Company = Depends(get_current_company),
+                         current_agent: dict = Depends(require_agent_session)):
+    if year < 2000 or year > 2200:
+        raise HTTPException(status_code=400, detail="Year must be between 2000 and 2200")
+    if month < 1 or month > 12:
+        raise HTTPException(status_code=400, detail="Month must be from 1 to 12")
+    try:
+        start = datetime.strptime(week_start, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Week start must use YYYY-MM-DD format")
+    if start.weekday() != 6:
+        raise HTTPException(status_code=400, detail="Week start must be a Sunday")
+    month_start = datetime(year, month, 1).date()
+    next_month = datetime(year + (month == 12), month % 12 + 1, 1).date()
+    if start >= next_month or start + timedelta(days=7) <= month_start:
+        raise HTTPException(status_code=400, detail="Week does not overlap the selected timetable month")
+
+    with Session(engine) as session:
+        record = _latest_timetable(session, company.id or 1, year, month)
+        if not record:
+            raise HTTPException(status_code=404, detail="No timetable has been uploaded for this month")
+        try:
+            schedules = json.loads(record.schedules_json)
+        except (TypeError, json.JSONDecodeError):
+            schedules = []
+        if not current_agent.get("is_admin") and not any(
+            item.get("agent_initials", "").upper() == current_agent.get("agent_initials")
+            for item in schedules
+        ):
+            raise HTTPException(status_code=403, detail="A timetable is not available for your profile for this month")
+
+        week_end = start + timedelta(days=7)
+        agents = []
+        for item in schedules:
+            entries = [entry for entry in item.get("entries", []) if start.isoformat() <= entry.get("date", "") < week_end.isoformat()]
+            if entries:
+                agents.append({
+                    "agent_initials": item.get("agent_initials"),
+                    "agent_name": item.get("agent_name") or item.get("agent_initials"),
+                    "entries": entries,
+                })
+        return {
+            "year": year,
+            "month": month,
+            "week_start": start.isoformat(),
+            "agents": agents,
+            "imported_at": record.created_at.isoformat(),
+        }
+
+
 @router.get("/shift-mates")
 def get_shift_mates(date: str, year: int, month: int, company: Company = Depends(get_current_company),
                     x_agent_initials: Optional[str] = Header(None, alias="X-Agent-Initials")):

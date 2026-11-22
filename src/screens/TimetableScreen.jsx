@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { fetchMyTimetableApi, fetchShiftMatesApi, fetchTimetableArchiveApi } from "../services/api";
+import { fetchAdminTimetableArchiveApi, fetchMasterTimetableApi, fetchMyTimetableApi, fetchShiftMatesApi, fetchTimetableArchiveApi } from "../services/api";
 import Icon from "../components/Icon";
 
 const monthLabel = (year, month) => new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
@@ -22,7 +22,13 @@ const startsAt8am = (shift) => {
 
 export default function TimetableScreen({ activeScreen, currentAgent }) {
   const [archive, setArchive] = useState([]);
+  const [adminArchive, setAdminArchive] = useState([]);
+  const [adminArchiveLoaded, setAdminArchiveLoaded] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [view, setView] = useState("personal");
+  const [masterWeekIndex, setMasterWeekIndex] = useState(0);
+  const [masterData, setMasterData] = useState(null);
+  const [masterLoading, setMasterLoading] = useState(false);
   const [schedule, setSchedule] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadedArchive, setLoadedArchive] = useState(false);
@@ -39,11 +45,30 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
       if (cancelled) return;
       const list = Array.isArray(items) ? items : [];
       setArchive(list);
-      setSelected((existing) => existing || (list[0] ? `${list[0].year}-${list[0].month}` : `${new Date().getFullYear()}-${new Date().getMonth() + 1}`));
+      setSelected((existing) => list[0] && currentAgent?.is_admin ? `${list[0].year}-${list[0].month}` : (existing || (list[0] ? `${list[0].year}-${list[0].month}` : currentAgent?.is_admin ? null : `${new Date().getFullYear()}-${new Date().getMonth() + 1}`)));
       setLoadedArchive(true);
     });
     return () => { cancelled = true; };
   }, [activeScreen, currentAgent?.agent_initials]);
+
+  useEffect(() => {
+    if (activeScreen !== "timetable" || !currentAgent?.is_admin) return;
+    let cancelled = false;
+    fetchAdminTimetableArchiveApi().then((items) => {
+      if (cancelled) return;
+      const seen = new Set();
+      const list = (Array.isArray(items) ? items : []).filter((item) => {
+        const key = `${item.year}-${item.month}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      setAdminArchive(list);
+      setSelected((existing) => existing || (list[0] ? `${list[0].year}-${list[0].month}` : null));
+      setAdminArchiveLoaded(true);
+    }).catch(() => { if (!cancelled) setAdminArchiveLoaded(true); });
+    return () => { cancelled = true; };
+  }, [activeScreen, currentAgent?.is_admin]);
 
   const [year, month] = (selected || `${new Date().getFullYear()}-${new Date().getMonth() + 1}`).split("-").map(Number);
   useEffect(() => {
@@ -51,7 +76,7 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
-    if (activeScreen !== "timetable" || !currentAgent?.agent_initials || !selected) return;
+    if (activeScreen !== "timetable" || view !== "personal" || !currentAgent?.agent_initials || !selected) return;
     let cancelled = false;
     setLoading(true);
     setError("");
@@ -64,14 +89,15 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
       .catch((err) => { if (!cancelled) setError(err.message || "Could not load this timetable."); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [activeScreen, currentAgent?.agent_initials, selected, year, month]);
+  }, [activeScreen, currentAgent?.agent_initials, selected, year, month, view]);
 
   useEffect(() => {
     setSelectedDate(null);
+    setMasterWeekIndex(0);
   }, [selected]);
 
   useEffect(() => {
-    if (activeScreen !== "timetable" || !currentAgent?.agent_initials || !selectedDate || !schedule) return;
+    if (activeScreen !== "timetable" || view !== "personal" || !currentAgent?.agent_initials || !selectedDate || !schedule) return;
     let cancelled = false;
     setMatesLoading(true);
     setShiftMates(null);
@@ -79,7 +105,7 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
       .then((data) => { if (!cancelled) setShiftMates(data); })
       .finally(() => { if (!cancelled) setMatesLoading(false); });
     return () => { cancelled = true; };
-  }, [activeScreen, currentAgent?.agent_initials, selectedDate, schedule]);
+  }, [activeScreen, currentAgent?.agent_initials, selectedDate, schedule, view]);
 
   const dayMap = useMemo(() => new Map((schedule?.entries || []).map((entry) => [entry.date, entry.shift])), [schedule]);
   const selectedShift = selectedDate ? dayMap.get(selectedDate) : null;
@@ -93,6 +119,22 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
       return date;
     }));
   }, [year, month]);
+  const masterWeek = weeks[masterWeekIndex] || weeks[0] || [];
+  const masterWeekStart = masterWeek[0] ? isoDate(masterWeek[0]) : "";
+  const monthOptions = view === "master" && currentAgent?.is_admin ? adminArchive : archive;
+
+  useEffect(() => {
+    if (activeScreen !== "timetable" || view !== "master" || !currentAgent?.agent_initials || !selected || !masterWeekStart) return;
+    let cancelled = false;
+    setMasterLoading(true);
+    setMasterData(null);
+    setError("");
+    fetchMasterTimetableApi(currentAgent.agent_initials, year, month, masterWeekStart)
+      .then((data) => { if (!cancelled) setMasterData(data); })
+      .catch((err) => { if (!cancelled) setError(err.message || "Could not load the master timetable."); })
+      .finally(() => { if (!cancelled) setMasterLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeScreen, view, currentAgent?.agent_initials, selected, year, month, masterWeekStart]);
   const totals = useMemo(() => {
     const counts = new Map();
     (schedule?.entries || []).forEach(({ shift }) => {
@@ -119,26 +161,30 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
     <section className="max-w-7xl mx-auto space-y-6 animate-fade-in">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[.25em] text-fuchsia-400 font-bold">Your work schedule</p>
-          <h1 className="mt-1 text-3xl sm:text-4xl font-black" style={{ color: "var(--app-text)" }}>{currentAgent.agent_name}'s timetable</h1>
-          <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>Monthly shifts and days off, in one place.</p>
+          <p className="text-xs uppercase tracking-[.25em] text-fuchsia-400 font-bold">{view === "master" ? "Team work schedule" : "Your work schedule"}</p>
+          <h1 className="mt-1 text-3xl sm:text-4xl font-black" style={{ color: "var(--app-text)" }}>{view === "master" ? "Team master timetable" : `${currentAgent.agent_name}'s timetable`}</h1>
+          <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>{view === "master" ? "Weekly shifts for everyone listed in the imported roster." : "Monthly shifts and days off, in one place."}</p>
           <p className="mt-2 text-sm font-medium" style={{ color: "var(--text-muted)" }}><span className="mr-1 text-fuchsia-400">◷</span>{clockNow.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {clockNow.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</p>
         </div>
         <label className="relative flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold" style={{ borderColor: "var(--field-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}>
           <img src="/calendar.png" alt="" className="h-5 w-5 object-contain" />
           {selected && monthLabel(year, month)}
           <span>⌄</span>
-          <select aria-label="Choose timetable month" value={selected || ""} onChange={(event) => setSelected(event.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" disabled={!archive.length}>
-            {archive.map((item) => <option key={`${item.year}-${item.month}-${item.id}`} value={`${item.year}-${item.month}`}>{monthLabel(item.year, item.month)}</option>)}
+          <select aria-label="Choose timetable month" value={selected || ""} onChange={(event) => setSelected(event.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" disabled={!monthOptions.length}>
+            {monthOptions.map((item) => <option key={`${item.year}-${item.month}-${item.id}`} value={`${item.year}-${item.month}`}>{monthLabel(item.year, item.month)}</option>)}
           </select>
         </label>
       </header>
 
-      {!loadedArchive && <div className="rounded-2xl border p-8 text-center text-sm" style={{ borderColor: "var(--panel-border)", color: "var(--text-muted)" }}>Loading your available timetables…</div>}
-      {loadedArchive && !archive.length && <div className="rounded-2xl border p-10 text-center" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}><img src="/calendar.png" alt="" className="mx-auto h-10 w-10 object-contain"/><h2 className="mt-3 text-lg font-bold" style={{ color: "var(--app-text)" }}>No timetable uploaded yet</h2><p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>Your monthly schedule will appear here when your admin imports it.</p></div>}
+      {(!loadedArchive || (currentAgent?.is_admin && !adminArchiveLoaded)) && <div className="rounded-2xl border p-8 text-center text-sm" style={{ borderColor: "var(--panel-border)", color: "var(--text-muted)" }}>Loading your available timetables…</div>}
+      {loadedArchive && (!currentAgent?.is_admin || adminArchiveLoaded) && !archive.length && !(currentAgent?.is_admin && adminArchive.length) && <div className="rounded-2xl border p-10 text-center" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}><img src="/calendar.png" alt="" className="mx-auto h-10 w-10 object-contain"/><h2 className="mt-3 text-lg font-bold" style={{ color: "var(--app-text)" }}>No timetable uploaded yet</h2><p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>Your monthly schedule will appear here when your admin imports it.</p></div>}
+      {(archive.length > 0 || (currentAgent?.is_admin && adminArchive.length > 0)) && <div className="flex gap-2">
+        {archive.length > 0 && <button type="button" onClick={() => { setView("personal"); setSelected(`${archive[0].year}-${archive[0].month}`); }} className={`rounded-xl border px-4 py-2 text-sm font-bold ${view === "personal" ? "border-fuchsia-400 bg-fuchsia-500/15 text-fuchsia-300" : ""}`} style={view !== "personal" ? { borderColor: "var(--panel-border)", color: "var(--text-muted)" } : undefined}>My timetable</button>}
+        {(archive.length > 0 || currentAgent?.is_admin) && <button type="button" onClick={() => { setView("master"); const list = currentAgent?.is_admin ? adminArchive : archive; if (list[0]) setSelected(`${list[0].year}-${list[0].month}`); }} className={`rounded-xl border px-4 py-2 text-sm font-bold ${view === "master" ? "border-fuchsia-400 bg-fuchsia-500/15 text-fuchsia-300" : ""}`} style={view !== "master" ? { borderColor: "var(--panel-border)", color: "var(--text-muted)" } : undefined}>Master timetable</button>}
+      </div>}
       {error && <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-4 text-sm text-rose-300">{error}</div>}
 
-      {archive.length > 0 && <>
+      {view === "personal" && archive.length > 0 && <>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="rounded-2xl border p-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}><p className="text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Scheduled shifts</p><p className="mt-1 text-3xl font-black text-fuchsia-400">{schedule?.entries?.filter((entry) => entry.shift.toLowerCase() !== "off").length ?? "—"}</p></div>
           <div className="rounded-2xl border p-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}><p className="text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Days off</p><p className="mt-1 text-3xl font-black text-slate-300">{schedule?.entries?.filter((entry) => entry.shift.toLowerCase() === "off").length ?? "—"}</p></div>
@@ -181,6 +227,36 @@ export default function TimetableScreen({ activeScreen, currentAgent }) {
           </div>
         </>}
       </>}
+
+      {view === "master" && (archive.length > 0 || (currentAgent?.is_admin && adminArchive.length > 0)) && <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+          <div><p className="text-xs font-bold uppercase tracking-wider text-fuchsia-400">Master timetable</p><h2 className="mt-1 text-lg font-bold" style={{ color: "var(--app-text)" }}>{masterWeek[0] && masterWeek[6] ? `${masterWeek[0].toLocaleDateString(undefined, { day: "numeric", month: "short" })} – ${masterWeek[6].toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}` : "Weekly roster"}</h2></div>
+          <div className="flex items-center gap-2">
+            <button type="button" disabled={masterWeekIndex <= 0} onClick={() => setMasterWeekIndex((index) => Math.max(0, index - 1))} className="rounded-lg border px-3 py-2 text-sm font-bold disabled:opacity-40" style={{ borderColor: "var(--field-border)", color: "var(--app-text)" }}>← Previous week</button>
+            <span className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Week {masterWeekIndex + 1} of {weeks.length}</span>
+            <button type="button" disabled={masterWeekIndex >= weeks.length - 1} onClick={() => setMasterWeekIndex((index) => Math.min(weeks.length - 1, index + 1))} className="rounded-lg border px-3 py-2 text-sm font-bold disabled:opacity-40" style={{ borderColor: "var(--field-border)", color: "var(--app-text)" }}>Next week →</button>
+          </div>
+        </div>
+        {masterLoading ? <div className="rounded-2xl border p-8 text-center text-sm" style={{ borderColor: "var(--panel-border)", color: "var(--text-muted)" }}>Loading master timetable…</div> : masterData && <div className="overflow-x-auto rounded-2xl border shadow-xl" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)" }}>
+          <table className="min-w-[900px] w-full border-collapse text-left text-sm">
+            <thead><tr>
+              <th className="sticky left-0 z-10 min-w-[12rem] border-b border-r px-4 py-3 text-xs font-bold uppercase tracking-wide" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}>Agent</th>
+              {masterWeek.map((date) => <th key={isoDate(date)} className="min-w-28 border-b border-r px-3 py-3 text-center text-xs font-bold uppercase tracking-wide" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--field-bg)", color: "var(--app-text)" }}>{date.toLocaleDateString(undefined, { weekday: "short" })}<span className="mt-1 block normal-case" style={{ color: "var(--text-muted)" }}>{date.toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span></th>)}
+            </tr></thead>
+            <tbody>{masterData.agents.map((agent) => {
+              const entries = new Map(agent.entries.map((entry) => [entry.date, entry.shift]));
+              return <tr key={agent.agent_initials}>
+                <th scope="row" className="sticky left-0 z-10 border-b border-r px-4 py-3 font-semibold" style={{ borderColor: "var(--panel-border)", backgroundColor: "var(--panel-bg)", color: "var(--app-text)" }}>{agent.agent_name}<span className="ml-2 text-xs font-normal" style={{ color: "var(--text-muted)" }}>{agent.agent_initials}</span></th>
+                {masterWeek.map((date) => {
+                  const shift = entries.get(isoDate(date));
+                  return <td key={isoDate(date)} className="border-b border-r px-2 py-2 text-center" style={{ borderColor: "var(--panel-border)" }}>{shift ? <span className={`inline-block min-w-24 rounded-md px-2 py-2 text-xs font-extrabold ${shiftClass(shift)}`}>{shift}</span> : <span className="text-xs" style={{ color: "var(--text-muted)" }}>—</span>}</td>;
+                })}
+              </tr>;
+            })}</tbody>
+          </table>
+          {!masterData.agents.length && <p className="p-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>No agent shifts are listed for this week.</p>}
+        </div>}
+      </div>}
     </section>
   );
 }

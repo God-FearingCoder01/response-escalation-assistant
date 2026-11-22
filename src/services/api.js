@@ -788,6 +788,13 @@ export async function fetchMyTimetableApi(agentInitials, year, month) {
   });
 }
 
+export async function fetchMasterTimetableApi(agentInitials, year, month, weekStart) {
+  const params = new URLSearchParams({ year: String(year), month: String(month), week_start: weekStart });
+  return await safeFetchJson(`${API_BASE}/timetables/master?${params}`, {
+    headers: { "X-Agent-Initials": agentInitials || "" },
+  });
+}
+
 export async function fetchShiftMatesApi(agentInitials, date, year, month) {
   const params = new URLSearchParams({ date, year: String(year), month: String(month) });
   return await safeFetchJson(`${API_BASE}/timetables/shift-mates?${params}`, {
